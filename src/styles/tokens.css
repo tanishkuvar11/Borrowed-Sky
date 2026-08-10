@@ -1,0 +1,158 @@
+/**
+ * Twilight Instrument — design tokens.
+ *
+ * The palette is built for a screen used outdoors at night. Backgrounds sit
+ * near black so the display does not blow out dark-adapted eyes, brass carries
+ * all structure and measurement, and exactly two accents carry meaning:
+ * teal for "you can see this now", rose for "you cannot".
+ */
+
+:root {
+  /* --- surface: twilight indigo through deep plum --- */
+  --ink-void: #07070f;
+  --ink-deep: #0d0d1c;
+  --ink-indigo: #141433;
+  --ink-plum: #241a38;
+  --ink-plum-lift: #322449;
+
+  /* --- brass: structure, scales, engraved rules --- */
+  --brass: #c9a227;
+  --brass-bright: #e8cc7a;
+  --brass-dim: #7d6520;
+  --brass-hairline: rgba(201, 162, 39, 0.22);
+  --brass-engrave: rgba(201, 162, 39, 0.1);
+
+  /* --- light --- */
+  --starlight: #f2ede0;
+  --starlight-soft: #cfc8b8;
+  --starlight-mute: #8b8578;
+
+  /* --- meaning --- */
+  --visible: #4fd8c4;
+  --visible-dim: rgba(79, 216, 196, 0.16);
+  --dusk-rose: #e0879b;
+  --dusk-rose-dim: rgba(224, 135, 155, 0.16);
+
+  /* --- translucent surfaces that float over the sky --- */
+  --veil-strong: rgba(7, 7, 15, 0.82);
+  --veil: rgba(7, 7, 15, 0.62);
+  --veil-soft: rgba(13, 13, 28, 0.76);
+  --lift: rgba(36, 26, 56, 0.5);
+  --brass-wash: rgba(201, 162, 39, 0.08);
+
+  /* --- type --- */
+  --font-display: 'Cabinet Grotesk', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-data: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', monospace;
+
+  /* A modest scale — this is an instrument panel, not a poster. */
+  --t-display: clamp(1.75rem, 6vw, 2.6rem);
+  --t-title: clamp(1.15rem, 3.6vw, 1.5rem);
+  --t-body: 1rem;
+  --t-small: 0.8125rem;
+  --t-micro: 0.6875rem;
+
+  /* --- geometry --- */
+  --rule: 1px;
+  --radius: 3px;
+  --radius-panel: 6px;
+  --gap: 1rem;
+  --pad-edge: clamp(1rem, 4vw, 1.75rem);
+
+  --shadow-panel: 0 10px 40px rgba(0, 0, 0, 0.55);
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  color-scheme: dark;
+}
+
+/**
+ * Night-vision mode. Astronomers use red light because it preserves dark
+ * adaptation; a white phone screen costs you twenty minutes of night sight.
+ * This collapses the whole interface onto a red-only ramp.
+ */
+:root[data-vision='night'] {
+  --ink-void: #060000;
+  --ink-deep: #0d0202;
+  --ink-indigo: #170303;
+  --ink-plum: #200505;
+  --ink-plum-lift: #2c0707;
+
+  --brass: #c2402f;
+  --brass-bright: #ff6a4d;
+  --brass-dim: #6d1f16;
+  --brass-hairline: rgba(255, 106, 77, 0.24);
+  --brass-engrave: rgba(255, 106, 77, 0.1);
+
+  --starlight: #ff9c82;
+  --starlight-soft: #d1705c;
+  --starlight-mute: #8a4234;
+
+  --visible: #ff7a5c;
+  --visible-dim: rgba(255, 122, 92, 0.16);
+  --dusk-rose: #c2402f;
+  --dusk-rose-dim: rgba(194, 64, 47, 0.18);
+
+  --veil-strong: rgba(8, 1, 1, 0.85);
+  --veil: rgba(8, 1, 1, 0.66);
+  --veil-soft: rgba(20, 4, 3, 0.78);
+  --lift: rgba(46, 10, 8, 0.5);
+  --brass-wash: rgba(255, 106, 77, 0.08);
+}
+
+/* --- shared primitives --------------------------------------------------- */
+
+/**
+ * The engraved label. Used for every field name in the interface, so a reading
+ * always looks like it was stamped onto the instrument rather than typed.
+ */
+.engrave {
+  font-family: var(--font-display);
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+/** Every measured number in the app. Tabular so digits do not jitter live. */
+.readout {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  color: var(--starlight);
+}
+
+/**
+ * Provenance mark. This app's central claim is that nothing is invented, so
+ * every panel carries the source of its numbers in the smallest type available —
+ * the equivalent of a maker's mark engraved on the barrel.
+ */
+.provenance {
+  font-family: var(--font-data);
+  font-size: var(--t-micro);
+  color: var(--starlight-mute);
+  letter-spacing: 0.02em;
+}
+
+.panel {
+  background: linear-gradient(180deg, var(--ink-plum) 0%, var(--ink-indigo) 100%);
+  border: var(--rule) solid var(--brass-hairline);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-panel);
+}
+
+/* A hairline with a brass tick at its left end, like a scale on a rule. */
+.hairline {
+  height: 1px;
+  background: var(--brass-engrave);
+  position: relative;
+}
+.hairline::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: -2px;
+  width: 1px;
+  height: 5px;
+  background: var(--brass);
+}

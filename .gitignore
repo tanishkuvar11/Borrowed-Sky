@@ -1,0 +1,19 @@
+node_modules/
+dist/
+.vercel/
+
+# Local secrets. Never commit watsonx credentials.
+.env
+.env.local
+.env.*.local
+
+# Downloaded source catalogues. The compact catalogues generated from them live
+# in public/data/ and ARE committed — `npm run catalog` re-downloads these.
+.catalog-cache/
+
+# Verification output.
+scripts/verify/shots/
+
+*.log
+.DS_Store
+Thumbs.db
