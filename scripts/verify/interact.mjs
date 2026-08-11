@@ -195,7 +195,7 @@ async function main() {
     check('journal entry stored', JSON.parse(logged).stored === 1, logged);
 
     await evalPage(
-      `[...document.querySelectorAll('.rail__item')].find(b => b.textContent.trim().startsWith('Journal'))?.click()`,
+      `[...document.querySelectorAll('.rail__item')].find(b => b.textContent.trim().startsWith('Logbook'))?.click()`,
     );
     await sleep(900);
     const chart = await evalPage(`
@@ -210,7 +210,7 @@ async function main() {
 
     console.log('\nask a question in the guide:');
     await evalPage(
-      `[...document.querySelectorAll('.rail__item')].find(b => b.textContent.trim().startsWith('Guide'))?.click()`,
+      `[...document.querySelectorAll('.rail__item')].find(b => b.textContent.trim().startsWith('Explore'))?.click()`,
     );
     await sleep(700);
     await evalPage(`document.querySelectorAll('.chat__suggestions .pill')[0]?.click()`);

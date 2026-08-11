@@ -22,6 +22,38 @@
   --brass-hairline: rgba(201, 162, 39, 0.22);
   --brass-engrave: rgba(201, 162, 39, 0.1);
 
+  /*
+   * Brass as a material rather than a colour.
+   *
+   * A single flat gold fill reads as a swatch; what makes metal look like metal
+   * is that it reflects a *scene* — bright where it catches light, near-black in
+   * the shadowed quarter, with a hard specular line between. So every brass
+   * edge in the app is this gradient, and the highlight always runs the same way
+   * because a single light source is what stops a panel of instruments from
+   * looking like a collection of stickers.
+   */
+  --brass-metal: linear-gradient(
+    152deg,
+    #4a3a10 0%,
+    #c9a227 14%,
+    #f6e4ad 26%,
+    #a8842a 42%,
+    #6d5518 58%,
+    #e8cc7a 74%,
+    #8a6d21 88%,
+    #453510 100%
+  );
+  --brass-metal-soft: linear-gradient(
+    152deg,
+    #3d3010 0%,
+    #8a6d21 30%,
+    #c9a227 50%,
+    #6d5518 72%,
+    #33280c 100%
+  );
+  /* Engraved into the metal: dark bed, light lower lip. */
+  --engraved: inset 0 1px 1px rgba(0, 0, 0, 0.8), inset 0 -1px 0 rgba(232, 204, 122, 0.14);
+
   /* --- light --- */
   --starlight: #f2ede0;
   --starlight-soft: #cfc8b8;
@@ -39,6 +71,12 @@
   --veil-soft: rgba(13, 13, 28, 0.76);
   --lift: rgba(36, 26, 56, 0.5);
   --brass-wash: rgba(201, 162, 39, 0.08);
+
+  /* Faces of the instrument: engraved plates, and the dished recess behind a bezel. */
+  --plate-top: rgba(24, 18, 40, 0.92);
+  --plate-bottom: rgba(8, 7, 18, 0.94);
+  --dish-top: #241a38;
+  --dish-bottom: #0a0a16;
 
   /* --- type --- */
   --font-display: 'Cabinet Grotesk', 'Segoe UI', system-ui, sans-serif;
@@ -92,11 +130,37 @@
   --dusk-rose: #c2402f;
   --dusk-rose-dim: rgba(194, 64, 47, 0.18);
 
+  --brass-metal: linear-gradient(
+    152deg,
+    #3a0d08 0%,
+    #a8402c 14%,
+    #ff9c82 26%,
+    #8f3324 42%,
+    #55190f 58%,
+    #ff6a4d 74%,
+    #7a2a1c 88%,
+    #2d0a06 100%
+  );
+  --brass-metal-soft: linear-gradient(
+    152deg,
+    #300b06 0%,
+    #6d1f16 30%,
+    #c2402f 50%,
+    #55190f 72%,
+    #240705 100%
+  );
+  --engraved: inset 0 1px 1px rgba(0, 0, 0, 0.85), inset 0 -1px 0 rgba(255, 122, 92, 0.14);
+
   --veil-strong: rgba(8, 1, 1, 0.85);
   --veil: rgba(8, 1, 1, 0.66);
   --veil-soft: rgba(20, 4, 3, 0.78);
   --lift: rgba(46, 10, 8, 0.5);
   --brass-wash: rgba(255, 106, 77, 0.08);
+
+  --plate-top: rgba(38, 8, 6, 0.92);
+  --plate-bottom: rgba(12, 2, 2, 0.94);
+  --dish-top: #2c0806;
+  --dish-bottom: #0b0202;
 }
 
 /* --- shared primitives --------------------------------------------------- */

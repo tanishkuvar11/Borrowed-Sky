@@ -5,33 +5,57 @@ import { SkyView } from './components/SkyView';
 import { TimelineView } from './components/TimelineView';
 import { GuideView } from './components/GuideView';
 import { JournalView } from './components/JournalView';
+import { OrientationSheet, orientationState } from './components/OrientationSheet';
+import { SettingsSheet } from './components/SettingsSheet';
+import {
+  IconCompassRose,
+  IconEmblem,
+  IconExplore,
+  IconLogbook,
+  IconMenu,
+  IconSky,
+  IconTonight,
+} from './components/icons';
 
 import { timezoneMismatch, useObserverSite } from './hooks/useObserverSite';
+import { useOrientation } from './hooks/useOrientation';
 import { useSkyData } from './hooks/useSkyData';
 import { useJournal } from './lib/journal';
-import { DARKNESS_LABEL } from './lib/astro/solar';
 import type { SkyBody } from './lib/astro/types';
 import type { Tone } from './lib/ai';
 
 import './styles/tokens.css';
 import './styles/app.css';
 
-type View = 'sky' | 'tonight' | 'guide' | 'journal';
+type View = 'sky' | 'explore' | 'tonight' | 'logbook';
 
-const VIEWS: { id: View; label: string }[] = [
-  { id: 'sky', label: 'Sky' },
-  { id: 'tonight', label: 'Tonight' },
-  { id: 'guide', label: 'Guide' },
-  { id: 'journal', label: 'Journal' },
+const VIEWS: { id: View; label: string; Icon: typeof IconSky }[] = [
+  { id: 'sky', label: 'Sky', Icon: IconSky },
+  { id: 'explore', label: 'Explore', Icon: IconExplore },
+  { id: 'tonight', label: 'Tonight', Icon: IconTonight },
+  { id: 'logbook', label: 'Logbook', Icon: IconLogbook },
 ];
 
+const COMPASS_HINT: Record<string, string> = {
+  live: 'Compass tracking',
+  paused: 'Compass paused',
+  ask: 'Turn on compass tracking',
+  blocked: 'Compass unavailable — tap for why',
+};
+
 export default function App() {
-  const { site, status, error, requestGps, setManual, clear } = useObserverSite();
+  const { site, status, error, permission, requestGps, setManual, clear } = useObserverSite();
   const sky = useSkyData(site);
   const journal = useJournal();
 
+  // Orientation lives here rather than in the sky view, because the header's
+  // rose reports it and the sky view is not always the visible screen.
+  const orientation = useOrientation();
+  const [followCompass, setFollowCompass] = useState(true);
+
   const [view, setView] = useState<View>('sky');
   const [tone, setTone] = useState<Tone>('standard');
+  const [sheet, setSheet] = useState<'none' | 'settings' | 'compass'>('none');
   const [nightVision, setNightVision] = useState(
     () => localStorage.getItem('borrowed-sky:vision') === 'night',
   );
@@ -62,40 +86,43 @@ export default function App() {
       <LocationGate
         status={status}
         error={error}
+        permission={permission}
         onRequestGps={requestGps}
         onManual={setManual}
       />
     );
   }
 
+  const compassLive = orientation.status === 'active' && followCompass;
+  const compassState = orientationState(orientation, followCompass);
+
   return (
     <div className="app">
       <header className="topbar">
-        <div className="topbar__place">
-          <span className="engrave">
-            {site.source === 'gps' ? 'Your location' : 'Set by hand'}
+        <button
+          className="rose rose--plain"
+          onClick={() => setSheet('settings')}
+          aria-label="Menu"
+        >
+          <span className="rose__face">
+            <IconMenu size={20} />
           </span>
-          <button className="topbar__coords readout" onClick={clear} title="Change location">
-            {site.latitude.toFixed(2)}°, {site.longitude.toFixed(2)}°
-          </button>
-        </div>
+        </button>
 
-        <div className="topbar__conditions">
-          <span className="engrave">
-            {sky.conditions ? DARKNESS_LABEL[sky.conditions.darkness] : 'Reading sky'}
-          </span>
-          <span className="readout topbar__clock">
-            {sky.now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-          </span>
+        <div className="wordmark">
+          <h1 className="wordmark__name">Borrowed Sky</h1>
+          <p className="wordmark__tag">AI-powered stargazing companion</p>
         </div>
 
         <button
-          className={nightVision ? 'pill is-on' : 'pill'}
-          onClick={() => setNightVision((v) => !v)}
-          aria-pressed={nightVision}
-          title="Red-only display, so a bright screen does not cost you your night vision"
+          className={`rose rose--${compassState}`}
+          onClick={() => setSheet('compass')}
+          aria-label={COMPASS_HINT[compassState]}
+          title={COMPASS_HINT[compassState]}
         >
-          Night vision
+          <span className="rose__face">
+            <IconCompassRose size={20} />
+          </span>
         </button>
       </header>
 
@@ -120,8 +147,14 @@ export default function App() {
             loadingCatalog={sky.loadingCatalog}
             catalogError={sky.catalogError}
             nightVision={nightVision}
+            orientation={orientation}
+            followCompass={followCompass}
+            onFollowCompass={setFollowCompass}
+            onOpenCompass={() => setSheet('compass')}
+            onChangeSite={clear}
             onToneChange={setTone}
             onRecord={record}
+            onOpenGuide={() => setView('explore')}
             isLogged={journal.seenTonight}
           />
         )}
@@ -139,7 +172,7 @@ export default function App() {
           />
         )}
 
-        {view === 'guide' && (
+        {view === 'explore' && (
           <GuideView
             site={site}
             now={sky.now}
@@ -151,7 +184,7 @@ export default function App() {
           />
         )}
 
-        {view === 'journal' && (
+        {view === 'logbook' && (
           <JournalView
             entries={journal.entries}
             stats={journal.stats}
@@ -168,20 +201,81 @@ export default function App() {
       )}
 
       <nav className="rail" aria-label="Views">
-        {VIEWS.map((item) => (
-          <button
-            key={item.id}
-            className={view === item.id ? 'rail__item is-on' : 'rail__item'}
-            onClick={() => setView(item.id)}
-            aria-current={view === item.id ? 'page' : undefined}
-          >
-            {item.label}
-            {item.id === 'journal' && journal.stats.total > 0 && (
-              <span className="rail__count readout">{journal.stats.distinctObjects}</span>
-            )}
-          </button>
+        {VIEWS.slice(0, 2).map((item) => (
+          <RailItem key={item.id} item={item} view={view} onSelect={setView} journal={journal} />
+        ))}
+
+        {/*
+          The centre emblem returns to the sky and hands the view back to the
+          compass — the "put me back where I am standing" control, which is the
+          one thing you want after wandering off in a drag.
+        */}
+        <button
+          className="rail__emblem"
+          onClick={() => {
+            setView('sky');
+            setFollowCompass(true);
+          }}
+          aria-label="Back to the live sky"
+          title="Back to the live sky"
+        >
+          <span className={compassLive ? 'rail__emblem-face is-live' : 'rail__emblem-face'}>
+            <IconEmblem size={34} />
+          </span>
+        </button>
+
+        {VIEWS.slice(2).map((item) => (
+          <RailItem key={item.id} item={item} view={view} onSelect={setView} journal={journal} />
         ))}
       </nav>
+
+      {sheet === 'settings' && (
+        <SettingsSheet
+          site={site}
+          tone={tone}
+          nightVision={nightVision}
+          onTone={setTone}
+          onNightVision={setNightVision}
+          onChangeSite={clear}
+          onClose={() => setSheet('none')}
+        />
+      )}
+
+      {sheet === 'compass' && (
+        <OrientationSheet
+          orientation={orientation}
+          following={followCompass}
+          onFollow={setFollowCompass}
+          onClose={() => setSheet('none')}
+        />
+      )}
     </div>
+  );
+}
+
+function RailItem({
+  item,
+  view,
+  onSelect,
+  journal,
+}: {
+  item: (typeof VIEWS)[number];
+  view: View;
+  onSelect: (view: View) => void;
+  journal: ReturnType<typeof useJournal>;
+}) {
+  const on = view === item.id;
+  return (
+    <button
+      className={on ? 'rail__item is-on' : 'rail__item'}
+      onClick={() => onSelect(item.id)}
+      aria-current={on ? 'page' : undefined}
+    >
+      <item.Icon size={21} />
+      <span className="rail__label">{item.label}</span>
+      {item.id === 'logbook' && journal.stats.total > 0 && (
+        <span className="rail__count readout">{journal.stats.distinctObjects}</span>
+      )}
+    </button>
   );
 }

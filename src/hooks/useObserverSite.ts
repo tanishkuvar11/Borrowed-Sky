@@ -45,10 +45,38 @@ export function useObserverSite() {
   const [site, setSite] = useState<ObserverSite | null>(load);
   const [status, setStatus] = useState<LocationStatus>(() => (load() ? 'ready' : 'idle'));
   const [error, setError] = useState<string | null>(null);
+  const [permission, setPermission] = useState<PermissionState | 'unknown'>('unknown');
 
   useEffect(() => {
     save(site);
   }, [site]);
+
+  /**
+   * "Refused" covers two different situations that need different advice: a
+   * prompt that was answered no, and a prompt that was never allowed to appear
+   * because location is switched off for the browser at the OS level. The
+   * Geolocation API reports both as PERMISSION_DENIED. The Permissions API can
+   * tell them apart — 'prompt' means the browser still intends to ask, so a
+   * denial arriving anyway points outside the browser.
+   */
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !navigator.permissions?.query) return;
+    let live = true;
+    navigator.permissions
+      .query({ name: 'geolocation' as PermissionName })
+      .then((result) => {
+        if (!live) return;
+        setPermission(result.state);
+        result.onchange = () => setPermission(result.state);
+      })
+      .catch(() => {
+        // Safari has historically not supported querying this. Not knowing is a
+        // valid answer; it just means the guidance stays general.
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
 
   const requestGps = useCallback(() => {
     if (!('geolocation' in navigator)) {
@@ -73,7 +101,9 @@ export function useObserverSite() {
       (err) => {
         if (err.code === err.PERMISSION_DENIED) {
           setStatus('denied');
-          setError('Location was blocked. Enter your coordinates instead, or allow location and try again.');
+          setError(
+            'Your browser refused to share your location. Nothing is lost — typing coordinates in gives exactly the same sky.',
+          );
         } else {
           setStatus('unavailable');
           setError(
@@ -99,7 +129,7 @@ export function useObserverSite() {
     setError(null);
   }, []);
 
-  return { site, status, error, requestGps, setManual, clear };
+  return { site, status, error, permission, requestGps, setManual, clear };
 }
 
 /**

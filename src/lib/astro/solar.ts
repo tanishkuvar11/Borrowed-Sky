@@ -191,6 +191,7 @@ export function computeConditions(when: Date, site: ObserverSite): SkyConditions
   const darkness = darknessFromSunAltitude(sun.altitude);
   return {
     sunAltitude: sun.altitude,
+    sunAzimuth: sun.azimuth,
     darkness,
     summary: conditionsSummary(darkness, moon.illuminatedFraction ?? 0, moon.altitude > 0),
     moonIlluminatedFraction: moon.illuminatedFraction ?? 0,

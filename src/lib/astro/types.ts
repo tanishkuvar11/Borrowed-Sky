@@ -60,6 +60,12 @@ export type DarknessLevel =
 
 export interface SkyConditions {
   sunAltitude: number;
+  /**
+   * Where the Sun is, in degrees clockwise from true north. Still meaningful
+   * once it has set: it is the bearing the afterglow sits on, which is why the
+   * renderer needs it.
+   */
+  sunAzimuth: number;
   darkness: DarknessLevel;
   /** Plain-language summary of how much can realistically be seen right now. */
   summary: string;

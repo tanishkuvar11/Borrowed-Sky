@@ -13,12 +13,23 @@ import type { LocationStatus } from '../hooks/useObserverSite';
 export interface LocationGateProps {
   status: LocationStatus;
   error: string | null;
+  /** What the browser says it intends to do, when it is willing to say. */
+  permission: PermissionState | 'unknown';
   onRequestGps: () => void;
   onManual: (latitude: number, longitude: number, label?: string) => void;
 }
 
-export function LocationGate({ status, error, onRequestGps, onManual }: LocationGateProps) {
-  const [showManual, setShowManual] = useState(false);
+export function LocationGate({
+  status,
+  error,
+  permission,
+  onRequestGps,
+  onManual,
+}: LocationGateProps) {
+  // Once the browser has refused, the way forward is the form — so open it
+  // rather than leaving someone staring at a button that has already failed.
+  const [manualOpened, setManualOpened] = useState(false);
+  const showManual = manualOpened || status === 'denied' || status === 'unavailable';
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
@@ -72,8 +83,33 @@ export function LocationGate({ status, error, onRequestGps, onManual }: Location
 
           {error && <p className="gate__error">{error}</p>}
 
+          {status === 'denied' && (
+            <div className="gate__hint">
+              {permission === 'prompt' ? (
+                <p>
+                  Safari says it still intends to ask you, but the request was refused before any
+                  prompt appeared. That points outside the browser: open Settings →{' '}
+                  <strong>Privacy &amp; Security</strong> → <strong>Location Services</strong> and
+                  check it is on, then find <strong>Safari Websites</strong> in that list and set it
+                  to <strong>While Using the App</strong>.
+                </p>
+              ) : (
+                <p>
+                  On iPhone this is usually one of two switches. In Safari, tap <strong>ᴀA</strong>{' '}
+                  in the address bar → <strong>Website Settings</strong> → <strong>Location</strong>{' '}
+                  → Allow. If that is already set, check Settings →{' '}
+                  <strong>Privacy &amp; Security</strong> → <strong>Location Services</strong> →{' '}
+                  <strong>Safari Websites</strong>. Then reload and tap the button again.
+                </p>
+              )}
+              <p className="provenance">
+                Browser permission state: <span className="readout">{permission}</span>
+              </p>
+            </div>
+          )}
+
           {!showManual ? (
-            <button className="button button--quiet" onClick={() => setShowManual(true)}>
+            <button className="button button--quiet" onClick={() => setManualOpened(true)}>
               Enter coordinates instead
             </button>
           ) : (

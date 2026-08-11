@@ -1,5 +1,5 @@
 /**
- * The sky screen: the canvas, the controls that aim it, and the panel that
+ * The sky screen: the canvas, the instruments read off it, and the panel that
  * explains whatever you tapped.
  *
  * There are two ways to aim: the compass, and dragging. The compass is better
@@ -12,7 +12,10 @@ import { MakeTime } from 'astronomy-engine';
 
 import { SkyCanvas } from './SkyCanvas';
 import { ObjectSheet } from './ObjectSheet';
-import { useOrientation } from '../hooks/useOrientation';
+import { ReadoutPanel } from './ReadoutPanel';
+import { CompassStrip } from './CompassStrip';
+import { GuidePlaque } from './GuidePlaque';
+import { orientationState, type Orientation } from './OrientationSheet';
 import {
   eqjToHorMatrix,
   horVectorToAltAz,
@@ -29,6 +32,13 @@ import type { Tone } from '../lib/ai';
 const MIN_FOV = 20;
 const MAX_FOV = 110;
 
+/** What the strip says when it is not being driven by the phone. */
+const AIM_NOTE: Record<string, string> = {
+  ask: 'Manual mode · tap the rose to use your compass',
+  blocked: 'Manual mode · drag the sky to look around',
+  paused: 'Manual mode · tap the emblem to follow your phone again',
+};
+
 export interface SkyViewProps {
   catalog: StarCatalog | null;
   constellations: ConstellationFigure[];
@@ -41,8 +51,14 @@ export interface SkyViewProps {
   loadingCatalog: boolean;
   catalogError: string | null;
   nightVision: boolean;
+  orientation: Orientation;
+  followCompass: boolean;
+  onFollowCompass: (on: boolean) => void;
+  onOpenCompass: () => void;
+  onChangeSite: () => void;
   onToneChange: (tone: Tone) => void;
   onRecord: (body: SkyBody) => void;
+  onOpenGuide: () => void;
   isLogged: (name: string) => boolean;
 }
 
@@ -58,16 +74,20 @@ export function SkyView({
   loadingCatalog,
   catalogError,
   nightVision,
+  orientation,
+  followCompass,
+  onFollowCompass,
+  onOpenCompass,
+  onChangeSite,
   onToneChange,
   onRecord,
+  onOpenGuide,
   isLogged,
 }: SkyViewProps) {
-  const orientation = useOrientation();
-  const [followCompass, setFollowCompass] = useState(true);
   const [fov, setFov] = useState(75);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showConstellations, setShowConstellations] = useState(true);
-  const [showGrid, setShowGrid] = useState(true);
+  const [showGrid, setShowGrid] = useState(false);
 
   // Where the view points when the compass is not driving it. Starts aimed at
   // the celestial equator's high point for this latitude, which is where most
@@ -101,7 +121,7 @@ export function SkyView({
   const handlePan = useCallback(
     (deltaAzimuth: number, deltaAltitude: number) => {
       if (followCompass && orientation.status === 'active') {
-        setFollowCompass(false);
+        onFollowCompass(false);
         setManualAim({
           azimuth: cameraRef.current.azimuth,
           altitude: cameraRef.current.altitude,
@@ -109,12 +129,12 @@ export function SkyView({
         });
       }
       setManualAim((prev) => ({
-        azimuth: ((prev.azimuth + deltaAzimuth) % 360 + 360) % 360,
+        azimuth: (((prev.azimuth + deltaAzimuth) % 360) + 360) % 360,
         altitude: Math.max(-20, Math.min(89, prev.altitude + deltaAltitude)),
         roll: 0,
       }));
     },
-    [followCompass, orientation.status],
+    [followCompass, orientation.status, onFollowCompass],
   );
 
   const handleZoom = useCallback((factor: number) => {
@@ -165,9 +185,7 @@ export function SkyView({
     if (selectedBody && selectedBody.altitude < -5) setSelectedId(null);
   }, [selectedBody]);
 
-  const aimStatus = compassLive
-    ? `Tracking · facing ${compassPoint(camera.azimuth)}`
-    : `Drag to look around · facing ${compassPoint(camera.azimuth)}`;
+  const aimNote = AIM_NOTE[orientationState(orientation, followCompass)];
 
   return (
     <div className="sky-view">
@@ -209,28 +227,46 @@ export function SkyView({
         </div>
       )}
 
-      <div className="sky-view__status">
-        <span className="readout">{aimStatus}</span>
-        <span className="readout sky-view__fov">{Math.round(fov)}° field</span>
-      </div>
-
-      <CompassControls orientation={orientation} following={compassLive} onFollow={setFollowCompass} />
+      <ReadoutPanel site={site} now={now} onChangeSite={onChangeSite} />
 
       <div className="sky-view__layers">
         <button
-          className={showConstellations ? 'pill is-on' : 'pill'}
+          className={showConstellations ? 'layer-chip is-on' : 'layer-chip'}
           onClick={() => setShowConstellations((v) => !v)}
           aria-pressed={showConstellations}
         >
           Figures
         </button>
         <button
-          className={showGrid ? 'pill is-on' : 'pill'}
+          className={showGrid ? 'layer-chip is-on' : 'layer-chip'}
           onClick={() => setShowGrid((v) => !v)}
           aria-pressed={showGrid}
         >
           Grid
         </button>
+        <span className="layer-chip layer-chip--static readout">{Math.round(fov)}°</span>
+      </div>
+
+      <div className="sky-view__deck">
+        <CompassStrip heading={camera.azimuth} live={compassLive} />
+
+        {aimNote && (
+          <button className="aim-note" onClick={onOpenCompass}>
+            {aimNote} · facing {compassPoint(camera.azimuth)}
+          </button>
+        )}
+
+        {conditions && (
+          <GuidePlaque
+            site={site}
+            now={now}
+            bodies={bodies}
+            conditions={conditions}
+            timeline={timeline}
+            tone={tone}
+            onOpenGuide={onOpenGuide}
+          />
+        )}
       </div>
 
       {selectedBody && conditions && (
@@ -247,118 +283,6 @@ export function SkyView({
           onClose={() => setSelectedId(null)}
           onRecord={onRecord}
         />
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-
-function CompassControls({
-  orientation,
-  following,
-  onFollow,
-}: {
-  orientation: ReturnType<typeof useOrientation>;
-  following: boolean;
-  onFollow: (on: boolean) => void;
-}) {
-  const [showCalibration, setShowCalibration] = useState(false);
-
-  if (orientation.status === 'unsupported') {
-    return (
-      <div className="compass-bar">
-        <p className="compass-bar__note">
-          This device has no compass. Drag the sky to look around — everything shown is still
-          computed for your exact place and time.
-        </p>
-      </div>
-    );
-  }
-
-  if (orientation.status === 'needs-permission') {
-    return (
-      <div className="compass-bar">
-        <button
-          className="button button--primary"
-          onClick={() => {
-            void orientation.enable();
-          }}
-        >
-          Turn on compass tracking
-        </button>
-        <p className="compass-bar__note">
-          Your phone needs your permission to read its compass. Until then, drag to look around.
-        </p>
-      </div>
-    );
-  }
-
-  if (orientation.status === 'denied') {
-    return (
-      <div className="compass-bar">
-        <p className="compass-bar__note">
-          Compass access was declined, so the view will not follow your phone. Drag to look around,
-          or allow motion access in your browser settings and reload.
-        </p>
-      </div>
-    );
-  }
-
-  if (orientation.status === 'waiting') {
-    return (
-      <div className="compass-bar">
-        <p className="compass-bar__note">Waiting for the compass… move your phone a little.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="compass-bar compass-bar--active">
-      <div className="compass-bar__row">
-        <button
-          className={following ? 'pill is-on' : 'pill'}
-          onClick={() => onFollow(!following)}
-          aria-pressed={following}
-        >
-          {following ? 'Following your phone' : 'Follow my phone'}
-        </button>
-        <button className="pill" onClick={() => setShowCalibration((v) => !v)}>
-          Calibrate
-        </button>
-      </div>
-
-      {!orientation.absolute && (
-        <p className="compass-bar__warn">
-          This browser is reporting a heading with no true-north reference, so the direction may be
-          rotated. Point your phone at a landmark you can identify and nudge the correction below.
-        </p>
-      )}
-      {orientation.absolute && orientation.accuracyDegrees !== null && orientation.accuracyDegrees > 20 && (
-        <p className="compass-bar__warn">
-          Your phone reports the compass is only accurate to about {Math.round(orientation.accuracyDegrees)}°.
-          Wave it in a figure of eight to recalibrate.
-        </p>
-      )}
-
-      {showCalibration && (
-        <div className="calibration">
-          <span className="engrave">Correction</span>
-          <button className="pill" onClick={() => orientation.nudgeCalibration(-5)} aria-label="Rotate left 5 degrees">
-            −5°
-          </button>
-          <span className="readout calibration__value">
-            {orientation.calibration > 180
-              ? `${(orientation.calibration - 360).toFixed(0)}°`
-              : `${orientation.calibration.toFixed(0)}°`}
-          </span>
-          <button className="pill" onClick={() => orientation.nudgeCalibration(5)} aria-label="Rotate right 5 degrees">
-            +5°
-          </button>
-          <button className="pill" onClick={orientation.resetCalibration}>
-            Reset
-          </button>
-        </div>
       )}
     </div>
   );

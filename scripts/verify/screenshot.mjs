@@ -19,9 +19,21 @@ const APP = process.env.APP_URL || 'http://localhost:5173';
 const OUT = process.argv[2] || 'scripts/verify/shots';
 const PORT = 9333;
 
-// Johannesburg — a southern-hemisphere city, so the screenshots also prove the
-// app is not quietly assuming a northern sky.
-const SITE = { latitude: -26.2041, longitude: 28.0473, elevation: 1753, source: 'gps' };
+/**
+ * Johannesburg by default — a southern-hemisphere city, so the screenshots also
+ * prove the app is not quietly assuming a northern sky. Override to shoot the
+ * night side of the planet —
+ * most of the scene (the galactic band, the afterglow, the terrain) only exists
+ * once the Sun is down, so a daytime capture proves nothing about it.
+ *
+ *   SITE=14.6,121.0,16 node scripts/verify/screenshot.mjs
+ */
+const SITE = (() => {
+  const raw = process.env.SITE;
+  if (!raw) return { latitude: -26.2041, longitude: 28.0473, elevation: 1753, source: 'gps' };
+  const [latitude, longitude, elevation = 0] = raw.split(',').map(Number);
+  return { latitude, longitude, elevation, source: 'gps' };
+})();
 
 const profile = join(tmpdir(), `bs-chrome-${Date.now()}`);
 let nextId = 1;
@@ -157,7 +169,8 @@ async function main() {
         rootChildren: document.getElementById('root').childElementCount,
         hasCanvas: !!document.querySelector('canvas'),
         railButtons: [...document.querySelectorAll('.rail__item')].map(b => b.textContent.trim()),
-        status: document.querySelector('.sky-view__status')?.textContent ?? null,
+        aim: document.querySelector('.aim-note')?.textContent ?? null,
+        plaque: document.querySelector('.plaque__text')?.textContent?.slice(0, 60) ?? null,
         loading: document.querySelector('.sky-view__loading-text')?.textContent ?? null,
       })
     `);
@@ -175,23 +188,29 @@ async function main() {
     await clickRail('Tonight');
     await shotPage('02-tonight');
 
-    await clickRail('Guide');
+    await clickRail('Explore');
     await shotPage('03-guide');
 
-    await clickRail('Journal');
+    await clickRail('Logbook');
     await shotPage('04-journal');
 
-    // Night-vision mode, back on the sky where it matters most.
+    // Night-vision mode, back on the sky where it matters most. It lives in the
+    // settings sheet behind the header's left-hand rose.
     await clickRail('Sky');
-    await evalPage(
-      `[...document.querySelectorAll('.pill')].find(b => /night vision/i.test(b.textContent))?.click()`,
-    );
-    await sleep(1200);
+    const toggleNightVision = async () => {
+      await evalPage(`document.querySelector('.rose--plain')?.click()`);
+      await sleep(400);
+      await evalPage(
+        `[...document.querySelectorAll('.pill')].find(b => /red display/i.test(b.textContent))?.click()`,
+      );
+      await sleep(300);
+      await evalPage(`document.querySelector('.dialog__close')?.click()`);
+      await sleep(500);
+    };
+
+    await toggleNightVision();
     await shotPage('09-night-vision');
-    await evalPage(
-      `[...document.querySelectorAll('.pill')].find(b => /night vision/i.test(b.textContent))?.click()`,
-    );
-    await sleep(400);
+    await toggleNightVision();
 
     // And the opening gate, with the stored location cleared.
     await evalPage(`localStorage.removeItem('borrowed-sky:site')`);
