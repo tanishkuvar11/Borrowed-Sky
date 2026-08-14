@@ -1,8 +1,8 @@
 /**
  * The menu behind the header's left-hand button.
  *
- * Holds the things that change how the whole app behaves — where you are, how
- * bright the screen is allowed to be, and how the guide talks — so none of them
+ * Holds the things that change how the whole app behaves (where you are, how
+ * bright the screen is allowed to be, and how the guide talks) so none of them
  * has to take up permanent space over the sky.
  */
 

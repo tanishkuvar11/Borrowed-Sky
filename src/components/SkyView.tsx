@@ -3,7 +3,7 @@
  * explains whatever you tapped.
  *
  * There are two ways to aim: the compass, and dragging. The compass is better
- * when it works, so the app offers it first — but it is never assumed, and the
+ * when it works, so the app offers it first, but it is never assumed, and the
  * drag fallback is a labelled first-class mode rather than a silent degradation.
  */
 

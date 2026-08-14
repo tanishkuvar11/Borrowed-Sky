@@ -28,7 +28,7 @@ function frame({ size = 22, className }: IconProps) {
   };
 }
 
-/** Sky — a sighting reticle. */
+/** Sky: a sighting reticle. */
 export function IconSky(props: IconProps) {
   return (
     <svg {...frame(props)}>
@@ -39,7 +39,7 @@ export function IconSky(props: IconProps) {
   );
 }
 
-/** Explore — a refractor on its tripod. */
+/** Explore: a refractor on its tripod. */
 export function IconExplore(props: IconProps) {
   return (
     <svg {...frame(props)}>
@@ -49,7 +49,7 @@ export function IconExplore(props: IconProps) {
   );
 }
 
-/** Tonight — the sky after dark. */
+/** Tonight: the sky after dark. */
 export function IconTonight(props: IconProps) {
   return (
     <svg {...frame(props)}>
@@ -59,7 +59,7 @@ export function IconTonight(props: IconProps) {
   );
 }
 
-/** Logbook — an open journal. */
+/** Logbook: an open journal. */
 export function IconLogbook(props: IconProps) {
   return (
     <svg {...frame(props)}>
@@ -78,7 +78,7 @@ export function IconMenu(props: IconProps) {
   );
 }
 
-/** Compass rose — the orientation control. */
+/** Compass rose: the orientation control. */
 export function IconCompassRose(props: IconProps) {
   return (
     <svg {...frame(props)}>
@@ -123,7 +123,7 @@ export function IconEmblem({ size = 30, className }: IconProps) {
   );
 }
 
-/** Armillary sphere — the guide's mark. */
+/** Armillary sphere: the guide's mark. */
 export function IconArmillary({ size = 44, className }: IconProps) {
   return (
     <svg

@@ -3,8 +3,8 @@
  *
  * The header carries a single brass rose that shows orientation state at a
  * glance; this is what opens behind it. Consolidating it here keeps the sky
- * itself uncluttered while giving each of the ways orientation can fail — no
- * secure connection, no permission, no sensor — the room to say what it actually
+ * itself uncluttered while giving each of the ways orientation can fail (no
+ * secure connection, no permission, no sensor) the room to say what it actually
  * is and what to do about it. None of them is allowed to degrade into a vague
  * "not working".
  */
@@ -126,7 +126,7 @@ export function OrientationSheet({
               the compass over <code>https://</code>.
             </p>
             <p className="dialog__note">
-              That block is the connection, not your device — over an insecure address we cannot
+              That block is the connection, not your device. Over an insecure address we cannot
               even tell whether there is a compass to read. Everything else on this screen is
               unaffected.
             </p>

@@ -20,9 +20,9 @@ const OUT = process.argv[2] || 'scripts/verify/shots';
 const PORT = 9333;
 
 /**
- * Johannesburg by default — a southern-hemisphere city, so the screenshots also
+ * Johannesburg by default: a southern-hemisphere city, so the screenshots also
  * prove the app is not quietly assuming a northern sky. Override to shoot the
- * night side of the planet —
+ * night side of the planet:
  * most of the scene (the galactic band, the afterglow, the terrain) only exists
  * once the Sun is down, so a daytime capture proves nothing about it.
  *

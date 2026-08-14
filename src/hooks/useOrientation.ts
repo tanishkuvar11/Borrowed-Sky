@@ -4,8 +4,8 @@
  * This is the least reliable input in the app and it is treated that way. The
  * browser compass drifts, needs figure-of-eight calibration, and on iOS cannot
  * even be read without an explicit tap. So this hook reports exactly what it
- * knows — whether the reading is north-referenced, and how confident the
- * platform says it is — and the interface never pretends a fallback is live
+ * knows (whether the reading is north-referenced, and how confident the
+ * platform says it is) and the interface never pretends a fallback is live
  * tracking.
  *
  * Maths follows the W3C device-orientation convention: the rotation from the
@@ -55,8 +55,8 @@ type PermissionCapableEvent = {
 /**
  * Minimal shape of the Generic Sensor API's AbsoluteOrientationSensor.
  *
- * Declared locally because TypeScript's DOM library does not ship it — the spec
- * is only implemented on Chromium — and pulling in a whole ambient package for
+ * Declared locally because TypeScript's DOM library does not ship it (the spec
+ * is only implemented on Chromium) and pulling in a whole ambient package for
  * one optional constructor would be a poor trade.
  */
 interface OrientationSensor extends EventTarget {
@@ -81,7 +81,7 @@ function needsPermissionPrompt(): boolean {
  * Safari keeps `DeviceOrientationEvent` on window over plain http, lets you
  * add listeners, then simply withholds `requestPermission` and never fires a
  * reading; Chrome deletes the interface outright. Either way the honest answer
- * is that the connection blocked it — not that the device has no compass,
+ * is that the connection blocked it, not that the device has no compass,
  * which we cannot even determine from here.
  *
  * Tested before the interface itself for exactly that reason: on Chrome the
@@ -105,8 +105,8 @@ function initialStatus(): OrientationStatus {
 /**
  * Says out loud which of the several ways this can fail is actually happening.
  *
- * The three failures are indistinguishable from the outside — all of them end
- * with no readings arriving — so during development the one that fired is
+ * The three failures are indistinguishable from the outside (all of them end
+ * with no readings arriving) so during development the one that fired is
  * printed along with the evidence behind it. Stripped from production builds.
  */
 function reportStatus(status: OrientationStatus) {
@@ -118,7 +118,7 @@ function reportStatus(status: OrientationStatus) {
     `hasAbsoluteEvent=${'ondeviceorientationabsolute' in window}`,
     `hasSensor=${'AbsoluteOrientationSensor' in window}`,
   ].join(' ');
-  console.info(`[compass] ${status} — ${detail}`);
+  console.info(`[compass] ${status}: ${detail}`);
 }
 
 /** Screen-space "up" expressed in device axes, for the current screen rotation. */
@@ -158,8 +158,8 @@ export function useOrientation(): OrientationReading & {
    * Turns a device-to-world rotation into an aim.
    *
    * Shared by both sources, because the two of them disagree about how to
-   * describe an orientation — Euler angles from the events, a quaternion from
-   * the sensor — but agree completely about the frame it is expressed in. Doing
+   * describe an orientation (Euler angles from the events, a quaternion from
+   * the sensor) but agree completely about the frame it is expressed in. Doing
    * the conversion once means the filtering, the roll solution and the
    * screen-rotation handling cannot drift apart between them.
    */
@@ -300,7 +300,7 @@ export function useOrientation(): OrientationReading & {
       }
     }
 
-    // Moving to `waiting` is all that is needed — the effect below owns the
+    // Moving to `waiting` is all that is needed; the effect below owns the
     // listeners and picks it up from there.
     setStatus('waiting');
   }, []);
@@ -316,7 +316,7 @@ export function useOrientation(): OrientationReading & {
   useEffect(() => {
     // 'waiting' is only ever reached once there is nothing left to ask for:
     // either the platform needs no prompt, or enable() has already been granted
-    // one. Re-testing needsPermissionPrompt() here would be wrong — it keeps
+    // one. Re-testing needsPermissionPrompt() here would be wrong; it keeps
     // reporting true on iOS long after the user has said yes.
     if (status !== 'waiting' && status !== 'active') return;
 
@@ -333,7 +333,7 @@ export function useOrientation(): OrientationReading & {
      *
      * AbsoluteOrientationSensor fuses the magnetometer with the gyroscope and
      * hands back a quaternion in the same east-north-up frame, at a rate we ask
-     * for and with no Euler-angle gimbal problem near the zenith — which is
+     * for and with no Euler-angle gimbal problem near the zenith, which is
      * exactly where someone holding a phone up at the sky spends their time.
      * It also settles the question the events leave open, since a reading from
      * this sensor is north-referenced by definition rather than by hope.

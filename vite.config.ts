@@ -57,12 +57,12 @@ export default defineConfig(async ({ mode }) => {
   return {
     plugins: [react(), devApiRoutes(), ...(sslPlugin ? [sslPlugin] : [])],
     server: {
-      host: true, // so a phone on the same network can open it — the whole point
+      host: true, // so a phone on the same network can open it, which is the whole point
       port: 5173,
       // A dev tunnel (`npm run dev:tunnel`) forwards requests carrying its own
       // hostname, which Vite rejects by default as a DNS-rebinding guard. Only
       // the tunnel providers' domains are listed, so the guard still holds for
-      // everything else — this is not a blanket opt-out.
+      // everything else; this is not a blanket opt-out.
       allowedHosts: ['.trycloudflare.com', '.loca.lt', '.ngrok-free.app', '.ngrok.io'],
     },
     build: {

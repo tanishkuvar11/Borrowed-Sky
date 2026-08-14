@@ -3,8 +3,8 @@
  *
  * Every position drawn here is computed. Behind the objects sit three scene
  * layers that are also readings rather than backdrop: the galactic band on its
- * real bearing, the afterglow on the Sun's real azimuth, and — the one frank
- * exception — a stylised foreground of hills and water, fenced strictly below
+ * real bearing, the afterglow on the Sun's real azimuth, and (the one frank
+ * exception) a stylised foreground of hills and water, fenced strictly below
  * the true horizon so it can never stand in front of anything real.
  *
  * The elevation scale down the right edge is the instrument's signature: it
@@ -35,11 +35,17 @@ import {
 import { toObserver } from '../lib/astro/solar';
 import { compassPoint } from '../lib/astro/satellites';
 import { buildMilkyWay, type MilkyWayPatch } from '../lib/astro/milkyway';
+import {
+  OBSERVATORY_ASPECT,
+  OBSERVATORY_BOX_H,
+  OBSERVATORY_BOX_W,
+  OBSERVATORY_PATH,
+} from '../lib/sky/observatory';
 import type { ObserverSite, SkyBody, SkyConditions } from '../lib/astro/types';
 
 /**
  * Fixed in J2000, so this is computed once for the life of the page rather than
- * per frame — the galaxy does not move on any timescale this app cares about.
+ * per frame; the galaxy does not move on any timescale this app cares about.
  */
 const MILKY_WAY = buildMilkyWay();
 
@@ -65,6 +71,22 @@ export interface SkyCanvasProps {
   selectedId: string | null;
   showConstellations: boolean;
   showGrid: boolean;
+  /**
+   * The measuring furniture: cardinal marks and the elevation tape. On in the
+   * app, where the canvas is an instrument you read. Off on the overture, where
+   * it is a view you look at and the scale would be chrome without a purpose.
+   */
+  chrome?: boolean;
+  /**
+   * Compass bearing to stand the Greenwich observatory silhouette on, or null.
+   *
+   * Scenery, in the same category as the hills and fenced the same way: drawn
+   * inside the ground clip, so it lives strictly below the true horizon and can
+   * never occlude a computed object. It exists for the overture, which is
+   * always Greenwich and says so; the app proper passes null, because there it
+   * would be putting a building on a horizon it knows nothing about.
+   */
+  landmarkAzimuth?: number | null;
   /** Draw the whole scene on a red-only ramp to preserve dark adaptation. */
   nightVision: boolean;
   onSelect: (id: string | null) => void;
@@ -75,7 +97,7 @@ export interface SkyCanvasProps {
 /**
  * The renderer's two palettes.
  *
- * Night-vision mode has to reach the canvas, not just the surrounding chrome —
+ * Night-vision mode has to reach the canvas, not just the surrounding chrome.
  * the sky is most of the screen, and a bright blue field would undo the dark
  * adaptation the mode exists to protect. So the colours are data rather than
  * literals, and the whole scene is drawn from whichever set is active.
@@ -95,6 +117,9 @@ interface SkyPalette {
   glowCore: string;
   glowEdge: string;
   ridgeFar: string;
+  /** The observatory silhouette on the far bank, and its roofline rim. */
+  landmark: string;
+  landmarkRim: string;
   ridgeNear: string;
   water: string;
   waterSheen: string;
@@ -140,6 +165,8 @@ const DAY_PALETTE: SkyPalette = {
   // Distant ridges are hazier and so lighter; the near ridge is a hard
   // silhouette. Aerial perspective, which is what sells the depth.
   ridgeFar: 'rgb(34, 27, 55)',
+  landmark: 'rgb(6, 5, 13)',
+  landmarkRim: 'rgba(255, 178, 120, ALPHA)',
   ridgeNear: 'rgb(13, 10, 25)',
   water: 'rgb(18, 15, 36)',
   waterSheen: 'rgba(224, 152, 122, 0.3)',
@@ -186,6 +213,8 @@ const NIGHT_PALETTE: SkyPalette = {
   glowCore: 'rgba(194, 64, 47, ALPHA)',
   glowEdge: 'rgba(194, 64, 47, 0)',
   ridgeFar: 'rgb(48, 10, 7)',
+  landmark: 'rgb(6, 1, 1)',
+  landmarkRim: 'rgba(255, 122, 92, ALPHA)',
   ridgeNear: 'rgb(15, 2, 1)',
   water: 'rgb(26, 5, 3)',
   waterSheen: 'rgba(255, 106, 77, 0.22)',
@@ -239,6 +268,8 @@ export function SkyCanvas({
   selectedId,
   showConstellations,
   showGrid,
+  chrome = true,
+  landmarkAzimuth = null,
   nightVision,
   onSelect,
   onPan,
@@ -248,7 +279,7 @@ export function SkyCanvas({
   const targetsRef = useRef<HitTarget[]>([]);
 
   // The draw loop reads these through a ref so a new frame never has to wait
-  // for React to re-render — the canvas animates at its own rate.
+  // for React to re-render; the canvas animates at its own rate.
   const stateRef = useRef({
     catalog,
     constellations,
@@ -260,6 +291,8 @@ export function SkyCanvas({
     selectedId,
     showConstellations,
     showGrid,
+    chrome,
+    landmarkAzimuth,
     nightVision,
   });
   stateRef.current = {
@@ -273,6 +306,8 @@ export function SkyCanvas({
     selectedId,
     showConstellations,
     showGrid,
+    chrome,
+    landmarkAzimuth,
     nightVision,
   };
 
@@ -337,21 +372,55 @@ export function SkyCanvas({
 
       if (s.showGrid) drawAltAzGrid(ctx, projectHor);
       if (s.showConstellations && s.catalog) {
-        drawConstellations(ctx, s.constellations, view, cx, cy, scale);
+        drawConstellations(ctx, s.constellations, view, cx, cy, scale, s.conditions, s.chrome);
       }
       if (s.catalog) {
-        drawStars(ctx, s.catalog, view, cx, cy, scale, radius, s.camera.fov, s.conditions, targets);
+        drawStars(
+          ctx,
+          s.catalog,
+          view,
+          cx,
+          cy,
+          scale,
+          radius,
+          s.camera.fov,
+          s.conditions,
+          targets,
+          s.chrome,
+        );
       }
       drawGround(ctx, horBasis, cx, cy, scale, width, height);
-      drawScenery(ctx, horBasis, cx, cy, scale, width, height, s.conditions);
+      drawScenery(
+        ctx,
+        horBasis,
+        cx,
+        cy,
+        scale,
+        width,
+        height,
+        s.conditions,
+        s.landmarkAzimuth ?? null,
+      );
       drawHorizon(ctx, projectHor, width, height);
-      drawCardinals(ctx, projectHor);
-      drawBodies(ctx, s.bodies, horBasis, cx, cy, scale, width, height, s.selectedId, targets);
+      if (s.chrome) drawCardinals(ctx, projectHor);
+      drawBodies(
+        ctx,
+        s.bodies,
+        horBasis,
+        cx,
+        cy,
+        scale,
+        width,
+        height,
+        s.selectedId,
+        targets,
+        s.chrome !== false,
+      );
 
       // Heading is read off the compass strip below the canvas; what stays here
       // is the elevation scale, laid out linearly and calibrated against the
       // projection's exact rate at the index mark, the way a real tape is ruled.
-      drawAltitudeTape(ctx, width, height, s.camera, scale * (Math.PI / 360));
+      if (s.chrome) drawAltitudeTape(ctx, width, height, s.camera, scale * (Math.PI / 360));
 
       targetsRef.current = targets;
 
@@ -537,7 +606,7 @@ function darknessFactor(conditions: SkyConditions | null): number {
  *
  * Building a radial gradient is not cheap and the band needs hundreds of them
  * per frame. A gradient is fixed to the coordinates it was created with, so it
- * cannot be reused directly — but a pre-rendered sprite can be, and drawImage on
+ * cannot be reused directly, but a pre-rendered sprite can be, and drawImage on
  * a cached bitmap is roughly an order of magnitude cheaper than filling a fresh
  * gradient. That difference is the whole reason the band can exist at all on the
  * hardware this is aimed at.
@@ -573,7 +642,7 @@ function softBlob(tint: [number, number, number]): HTMLCanvasElement {
  *
  * Positions come from the real galactic frame, so the band lies where the galaxy
  * actually is and the bright bulge sits towards Sagittarius. It fades out as the
- * sky brightens for the same reason it does outdoors — this is the faintest
+ * sky brightens for the same reason it does outdoors: this is the faintest
  * thing the app draws, and the first to be lost to twilight or a bright Moon.
  */
 function drawMilkyWay(
@@ -691,8 +760,8 @@ function altitudeCircle(
 
   /*
    * As the view levels off, this circle opens out towards a straight line and
-   * its radius runs away to infinity. Rather than special-case the line — which
-   * would mean a second code path for every fill and clip below — the divisor is
+   * its radius runs away to infinity. Rather than special-case the line, which
+   * would mean a second code path for every fill and clip below, the divisor is
    * held just off zero. The circle that produces is enormous but finite, and
    * over the width of a phone screen it departs from the true straight line by
    * well under a pixel.
@@ -719,8 +788,8 @@ function altitudeCircle(
 /**
  * Angles at which to sample a circle so the detail lands on screen.
  *
- * These circles are frequently vast — a nearly level view puts the centre tens
- * of thousands of pixels away — and at that size an evenly spaced walk around
+ * These circles are frequently vast (a nearly level view puts the centre tens
+ * of thousands of pixels away) and at that size an evenly spaced walk around
  * the full turn spends every one of its samples off screen, leaving the arc that
  * is actually visible drawn as a single straight chord. So the arc subtending
  * the viewport gets the sample budget, and the remainder, which only has to
@@ -769,7 +838,102 @@ function arcSamples(
   return samples;
 }
 
-/** Smooth periodic profile over azimuth — the same hills wherever you turn. */
+/**
+ * Built once. Path2D takes SVG path data directly, so the traced roofline is
+ * parsed a single time and then only transformed per frame.
+ */
+const OBSERVATORY = typeof Path2D === 'undefined' ? null : new Path2D(OBSERVATORY_PATH);
+
+/**
+ * The observatory on the far bank.
+ *
+ * Called from inside the ground clip, so the whole building lives below the
+ * true horizon and the brass line passes above the roof rather than behind it.
+ * Nothing here can occlude a star.
+ *
+ * Placed on a bearing rather than at a screen position, so it stays put on the
+ * landscape as the camera turns and leaves the frame when you look away from
+ * it, the way the hills already do. The transform is built from two altitudes
+ * on that bearing, which keeps the building standing upright as the projection
+ * rotates things near the edges of a wide field.
+ */
+function drawObservatory(
+  ctx: CanvasRenderingContext2D,
+  basis: ViewBasis,
+  cx: number,
+  cy: number,
+  scale: number,
+  azimuth: number,
+  conditions: SkyConditions | null,
+) {
+  if (!OBSERVATORY) return;
+
+  /*
+   * Close to the viewer, not on the far bank. A building a short walk away
+   * subtends a large angle and its base runs steeply down out of the frame,
+   * which is the difference between standing next to it and looking at it
+   * across a valley. The roofline still stops short of the horizon, so it
+   * remains scenery that cannot occlude anything computed.
+   */
+  const base = projectVector(horVector(-13, azimuth), basis, cx, cy, scale);
+  const apex = projectVector(horVector(-2.2, azimuth), basis, cx, cy, scale);
+  if (!base || !apex) return;
+
+  const ux = apex.x - base.x;
+  const uy = apex.y - base.y;
+  const h = Math.hypot(ux, uy);
+  // Too small to make out, or the bearing has swung behind the viewer.
+  if (h < 14) return;
+
+  // Local axes at this bearing: up along the altitude gradient, right across it.
+  const nx = ux / h;
+  const ny = uy / h;
+  const rx = -ny;
+  const ry = nx;
+
+  /*
+   * Path units to world pixels. The vertical is fixed by the altitude span; the
+   * horizontal follows from the real building's proportions, which undoes the
+   * stretch introduced when the trace was normalised into its box.
+   */
+  const sy = h / OBSERVATORY_BOX_H;
+  const sx = (sy * OBSERVATORY_BOX_H * OBSERVATORY_ASPECT) / OBSERVATORY_BOX_W;
+  const halfW = OBSERVATORY_BOX_W / 2;
+
+  ctx.save();
+  // Multiplied onto the current transform, not replacing it: the context is
+  // already scaled for device pixel ratio.
+  ctx.transform(
+    rx * sx,
+    ry * sx,
+    -nx * sy,
+    -ny * sy,
+    base.x - rx * sx * halfW + nx * sy * OBSERVATORY_BOX_H,
+    base.y - ry * sx * halfW + ny * sy * OBSERVATORY_BOX_H,
+  );
+
+  ctx.fillStyle = palette.landmark;
+  ctx.fill(OBSERVATORY);
+
+  /*
+   * A rim along the roofline. Without it the building is a dark shape on dark
+   * ground and simply disappears; with it the edge catches what is left of the
+   * sky, which is what happens to a real silhouette on a lit horizon. It fades
+   * out by full dark, when there is nothing left up there to catch.
+   */
+  const rim = conditions ? Math.max(0, 1 - (-conditions.sunAltitude - 4) / 13) : 0.3;
+  if (rim > 0.02) {
+    ctx.strokeStyle = palette.landmarkRim.replace('ALPHA', (rim * 0.45).toFixed(3));
+    // Undo the transform's scale so the rim is a hairline on screen, not one
+    // scaled up with the building.
+    ctx.lineWidth = 1 / sy;
+    ctx.stroke(OBSERVATORY);
+  }
+
+  ctx.restore();
+}
+
+/** Smooth periodic profile over azimuth: the same hills wherever you turn. */
 function ridgeProfile(azDeg: number, phase: number): number {
   const a = azDeg * DEG;
   const value =
@@ -784,7 +948,7 @@ function ridgeProfile(azDeg: number, phase: number): number {
  * Foreground scenery: hills and water, below the horizon only.
  *
  * This is the one deliberately invented thing on the canvas, and it is fenced in
- * accordingly. It is drawn strictly beneath the true horizon — the brass line —
+ * accordingly. It is drawn strictly beneath the true horizon, the brass line,
  * so it can never occlude a real object or imply a skyline that is not there.
  * Everything above that line is computed; this is the frame around it, and the
  * app says so.
@@ -801,6 +965,7 @@ function drawScenery(
   width: number,
   height: number,
   conditions: SkyConditions | null,
+  landmarkAzimuth: number | null,
 ) {
   const horizon = altitudeCircle(basis, 0, cx, cy, scale);
   if (!horizon) return;
@@ -855,6 +1020,10 @@ function drawScenery(
 
     ctx.fillStyle = layer.fill;
     ctx.fill(circle.outside ? 'evenodd' : 'nonzero');
+  }
+
+  if (landmarkAzimuth != null) {
+    drawObservatory(ctx, basis, cx, cy, scale, landmarkAzimuth, conditions);
   }
 
   // Still water below the hills, catching the afterglow.
@@ -1033,6 +1202,18 @@ function drawCardinals(
   ctx.restore();
 }
 
+/**
+ * The figure lines.
+ *
+ * Faded with the twilight rather than drawn at a fixed strength, because the
+ * page they appear on claims that things arrive as the sky darkens, and a net
+ * stamped over a bright dusk sky at full opacity contradicts that in the one
+ * frame most people look at.
+ *
+ * With the measuring furniture off the names are dropped and only the lines
+ * remain: the joins are the structure, and the names are what turns a view of
+ * the sky into a chart of it.
+ */
 function drawConstellations(
   ctx: CanvasRenderingContext2D,
   figures: ConstellationFigure[],
@@ -1040,8 +1221,21 @@ function drawConstellations(
   cx: number,
   cy: number,
   scale: number,
+  conditions: SkyConditions | null,
+  chrome: boolean,
 ) {
+  // Below the horizon of usefulness: at civil dusk the net would be a diagram
+  // over a sky where none of its stars are out yet.
+  const twilight = conditions ? Math.max(0, Math.min(1, (-conditions.sunAltitude - 3) / 12)) : 1;
+  if (twilight <= 0.01) return;
+
+  // Held well back without the furniture. At chart strength the net becomes the
+  // subject, and here the stars are: the lines are only meant to keep the empty
+  // quarters of the frame from reading as nothing at all.
+  const strength = chrome ? twilight : twilight * 0.45;
+
   ctx.save();
+  ctx.globalAlpha = strength;
   ctx.strokeStyle = palette.figureLine;
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -1060,8 +1254,13 @@ function drawConstellations(
   }
   ctx.stroke();
 
+  if (!chrome) {
+    ctx.restore();
+    return;
+  }
+
   // Figure names, placed at the centroid and only when comfortably above the horizon.
-  ctx.font = "500 10px 'Cabinet Grotesk', system-ui, sans-serif";
+  ctx.font = "500 10px 'Unbounded', system-ui, sans-serif";
   ctx.fillStyle = palette.figureLabel;
   ctx.textAlign = 'center';
   ctx.letterSpacing = '0.14em';
@@ -1104,9 +1303,20 @@ function drawStars(
   fov: number,
   conditions: SkyConditions | null,
   targets: HitTarget[],
+  chrome: boolean,
 ) {
-  // Zooming in reveals fainter stars, the way more magnification would.
-  const magLimit = Math.min(catalog.magLimit, 4.2 + Math.max(0, (70 - fov) / 70) * 2.3);
+  /*
+   * Zooming in reveals fainter stars, the way more magnification would.
+   *
+   * The cap is there so the interactive view stays a chart you can read and a
+   * tap can hit what you aimed at. With the furniture off nothing is being
+   * aimed at, and the point is the sky being full, so the whole catalogue is
+   * drawn: 5,070 stars sorted into twelve colour buckets is twelve fills, which
+   * costs about as much as the few hundred did.
+   */
+  const magLimit = chrome
+    ? Math.min(catalog.magLimit, 4.2 + Math.max(0, (70 - fov) / 70) * 2.3)
+    : catalog.magLimit;
   const pixelScale = Math.max(0.75, Math.min(1.6, radius / 320));
 
   // In daylight the geometry is still correct but nothing is actually visible,
@@ -1160,7 +1370,7 @@ function drawStars(
     ctx.fill();
   }
 
-  // The brightest stars get a halo and a name — the ones people actually use to
+  // The brightest stars get a halo and a name: the ones people actually use to
   // find their way around the sky.
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
@@ -1206,6 +1416,8 @@ function drawBodies(
   height: number,
   selectedId: string | null,
   targets: HitTarget[],
+  /** False on the overture, where these are scenery rather than readings. */
+  chrome: boolean,
 ) {
   ctx.save();
   ctx.textAlign = 'left';
@@ -1221,24 +1433,57 @@ function drawBodies(
       palette.bodies[body.kind === 'planet' ? 'planet' : body.kind] ?? palette.bodies.planet;
 
     // Marker size tracks brightness, with a floor so nothing becomes untappable.
+    // Without the instrument furniture the Sun is not a marker to be tapped but
+    // the light source of the scene, so it is drawn nearer its part in the
+    // picture: a disc with a bloom, rather than a labelled target.
     const size =
       body.kind === 'sun'
-        ? 16
+        ? chrome
+          ? 16
+          : 22
         : body.kind === 'moon'
-          ? 14
+          ? chrome
+            ? 14
+            : 10
           : body.kind === 'satellite'
             ? 5
-            : Math.max(3.2, 7 - body.magnitude * 0.8);
+            : chrome
+              ? Math.max(3.2, 7 - body.magnitude * 0.8)
+              : // Without labels a planet is not a target to hit, it is a point
+                // of light, and at tap-target size it reads as a bead sitting
+                // on the sky rather than something in it.
+                Math.max(1.6, 3.4 - body.magnitude * 0.35);
 
-    const glow = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, size * 3.4);
+    // A low sun lights a quarter of the sky, not a circle three times its own
+    // width. The wide falloff is what stops it reading as a sticker on a
+    // gradient, and it only applies where the scene is the subject.
+    const bloom = !chrome && body.kind === 'sun' ? 11 : 3.4;
+    const glow = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, size * bloom);
     glow.addColorStop(0, style.glow);
+    if (!chrome && body.kind === 'sun') glow.addColorStop(0.28, 'rgba(255, 186, 92, 0.28)');
     glow.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.arc(point.x, point.y, size * 3.4, 0, TAU);
+    ctx.arc(point.x, point.y, size * bloom, 0, TAU);
     ctx.fill();
 
-    ctx.fillStyle = style.fill;
+    /*
+     * A hard-edged filled circle is right for a marker and wrong for a light.
+     * Nothing luminous has a crisp rim against the sky; the eye and the lens
+     * both spread it, so with the furniture off the disc is drawn with its
+     * edge falling away instead of stopping, which is the difference between a
+     * sun and a sticker of one.
+     */
+    if (chrome) {
+      ctx.fillStyle = style.fill;
+    } else {
+      const core = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, size);
+      core.addColorStop(0, '#FFFDF4');
+      core.addColorStop(0.55, style.fill);
+      core.addColorStop(0.88, style.fill);
+      core.addColorStop(1, 'rgba(255, 233, 168, 0)');
+      ctx.fillStyle = core;
+    }
     ctx.beginPath();
     ctx.arc(point.x, point.y, size, 0, TAU);
     ctx.fill();
@@ -1289,7 +1534,11 @@ function drawBodies(
     // The label needs more room than the marker does: a leader and two lines of
     // text hanging off a marker that is itself past the edge leaves orphaned
     // words floating against the frame with nothing to point at.
+    // Labels are furniture too: a leader line and a magnitude readout hanging
+    // off the setting sun belongs on an instrument, not in a picture of an
+    // evening.
     if (
+      chrome &&
       point.x > 4 &&
       point.x < width - 4 &&
       point.y > 12 &&

@@ -104,7 +104,7 @@ function rgbFromTemperature(kelvin: number): [number, number, number] {
  * into a small palette costs nothing visually and lets the renderer issue one
  * fill per colour instead of one per star.
  *
- * Colours are pulled toward the "starlight" warm white of the design system —
+ * Colours are pulled toward the "starlight" warm white of the design system:
  * real stars are far less saturated to the eye than their raw blackbody values.
  */
 const BUCKET_COUNT = 12;
@@ -124,7 +124,7 @@ export const STAR_COLORS: string[] = Array.from({ length: BUCKET_COUNT }, (_, i)
  * The same buckets rendered on a red-only ramp for night-vision mode.
  *
  * Under red light the eye cannot resolve hue anyway, so only relative
- * brightness is preserved — carried over from each bucket's luminance so the
+ * brightness is preserved, carried over from each bucket's luminance so the
  * hot blue-white stars still read as the brighter ones.
  */
 export const STAR_COLORS_NIGHT: string[] = Array.from({ length: BUCKET_COUNT }, (_, i) => {
@@ -235,7 +235,7 @@ export async function loadConstellations(signal?: AbortSignal): Promise<Constell
 
   return file.constellations.map((c) => {
     // Expand polylines into independent segments so the renderer can cull each
-    // one on its own — a figure that straddles the horizon then loses only the
+    // one on its own: a figure that straddles the horizon then loses only the
     // segments that are actually below it.
     const segs: number[] = [];
     for (const line of c.lines) {

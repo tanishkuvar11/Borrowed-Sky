@@ -3,7 +3,7 @@
  *
  * Celestrak serves orbital elements for free and without an API key, but sends
  * no Access-Control-Allow-Origin header, so a browser cannot fetch it directly.
- * This endpoint is that missing hop and nothing more — it forwards the response
+ * This endpoint is that missing hop and nothing more; it forwards the response
  * verbatim. It never synthesises elements: if Celestrak is unreachable the
  * client is told so explicitly and the UI drops into a stated "unavailable"
  * state rather than showing invented passes.
@@ -71,7 +71,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     sendJson(res, 200, { group, source: 'celestrak.org', fetchedAt: entry.fetchedAt, tle: text }, 3600);
   } catch (err) {
     // Stale elements are still real elements, and SGP4 degrades gracefully over
-    // a few days, so prefer them over nothing — but say that is what happened.
+    // a few days, so prefer them over nothing, but say that is what happened.
     if (cached) {
       sendJson(res, 200, {
         group,

@@ -1,4 +1,4 @@
-/* Twilight Instrument — layout and components. */
+/* Twilight Instrument: layout and components. */
 
 *,
 *::before,
@@ -230,7 +230,6 @@ button {
   margin-bottom: 1rem;
 }
 .gate__title em {
-  font-family: var(--font-body);
   font-style: italic;
   font-weight: 300;
   letter-spacing: -0.02em;
@@ -314,8 +313,9 @@ button {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.55rem var(--pad-edge) 0.6rem;
+  /* Tight, because every pixel here is width the title cannot otherwise have. */
+  gap: 0.4rem;
+  padding: 0.55rem clamp(0.5rem, 2vw, 1.25rem) 0.6rem;
   border-bottom: var(--rule) solid var(--brass-hairline);
   background: linear-gradient(180deg, var(--ink-deep) 0%, var(--ink-void) 100%);
   padding-top: max(0.55rem, env(safe-area-inset-top));
@@ -329,9 +329,24 @@ button {
 .wordmark__name {
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(1.15rem, 5.6vw, 1.6rem);
+  /*
+   * Sized against the face actually in use. Unbounded sets far wider than the
+   * grotesque this was measured for, and at the old size and tracking the
+   * wordmark truncated to "BORROWED S…" on a phone, and that is the one string on the
+   * screen that must never be clipped.
+   */
+  /*
+   * Scaled against the space that is actually left, not against the viewport.
+   * The two roses and the gaps between them take a fixed ~105px whatever the
+   * screen, so a plain vw value overshoots on a small phone and wastes room on
+   * a large one. Subtracting that constant tracks the column the title really
+   * has, and was fitted by measuring the rendered width from 320px up.
+   */
+  font-size: clamp(1rem, calc(8.4vw - 9px), 2.3rem);
   font-weight: 600;
-  letter-spacing: 0.22em;
+  /* Tracking buys the size back. Unbounded is wide enough on its own that the
+     wordmark still reads as spaced without much help. */
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   /* Lit from the same quarter as every brass edge in the app. */
   background: linear-gradient(178deg, #fff7e2 0%, var(--starlight) 40%, #b9ad93 100%);
@@ -739,8 +754,17 @@ button {
   border-radius: 999px;
   background: var(--veil-strong);
   font-family: var(--font-data);
-  font-size: 0.625rem;
-  letter-spacing: 0.04em;
+  /*
+   * Sized for the monospace actually in use. This line is long enough to run
+   * off the strip and into the elevation tape if the face sets wide, so it is
+   * measured against the current one rather than assumed. Wrapping is allowed
+   * rather than relied upon; it should still make one line on most screens.
+   */
+  font-size: 0.5938rem;
+  letter-spacing: 0.01em;
+  line-height: 1.5;
+  text-align: center;
+  text-wrap: balance;
   color: var(--starlight-mute);
   backdrop-filter: blur(3px);
 }

@@ -1,5 +1,5 @@
 /**
- * "Tonight's Sky" — what becomes visible over the next several hours.
+ * "Tonight's Sky": what becomes visible over the next several hours.
  *
  * A body being above the horizon is not the same as a body being worth going
  * outside for. A window here means: high enough to clear rooftops and haze,
@@ -280,7 +280,7 @@ function describeBodySpan(name: string, run: Run, azimuth: number, magnitude: nu
         ? 'It is bright enough to spot from a lit street'
         : magnitude < 4
           ? 'You will want to be away from direct lights'
-          : 'It is faint — you need a properly dark sky';
+          : 'It is faint; you need a properly dark sky';
 
   return (
     `${name} is well placed from ${formatClock(new Date(run.startMs))} for about ${duration}, ` +
@@ -293,12 +293,12 @@ export function describePass(pass: SatellitePass): string {
   if (!pass.visible || !pass.visibleFrom || !pass.visibleTo) {
     return (
       `${pass.name} crosses the sky from ${formatClock(pass.start)}, but it is either in Earth's ` +
-      `shadow or the sky is too bright — nothing to see on this one.`
+      `shadow or the sky is too bright; nothing to see on this one.`
     );
   }
 
   const minutes = Math.max(1, Math.round((pass.visibleTo.getTime() - pass.visibleFrom.getTime()) / 60_000));
-  // A pass that never gets high never "climbs" anywhere — say what it does.
+  // A pass that never gets high never "climbs" anywhere, so say what it does.
   const arc =
     pass.peakAltitude < 15
       ? `stays low along the ${compassPoint(pass.peakAzimuth)} horizon`
@@ -307,7 +307,7 @@ export function describePass(pass: SatellitePass): string {
   return (
     `${pass.name} appears at ${formatClock(pass.visibleFrom)} in the ${compassPoint(pass.startAzimuth)}, ` +
     `${arc}, and is visible for about ${minutes} minute${minutes === 1 ? '' : 's'}. ` +
-    `It looks like a steady white point sliding across the sky — no flashing lights.`
+    `It looks like a steady white point sliding across the sky, no flashing lights.`
   );
 }
 
@@ -410,7 +410,7 @@ export function buildTimeline(
 
 /**
  * The single most interesting thing coming up, for the app's opening line.
- * Prefers a satellite pass — a moving object with a deadline beats a planet
+ * Prefers a satellite pass: a moving object with a deadline beats a planet
  * that will still be there in an hour.
  */
 export function headlineSpan(timeline: TonightTimeline, now: Date): TimelineSpan | null {

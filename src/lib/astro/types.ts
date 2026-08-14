@@ -18,7 +18,7 @@ export interface Distance {
 }
 
 /**
- * One identifiable thing in the sky at one instant. Every field is computed —
+ * One identifiable thing in the sky at one instant. Every field is computed;
  * none is ever supplied by a language model or a placeholder.
  */
 export interface SkyBody {

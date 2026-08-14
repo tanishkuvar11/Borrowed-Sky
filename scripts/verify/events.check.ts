@@ -36,7 +36,7 @@ for (const site of SITES) {
   const timeline = buildTimeline(now, site, tleSet, undefined, 12);
   const elapsed = Date.now() - t0;
 
-  console.log(`built in ${elapsed} ms — ${timeline.spans.length} spans, ${timeline.moments.length} moments`);
+  console.log(`built in ${elapsed} ms, ${timeline.spans.length} spans, ${timeline.moments.length} moments`);
   console.log(`moon: ${timeline.moonPhase.name}, ${(timeline.moonPhase.illuminatedFraction * 100).toFixed(0)}% lit`);
   console.log(
     timeline.darkness

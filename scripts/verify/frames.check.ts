@@ -67,10 +67,10 @@ for (const place of PLACES) {
     const matrix = eqjToHorMatrix(time, observer);
 
     for (const star of STARS) {
-      // Route A — the app's matrix path.
+      // Route A: the app's matrix path.
       const mine = horVectorToAltAz(rotateEqjToHor(matrix, eqjVector(star.ra, star.dec)));
 
-      // Route B — astronomy-engine's own conversion. Aberration and refraction
+      // Route B: astronomy-engine's own conversion. Aberration and refraction
       // are switched off so this compares frame maths, not modelling choices.
       DefineStar(Body.Star1, star.ra, star.dec, 1000);
       const eq = Equator(Body.Star1, time, observer, true, false);

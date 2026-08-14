@@ -9,12 +9,12 @@
  *
  * where X/Y are camera-plane axes, Z is the camera forward axis (for culling
  * what is behind the viewer) and U is the vertical component in the horizontal
- * frame — that is, sin(altitude), which is all we need to cull below-horizon
+ * frame, that is, sin(altitude), which is all we need to cull below-horizon
  * objects. Per star that is twelve multiplies and no trigonometry.
  *
  * Frame conventions follow astronomy-engine:
- *   EQJ — J2000 mean equator. x toward the vernal equinox, z toward the celestial pole.
- *   HOR — horizontal. x = north, y = west, z = zenith.
+ *   EQJ: J2000 mean equator. x toward the vernal equinox, z toward the celestial pole.
+ *   HOR: horizontal. x = north, y = west, z = zenith.
  */
 
 import { Rotation_EQJ_HOR, type AstroTime, type Observer, type RotationMatrix } from 'astronomy-engine';

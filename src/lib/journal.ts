@@ -1,5 +1,5 @@
 /**
- * The sky journal — a personal record of what you have found, kept entirely on
+ * The sky journal: a personal record of what you have found, kept entirely on
  * the device. No account, no server, nothing to sign up for. That is a
  * deliberate constraint: the whole product is meant to work for someone who
  * cannot or will not create an account.
@@ -42,7 +42,7 @@ function write(entries: JournalEntry[]) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(entries.slice(0, MAX_ENTRIES)));
   } catch {
-    // Storage unavailable — the session still works, it just will not persist.
+    // Storage unavailable. The session still works, it just will not persist.
   }
 }
 

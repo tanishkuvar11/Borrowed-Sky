@@ -1,8 +1,8 @@
 /**
  * What you get when you tap something in the sky.
  *
- * The panel leads with the measured facts — direction, height, brightness,
- * distance — and only then offers the narration. That order is deliberate: the
+ * The panel leads with the measured facts (direction, height, brightness,
+ * distance) and only then offers the narration. That order is deliberate: the
  * numbers are the product, and the prose is the translation of them.
  */
 
@@ -31,7 +31,7 @@ const KIND_LABEL: Record<string, string> = {
   star: 'Star',
   planet: 'Planet',
   moon: 'Moon',
-  sun: 'Star — our own',
+  sun: 'Star: our own',
   satellite: 'Satellite',
 };
 
@@ -118,7 +118,7 @@ export function ObjectSheet({
       <p className="sheet__where">
         {belowHorizon ? (
           <>
-            Currently <strong>below the horizon</strong> — the Earth is in the way.
+            Currently <strong>below the horizon</strong>. The Earth is in the way.
           </>
         ) : (
           <>
@@ -185,8 +185,8 @@ export function ObjectSheet({
       {body.kind === 'satellite' && (
         <p className={`chip ${body.sunlit ? 'chip--visible' : 'chip--hidden'}`}>
           {body.sunlit
-            ? 'In sunlight — visible as a moving point of light'
-            : "In Earth's shadow — overhead, but nothing to see"}
+            ? 'In sunlight: visible as a moving point of light'
+            : "In Earth's shadow: overhead, but nothing to see"}
         </p>
       )}
 

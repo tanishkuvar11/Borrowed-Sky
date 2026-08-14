@@ -11,7 +11,7 @@
  *
  *   2. iOS permission grant. Safari exposes requestPermission and withholds
  *      readings until it resolves 'granted'. The hook must then actually
- *      subscribe — the failure mode this guards is a permanent
+ *      subscribe, the failure mode this guards is a permanent
  *      "waiting for the compass" after the user has already said yes.
  *
  * Run against `npm run dev`:  node scripts/verify/compass.mjs
@@ -29,7 +29,7 @@ const OUT = 'scripts/verify/shots';
 const PORT = 9336;
 const SITE = { latitude: -26.2041, longitude: 28.0473, elevation: 1753, source: 'gps' };
 
-/** A routable LAN address for this machine — what a phone would actually type. */
+/** A routable LAN address for this machine: what a phone would actually type. */
 function lanAddress() {
   for (const list of Object.values(networkInterfaces())) {
     for (const net of list ?? []) {
@@ -191,7 +191,7 @@ async function main() {
     const dialogText = () =>
       evalPage(`document.querySelector('.dialog__panel')?.innerText ?? '(no dialog)'`);
 
-    /** The header rose's own state class — the at-a-glance indicator. */
+    /** The header rose's own state class: the at-a-glance indicator. */
     const roseState = () =>
       evalPage(
         `[...(document.querySelector('.rose:not(.rose--plain)')?.classList ?? [])]
@@ -202,6 +202,30 @@ async function main() {
       evalPage(
         `localStorage.setItem('borrowed-sky:site', ${JSON.stringify(JSON.stringify(SITE))})`,
       );
+
+    /**
+     * Waits until the header rose has actually rendered.
+     *
+     * A fixed sleep after reload is a guess about how long the app takes to
+     * paint, and the guess is wrong exactly when the machine is busy; this
+     * suite runs three headless Chromes in sequence, so the last one starts
+     * slowest and was intermittently asserting against a page that had not
+     * mounted yet. Polling for the element turns a timing race into a wait.
+     */
+    // Generous, because the first run after a source change also pays for Vite
+    // transforming the module graph, and this suite's third browser starts
+    // while two others are still shutting down. A wait costs nothing when the
+    // page is quick; a ceiling that is too low costs a false failure.
+    const waitForRose = async (expected, timeout = 45000) => {
+      const until = Date.now() + timeout;
+      let seen = '(none)';
+      while (Date.now() < until) {
+        seen = await roseState();
+        if (seen === expected) return seen;
+        await sleep(250);
+      }
+      return seen;
+    };
 
     // -- Case 1: opened by LAN address, the way a phone reaches the dev server --
 
@@ -221,11 +245,12 @@ async function main() {
       await sleep(1500);
       await seedSite();
       await call('Page.reload');
-      await sleep(8000);
+      await sleep(1500);
+      await waitForRose('rose--blocked');
 
       const secure = await evalPage('window.isSecureContext');
       check('origin is genuinely insecure', secure === false, `isSecureContext=${secure}`);
-      check('header rose shows blocked', (await roseState()) === 'rose--blocked');
+      check('header rose shows blocked', (await roseState()) === 'rose--blocked', await roseState());
 
       await openRose();
       const text = await dialogText();
@@ -252,11 +277,12 @@ async function main() {
     await sleep(1500);
     await seedSite();
     await call('Page.reload');
-    await sleep(8000);
+    await sleep(1500);
+    await waitForRose('rose--ask');
 
     check('secure origin', (await evalPage('window.isSecureContext')) === true);
 
-    check('header rose invites a tap', (await roseState()) === 'rose--ask');
+    check('header rose invites a tap', (await roseState()) === 'rose--ask', await roseState());
 
     await openRose();
     const before = await dialogText();

@@ -2,7 +2,7 @@
  * The heading repeater: a brass-framed strip of compass card under the sky.
  *
  * Ruled at a fixed 96 degrees across the strip rather than borrowed from the
- * projection, because this is a separate instrument from the sky view — a
+ * projection, because this is a separate instrument from the sky view, a
  * repeater reads the same however the chart above it is scaled, and a scale that
  * silently changed with the field of view would be unreadable.
  *
@@ -44,7 +44,7 @@ export function CompassStrip({ heading, live }: { heading: number; live: boolean
 
     // Eased follow. The card settles onto a new heading rather than snapping to
     // it, which is what makes a mechanical instrument feel damped instead of
-    // twitchy — and it costs nothing, because the raw value is still the one
+    // twitchy, and it costs nothing, because the raw value is still the one
     // printed in the readout.
     let shown = headingRef.current;
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { LocationGate } from './components/LocationGate';
+import { Overture } from './components/Overture';
 import { SkyView } from './components/SkyView';
 import { TimelineView } from './components/TimelineView';
 import { GuideView } from './components/GuideView';
@@ -18,6 +18,7 @@ import {
 } from './components/icons';
 
 import { timezoneMismatch, useObserverSite } from './hooks/useObserverSite';
+import { useSmoothScroll } from './hooks/useSmoothScroll';
 import { useOrientation } from './hooks/useOrientation';
 import { useSkyData } from './hooks/useSkyData';
 import { useJournal } from './lib/journal';
@@ -26,6 +27,7 @@ import type { Tone } from './lib/ai';
 
 import './styles/tokens.css';
 import './styles/app.css';
+import './styles/overture.css';
 
 type View = 'sky' | 'explore' | 'tonight' | 'logbook';
 
@@ -40,7 +42,7 @@ const COMPASS_HINT: Record<string, string> = {
   live: 'Compass tracking',
   paused: 'Compass paused',
   ask: 'Turn on compass tracking',
-  blocked: 'Compass unavailable — tap for why',
+  blocked: 'Compass unavailable: tap for why',
 };
 
 export default function App() {
@@ -52,6 +54,11 @@ export default function App() {
   // rose reports it and the sky view is not always the visible screen.
   const orientation = useOrientation();
   const [followCompass, setFollowCompass] = useState(true);
+
+  // Only on the way in. Once there is a site the app is a fixed instrument
+  // panel, and reinterpreting scroll inside it would fight the sky view's own
+  // drag handling for the same gestures.
+  useSmoothScroll(!site);
 
   const [view, setView] = useState<View>('sky');
   const [tone, setTone] = useState<Tone>('standard');
@@ -83,7 +90,7 @@ export default function App() {
 
   if (!site) {
     return (
-      <LocationGate
+      <Overture
         status={status}
         error={error}
         permission={permission}
@@ -207,7 +214,7 @@ export default function App() {
 
         {/*
           The centre emblem returns to the sky and hands the view back to the
-          compass — the "put me back where I am standing" control, which is the
+          compass, the "put me back where I am standing" control, which is the
           one thing you want after wandering off in a drag.
         */}
         <button

@@ -126,7 +126,36 @@ async function main() {
     await evalPage(`localStorage.setItem('borrowed-sky:site', ${JSON.stringify(JSON.stringify(SITE))});
                     localStorage.removeItem('borrowed-sky:journal')`);
     await call('Page.reload');
-    await sleep(6000);
+
+    /*
+     * Wait for the canvas to publish tap targets rather than sleeping a fixed
+     * six seconds and hoping.
+     *
+     * The targets only exist after the star catalogue has loaded and the first
+     * frame has drawn, and how long that takes depends on what else the machine
+     * is doing: this suite runs several headless browsers in sequence, and the
+     * first run after a source change also pays for Vite transforming the
+     * module graph. A guessed sleep is right on an idle machine and wrong
+     * exactly when it is busy, which is how this passed alone and failed in the
+     * suite. Waiting costs nothing when the page is quick.
+     */
+    const hasTargets = async (timeout = 45000) => {
+      const until = Date.now() + timeout;
+      while (Date.now() < until) {
+        const count = await evalPage(
+          `(document.querySelector('canvas')?.__targets || []).length`,
+        );
+        if (count > 0) return true;
+        await sleep(250);
+      }
+      return false;
+    };
+    // Let the navigation actually begin before polling. Without this the first
+    // poll can land on the outgoing document, find its targets, and return
+    // immediately, after which the reload tears that page down and the very
+    // next evaluation has no canvas to query.
+    await sleep(1500);
+    await hasTargets();
 
     console.log('\ntap to identify:');
 

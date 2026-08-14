@@ -5,7 +5,7 @@
  * sensors on a self-signed origin once you tap through the warning. Geolocation
  * is gated harder. WebKit treats an origin reached through a certificate
  * exception as untrustworthy for that particular permission and declines to
- * even show the prompt — which looks exactly like a denial you cannot undo,
+ * even show the prompt, which looks exactly like a denial you cannot undo,
  * because there is no prompt to answer and no setting that re-enables it.
  *
  * The fix is a certificate the phone already trusts. A quick tunnel provides
@@ -13,7 +13,7 @@
  * and forwards to the local dev server, so HMR keeps working and the phone gets
  * a fully trusted origin. Deploying fixes it too, but costs you live reload.
  *
- * The tunnel URL changes every run — that is the trade for needing no account.
+ * The tunnel URL changes every run; that is the trade for needing no account.
  */
 
 import { spawn } from 'node:child_process';

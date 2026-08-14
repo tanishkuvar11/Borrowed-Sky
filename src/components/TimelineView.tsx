@@ -1,5 +1,5 @@
 /**
- * Tonight's Sky — a horizontal rule you can read like an instrument scale.
+ * Tonight's Sky: a horizontal rule you can read like an instrument scale.
  *
  * The band behind the events is a plot of the real Sun altitude across the
  * window, so the darkness you can see on the strip is the darkness that is
@@ -40,7 +40,7 @@ function relative(target: Date, now: Date): string {
   return `in ${hours.toFixed(hours < 10 ? 1 : 0)} h`;
 }
 
-/** Sky colour for a given Sun altitude — the same ramp the canvas background uses. */
+/** Sky colour for a given Sun altitude: the same ramp the canvas background uses. */
 function bandColor(altitude: number): string {
   const darkness = Math.max(0, Math.min(1, (-altitude - 2) / 16));
   const r = Math.round(46 * (1 - darkness) + 10 * darkness);
@@ -137,7 +137,7 @@ export function TimelineView({
           {headline
             ? headline.detail
             : timeline.darkness
-              ? 'No planets or station passes clear the rooftops during tonight\'s dark hours. The stars are still there — open the sky view.'
+              ? 'No planets or station passes clear the rooftops during tonight\'s dark hours. The stars are still there. Open the sky view.'
               : 'The Sun does not get far enough below the horizon here tonight for the sky to go properly dark.'}
         </p>
 

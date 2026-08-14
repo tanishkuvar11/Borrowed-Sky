@@ -2,7 +2,7 @@
  * The narration layer.
  *
  * Two things matter here. First, the model is handed a finished description of
- * the sky and is never asked to work out where anything is — that job belongs
+ * the sky and is never asked to work out where anything is; that job belongs
  * to astronomy-engine and SGP4. Second, when watsonx is unreachable or simply
  * not configured, the app does not go quiet and does not start guessing: it
  * falls back to a deterministic narrator that assembles sentences from the same
@@ -68,7 +68,7 @@ function describeDistance(body: SkyBody): string | undefined {
   }
   if (unit === 'au') {
     const lightMinutes = value * 8.317;
-    return `${value.toFixed(2)} times the Earth-Sun distance — light takes ${Math.round(lightMinutes)} minutes to cross it`;
+    return `${value.toFixed(2)} times the Earth-Sun distance; light takes ${Math.round(lightMinutes)} minutes to cross it`;
   }
   return `${value.toFixed(1)} light years away`;
 }
@@ -129,7 +129,7 @@ export function buildSkyContext(options: {
   return {
     observedAt: now.toISOString(),
     location: {
-      // Two decimals is about a kilometre — enough for the sky, and it keeps a
+      // Two decimals is about a kilometre, enough for the sky, and it keeps a
       // precise home address out of the request.
       latitudeDegrees: Math.round(site.latitude * 100) / 100,
       longitudeDegrees: Math.round(site.longitude * 100) / 100,
@@ -167,7 +167,7 @@ function sentenceList(items: string[]): string {
 /**
  * Builds an answer from the computed data alone, with no model involved.
  *
- * This is not a degraded placeholder — every number in it is the same number
+ * This is not a degraded placeholder: every number in it is the same number
  * Granite would have been given. It is plainer, and it says so.
  */
 export function narrateLocally(context: SkyContext, tone: Tone, question?: string): string {
@@ -187,7 +187,7 @@ export function narrateLocally(context: SkyContext, tone: Tone, question?: strin
 
     if (!simple) {
       parts.push(
-        `Apparent magnitude ${f.magnitude.toFixed(1)} — lower numbers mean brighter, and about 6 is the faintest the unaided eye can reach in a dark sky.`,
+        `Apparent magnitude ${f.magnitude.toFixed(1)}. Lower numbers mean brighter, and about 6 is the faintest the unaided eye can reach in a dark sky.`,
       );
     }
     return parts.join(' ');
@@ -252,7 +252,7 @@ export async function askGuide(options: {
       detail.error === 'ai_unconfigured'
         ? 'The AI guide is not configured on this deployment, so this is the built-in narrator.'
         : detail.error === 'rate_limited'
-          ? 'Too many questions in a row — this is the built-in narrator for now.'
+          ? 'Too many questions in a row; this is the built-in narrator for now.'
           : 'The AI guide could not be reached, so this is the built-in narrator.';
 
     return { text: narrateLocally(skyContext, tone, question), source: 'local', note };

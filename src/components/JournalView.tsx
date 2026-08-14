@@ -5,8 +5,8 @@
  * each thing you have found is plotted where you found it, and the dome slowly
  * fills in. The list underneath is the record; the chart is the reward.
  *
- * The projection is the standard planisphere layout — zenith at the centre,
- * horizon at the rim, north at the top — so it reads like the paper star wheels
+ * The projection is the standard planisphere layout: zenith at the centre,
+ * horizon at the rim, north at the top, so it reads like the paper star wheels
  * this app is a descendant of.
  */
 

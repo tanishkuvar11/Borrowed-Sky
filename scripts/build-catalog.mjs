@@ -3,10 +3,10 @@
  * Builds the compact star + constellation catalogues that Borrowed Sky ships.
  *
  * Sources (both free, no key, redistributable with attribution):
- *   - HYG Database v4.1 (astronexus/HYG-Database) — CC BY-SA 4.0.
+ *   - HYG Database v4.1 (astronexus/HYG-Database), CC BY-SA 4.0.
  *     Real astrometry: J2000 right ascension, declination, visual magnitude,
  *     colour index and spectral class.
- *   - d3-celestial constellation figure lines (ofrohn/d3-celestial) — BSD-3-Clause.
+ *   - d3-celestial constellation figure lines (ofrohn/d3-celestial), BSD-3-Clause.
  *
  * Nothing here is invented. The script only filters, rounds and re-packs.
  * Run with `npm run catalog`. Output lands in src/data/.
@@ -90,7 +90,7 @@ const round = (n, places) => {
 };
 
 // ---------------------------------------------------------------------------
-// reference data (IAU standard — stable, not derived from the sources above)
+// reference data (IAU standard: stable, not derived from the sources above)
 // ---------------------------------------------------------------------------
 
 const GREEK = {
@@ -133,7 +133,7 @@ async function buildStars() {
 
   const col = (name) => {
     const i = header.indexOf(name);
-    if (i < 0) throw new Error(`HYG column "${name}" missing — catalogue format changed`);
+    if (i < 0) throw new Error(`HYG column "${name}" missing: catalogue format changed`);
     return i;
   };
   const iId = col('id');
@@ -289,7 +289,7 @@ async function buildConstellations() {
 // ---------------------------------------------------------------------------
 
 async function main() {
-  console.log('Borrowed Sky — catalogue build');
+  console.log('Borrowed Sky: catalogue build');
   await mkdir(OUT, { recursive: true });
   await mkdir(CACHE, { recursive: true });
 

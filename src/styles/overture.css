@@ -1,0 +1,498 @@
+/**
+ * The overture: the scrolling way in.
+ *
+ * One sky, held still by `position: sticky`, with captions scrolling over it.
+ * Sticky rather than a fixed layer plus transformed scroll, because the browser
+ * keeps a sticky element locked to the compositor: momentum scrolling, iOS
+ * rubber-banding and the disappearing address bar all keep working, and none of
+ * them have to be re-implemented badly.
+ *
+ * Nothing here hijacks the wheel or the touch. The page is the length it looks,
+ * and it scrolls at the speed the platform decides.
+ */
+
+.overture {
+  position: relative;
+  background: var(--ink-void);
+  /* Five screens of travel: enough for each caption to have the sky to itself. */
+  min-height: 500vh;
+}
+
+/* --- the sky ------------------------------------------------------------- */
+
+.overture__stage {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  /* Falls back for engines without small-viewport units, where a scrolling
+     address bar would otherwise crop the horizon. */
+  height: 100vh;
+  height: 100svh;
+  z-index: 0;
+  transition: opacity 120ms linear;
+}
+
+.overture__stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/*
+ * Legibility scrim.
+ *
+ * The sky underneath is different every night: a bright planet or a labelled
+ * star can land anywhere, including directly behind the headline. Type cannot
+ * be hand-placed around content that changes daily, so the quarter of the frame
+ * the captions occupy is darkened instead: down the left edge, where the column
+ * sits, and across the bottom, where the hero sits. Weak enough that the Milky
+ * Way still reads through it at full dark.
+ */
+.overture__stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    /*
+     * A vignette first, which is what carries the mood. Twilight computed
+     * honestly is a broad even wash, and an even wash reads as flat no matter
+     * how correct it is. Darkening the corners and the top pushes the eye to
+     * the middle of the frame and lets the horizon be the brightest thing on
+     * screen, the way it is when you actually stand outside and look at it.
+     * Warm-tinted rather than neutral, so the shadow sides go to a deep brown
+     * black instead of to grey.
+     */
+    radial-gradient(
+      120% 88% at 62% 82%,
+      transparent 24%,
+      rgba(10, 6, 14, 0.34) 62%,
+      rgba(6, 4, 10, 0.72) 100%
+    ),
+    linear-gradient(to bottom, rgba(6, 4, 10, 0.62) 0%, transparent 30%),
+    linear-gradient(
+      to bottom,
+      transparent 34%,
+      rgba(7, 7, 15, 0.42) 74%,
+      rgba(7, 7, 15, 0.76) 100%
+    ),
+    linear-gradient(to right, rgba(7, 7, 15, 0.55) 0%, transparent 62%);
+}
+
+/*
+ * The attribution slate. Fixed to the viewport rather than scrolled with the
+ * captions, because the claim it makes (this is Greenwich, at this instant)
+ * has to hold for every frame of the page, not just the ones near a heading.
+ */
+.overture__slate {
+  position: absolute;
+  top: max(1.1rem, env(safe-area-inset-top));
+  left: var(--pad-edge);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.85rem 1.15rem 0.95rem;
+  /* A dished recess rather than a flat veil, so the card sits in the surface
+     instead of on top of it. */
+  background: linear-gradient(160deg, rgba(20, 16, 34, 0.78) 0%, rgba(7, 7, 15, 0.72) 100%);
+  border: var(--rule) solid var(--brass-hairline);
+  border-left: 2px solid var(--brass);
+  border-radius: var(--radius-panel);
+  box-shadow:
+    0 12px 34px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(232, 204, 122, 0.07);
+  backdrop-filter: blur(9px);
+  pointer-events: none;
+}
+
+.overture__slate-title {
+  font-size: 0.625rem;
+  letter-spacing: 0.19em;
+  color: var(--brass-bright);
+  margin-bottom: 0.15rem;
+}
+
+.overture__slate .readout {
+  font-size: var(--t-micro);
+  color: var(--starlight-soft);
+  letter-spacing: 0.04em;
+}
+
+/* Each reading is a mark and a number, aligned on a single column of icons. */
+.overture__reading {
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.overture__mark-icon {
+  color: var(--brass);
+  opacity: 0.85;
+  flex: none;
+}
+
+.overture__clock {
+  color: var(--visible);
+}
+
+/*
+ * The reason the clock reads what it reads. Set below the time and dimmer than
+ * it, because it is the footnote to the time rather than a second reading, and
+ * kept on one line so the slate does not change shape as the number counts up.
+ */
+.overture__depth {
+  color: var(--starlight-mute);
+  white-space: nowrap;
+}
+
+/* --- the captions -------------------------------------------------------- */
+
+.overture__flow {
+  position: relative;
+  z-index: 2;
+  /* Pulls the caption column back over the sticky sky above it. */
+  margin-top: -100svh;
+}
+
+/*
+ * Type carries its own darkness.
+ *
+ * The alternative is dimming the sky behind the whole caption column, which
+ * works right up until the caption about the Milky Way puts a scrim over the
+ * Milky Way. A shadow tight to the glyphs buys the same contrast against a
+ * bright star or a planet label without touching the picture either side of it.
+ */
+.overture__panel :is(h1, h2, p, .overture__figure) {
+  text-shadow:
+    0 0 20px rgba(7, 7, 15, 0.92),
+    0 0 6px rgba(7, 7, 15, 0.85),
+    0 1px 2px rgba(7, 7, 15, 0.9);
+}
+
+.overture__panel {
+  min-height: 100svh;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 var(--pad-edge);
+  /*
+   * Wide, because every sentence is its own line and none of them may wrap.
+   * A 34rem column broke the longest ones in two, which is exactly the thing
+   * the one-sentence-per-line setting exists to prevent. This is a measure for
+   * a stack of separate statements rather than for running prose, so the usual
+   * argument against a long line does not apply.
+   */
+  max-width: 58rem;
+  /* Left-aligned rather than centred: the slate is a fixed anchor in the top
+     left, and a centred column would leave it orphaned. */
+  margin: 0;
+  will-change: opacity, transform;
+}
+
+/*
+ * The hero sits low. The sky fills the frame above it and the unlit ground
+ * below the horizon becomes the bed the type is set on, which is both better
+ * contrast than mid-sky and a better picture than a headline floating in the
+ * middle of an empty field.
+ */
+.overture__panel--hero {
+  justify-content: flex-end;
+  padding-bottom: clamp(3rem, 14vh, 7rem);
+}
+
+/*
+ * The project's name, and the first words on the page, so it is set as a title
+ * rather than as the caption `.engrave` normally produces. The tracking comes
+ * down as the size goes up: 0.34em is what makes 13px read as an engraved
+ * label, and the same value at twice the size just pulls the word apart.
+ */
+.overture__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  font-size: clamp(0.7rem, 2.2vw, 0.875rem);
+  letter-spacing: 0.3em;
+  color: var(--brass-bright);
+  margin-bottom: 0.9rem;
+}
+
+/* Runs out from the wordmark and stops at a glint, like a rule on a chart. */
+.overture__eyebrow-rule {
+  width: clamp(2rem, 7vw, 4.5rem);
+  height: 1px;
+  background: linear-gradient(90deg, var(--brass) 0%, rgba(201, 162, 39, 0.15) 100%);
+}
+
+/* The flourish under the headline. */
+.overture__flourish {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1.6rem;
+  color: var(--brass);
+}
+
+.overture__flourish-rule {
+  height: 1px;
+  width: clamp(3rem, 9vw, 6rem);
+  background: linear-gradient(90deg, rgba(201, 162, 39, 0.1) 0%, var(--brass) 100%);
+}
+
+.overture__flourish-rule--fade {
+  width: clamp(1.5rem, 5vw, 3rem);
+  background: linear-gradient(90deg, var(--brass) 0%, rgba(201, 162, 39, 0) 100%);
+}
+
+.overture__headline {
+  font-family: var(--font-headline);
+  /* Cormorant's lightest cut, which is where its hairlines are thinnest. */
+  font-weight: 300;
+  /*
+   * Fitted so "Everything up there" holds one line down to a 320px phone.
+   * Sized by eye rather than to the column: Cormorant needs only 7.3px of
+   * width per pixel of type size, so the phrase would still fit at half again
+   * this size, and did. It was simply too big for the picture behind it.
+   */
+  font-size: clamp(2rem, 8vw, 4.5rem);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  color: var(--starlight);
+  margin: 0 0 1.4rem;
+  text-wrap: balance;
+}
+
+/* The emphasised word. Jost's own italic, so nothing is being slanted by the
+   browser, and brass so it reads as the one lit word in the line. */
+.overture__headline em,
+.overture__title em {
+  font-style: italic;
+  color: var(--brass-bright);
+}
+
+.overture__title {
+  font-family: var(--font-headline);
+  font-weight: 300;
+  /* Capped by the longest title rather than by taste: "The Sun has gone, but
+     its light hasn't." is the one that decides it. */
+  font-size: clamp(1.9rem, 7vw, 3.1rem);
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  color: var(--starlight);
+  margin: 0 0 1rem;
+  text-wrap: balance;
+}
+
+/*
+ * One sentence per line.
+ *
+ * A block rather than a `<br>` because a sentence longer than the column still
+ * has to wrap, and as a block its continuation stays grouped with it instead of
+ * being indistinguishable from the start of the next sentence.
+ */
+.overture__sentence {
+  display: block;
+}
+
+.overture__lede,
+.overture__body {
+  font-family: var(--font-body);
+  /* A shade heavier than a sans would need: Cormorant has a small eye and thin
+     strokes, and at 300 it greys out over a sky. */
+  font-weight: 400;
+  font-size: clamp(1rem, 3.1vw, 1.15rem);
+  line-height: 1.6;
+  color: var(--starlight-soft);
+  margin: 0;
+  max-width: 56rem;
+}
+
+/*
+ * The line each section lands on. Brass and set apart from the paragraph above
+ * it, so the one sentence that is a statement rather than description reads as
+ * the point being made.
+ */
+.overture__figure {
+  margin: 1.1rem 0 0;
+  font-family: var(--font-body);
+  font-size: clamp(1.15rem, 4.2vw, 1.45rem);
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: -0.005em;
+  color: var(--brass-bright);
+  text-wrap: balance;
+}
+
+/*
+ * The scroll cue: a rule that draws down, the way a scale is ruled.
+ *
+ * Sentence case rather than the tracked-out caps the rest of the app's labels
+ * use, because this one is a sentence now. At 0.3em tracking it set to nearly
+ * three hundred pixels and pushed the hero off a small screen.
+ */
+.overture__cue {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  margin-top: 2.4rem;
+}
+
+/* The dial: a brass capsule with a weight falling down the inside of it. */
+.overture__cue-dial {
+  position: relative;
+  flex: none;
+  width: 2.1rem;
+  height: 3.4rem;
+  border: var(--rule) solid var(--brass-hairline);
+  border-radius: 1.05rem;
+  background: linear-gradient(180deg, rgba(36, 26, 56, 0.4) 0%, rgba(7, 7, 15, 0.5) 100%);
+  overflow: hidden;
+}
+
+.overture__cue-bob {
+  position: absolute;
+  left: 50%;
+  top: 0.55rem;
+  width: 3px;
+  height: 3px;
+  margin-left: -1.5px;
+  border-radius: 50%;
+  background: var(--brass-bright);
+  box-shadow: 0 0 6px rgba(232, 204, 122, 0.7);
+  animation: overture-fall 2.8s var(--ease) infinite;
+}
+
+/*
+ * Falls, fades, and returns to the top unseen. Fading at both ends rather than
+ * looping visibly is what stops it reading as a jump back.
+ */
+@keyframes overture-fall {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(1.75rem);
+    opacity: 0;
+  }
+}
+
+.overture__cue-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.overture__cue-text .engrave {
+  font-size: var(--t-micro);
+  letter-spacing: 0.3em;
+}
+
+/* Italic, because it is the page speaking rather than labelling. */
+.overture__cue-line {
+  font-family: var(--font-headline);
+  font-style: italic;
+  font-size: clamp(0.95rem, 3vw, 1.15rem);
+  color: var(--starlight-soft);
+}
+
+/* --- the closing plate --------------------------------------------------- */
+
+.overture__panel--close {
+  min-height: 100svh;
+  justify-content: center;
+  padding-bottom: max(2rem, env(safe-area-inset-bottom));
+  max-width: 60rem;
+}
+
+/*
+ * The one solid surface on the page. Everything until now has floated over the
+ * sky; the ask is the moment the instrument itself comes forward, so it gets
+ * the engraved plate and the brass edge the rest of the app uses.
+ */
+.overture__plate {
+  position: relative;
+  padding: clamp(1.4rem, 5vw, 2.2rem);
+  background: linear-gradient(180deg, var(--plate-top) 0%, var(--plate-bottom) 100%);
+  border: var(--rule) solid var(--brass-hairline);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-panel);
+  will-change: opacity;
+}
+
+.overture__mark {
+  display: block;
+  color: var(--brass);
+  margin-bottom: 1rem;
+}
+
+.overture__plate .provenance--block {
+  margin-top: 1.4rem;
+  padding-top: 1rem;
+  border-top: var(--rule) solid var(--brass-engrave);
+  line-height: 1.55;
+}
+
+/* --- the ask ------------------------------------------------------------- */
+
+.ask {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.9rem;
+  margin-top: 1.6rem;
+}
+
+.ask .gate__form {
+  width: 100%;
+}
+
+/* --- motion preferences -------------------------------------------------- */
+
+/*
+ * With reduced motion the page stops being a sequence and becomes a document:
+ * every caption is present and legible, the sky holds one settled night frame,
+ * and nothing is gated behind scrolling to a position.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .overture {
+    min-height: 0;
+  }
+
+  .overture__stage {
+    position: fixed;
+    inset: 0;
+    height: 100%;
+  }
+
+  .overture__flow {
+    margin-top: 0;
+  }
+
+  .overture__panel {
+    min-height: 0;
+    padding-top: 3.5rem;
+    padding-bottom: 3.5rem;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .overture__cue-rule {
+    animation: none;
+  }
+}
+
+/* On a short landscape phone the full-height panels leave no room to read. */
+@media (max-height: 460px) and (orientation: landscape) {
+  .overture__panel {
+    min-height: 130svh;
+  }
+}

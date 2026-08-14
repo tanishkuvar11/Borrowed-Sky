@@ -3,7 +3,7 @@
  *
  * Orbital elements come from Celestrak (free, no key) through this app's own
  * /api/tle proxy, and are propagated with SGP4 via satellite.js. Nothing here
- * is approximated from a schedule or a lookup table — every pass time is
+ * is approximated from a schedule or a lookup table; every pass time is
  * searched for numerically from the elements.
  *
  * A pass being *above the horizon* is not the same as a pass being *visible*.
@@ -52,7 +52,7 @@ export const TRACKED_FOR_PASSES = [ISS_NORAD_ID, CSS_NORAD_ID];
 
 export const SATELLITE_FACTS: Record<number, string> = {
   [ISS_NORAD_ID]:
-    'The International Space Station — a laboratory the size of a football pitch with people living aboard it, orbiting about 400 km up.',
+    'The International Space Station, a laboratory the size of a football pitch with people living aboard it, orbiting about 400 km up.',
   [CSS_NORAD_ID]:
     "Tiangong, China's space station. Three astronauts typically live aboard it.",
 };
@@ -127,8 +127,8 @@ const CACHE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 /**
  * Fetches elements, falling back to a browser-cached copy when offline.
  *
- * SGP4 accuracy decays slowly — elements a day or two old still give passes
- * good to a few seconds — so serving a cached set beats serving nothing. Past
+ * SGP4 accuracy decays slowly: elements a day or two old still give passes
+ * good to a few seconds, so serving a cached set beats serving nothing. Past
  * three days we refuse rather than quietly mislead.
  */
 export async function loadTleSet(group = 'stations', signal?: AbortSignal): Promise<TleSet> {
@@ -166,7 +166,7 @@ export async function loadTleSet(group = 'stations', signal?: AbortSignal): Prom
     try {
       localStorage.setItem(cacheKey, JSON.stringify({ fetchedAt: Date.now(), text: json.tle }));
     } catch {
-      // Storage full or blocked — not fatal, we just refetch next time.
+      // Storage full or blocked. Not fatal, we just refetch next time.
     }
 
     return {
@@ -336,7 +336,7 @@ export interface SatellitePass {
 }
 
 interface PassSearchOptions {
-  /** Ignore passes that never get this high — they stay lost in ground clutter. */
+  /** Ignore passes that never get this high; they stay lost in ground clutter. */
   minPeakAltitude?: number;
   /** How dark the observer's sky must be to count a pass as visible. */
   maxSunAltitude?: number;

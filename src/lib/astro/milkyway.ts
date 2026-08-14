@@ -2,7 +2,7 @@
  * The Milky Way, placed where it actually is.
  *
  * The band across the sky is our own galaxy's disc seen edge-on from inside it,
- * so its position is not a matter of taste — it is fixed in the sky and can be
+ * so its position is not a matter of taste; it is fixed in the sky and can be
  * computed. This module builds the galactic coordinate frame from the IAU 1958
  * pole (the values below are the standard J2000 realisation) and hands back a
  * cloud of points on the galactic plane already expressed as J2000 equatorial
@@ -15,7 +15,7 @@
  * on a winter evening and the bright part will be where the app draws it.
  *
  * What is stylised: the cloud texture itself. This is a depiction of a real
- * structure, not a photometric survey — the individual patches are generated,
+ * structure, not a photometric survey: the individual patches are generated,
  * and the app does not claim otherwise. The honest line is that the *geometry*
  * is computed and the *rendering* is illustration, which is why this lives well
  * away from anything that produces a number the user is shown.
@@ -73,7 +73,7 @@ function normalise(v: Vec3): Vec3 {
  * there is no sign or ordering convention to get wrong: x points at the galactic
  * centre, z at the north galactic pole, y completes a right-handed set.
  *
- * The two published directions are not exactly perpendicular — they are each
+ * The two published directions are not exactly perpendicular; they are each
  * rounded to five decimal places, which leaves them about a third of an
  * arcsecond out of square. Gram-Schmidt takes the pole as given and squares the
  * centre against it, well inside the rounding, so the result is an exactly
@@ -129,7 +129,7 @@ function gaussian(rand: () => number): number {
  *
  * Two real features drive this. The disc is optically thick, so looking towards
  * the centre (l = 0) crosses far more of it than looking outwards at the
- * anticentre (l = 180) — hence the cosine-weighted falloff. And the Great Rift
+ * anticentre (l = 180), hence the cosine-weighted falloff. And the Great Rift
  * is a genuine dark lane: nearby dust in the Aquila–Cygnus arm blocking the
  * light behind it, which is why the band appears to split from roughly l = 0 to
  * l = 50 rather than fading.

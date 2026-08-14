@@ -1,5 +1,5 @@
 /**
- * The observer's position on Earth — the one input every calculation needs.
+ * The observer's position on Earth: the one input every calculation needs.
  *
  * Geolocation is asked for, never assumed. If it is refused or unavailable the
  * app takes coordinates by hand rather than guessing from an IP address, which
@@ -56,7 +56,7 @@ export function useObserverSite() {
    * prompt that was answered no, and a prompt that was never allowed to appear
    * because location is switched off for the browser at the OS level. The
    * Geolocation API reports both as PERMISSION_DENIED. The Permissions API can
-   * tell them apart — 'prompt' means the browser still intends to ask, so a
+   * tell them apart: 'prompt' means the browser still intends to ask, so a
    * denial arriving anyway points outside the browser.
    */
   useEffect(() => {
@@ -102,7 +102,7 @@ export function useObserverSite() {
         if (err.code === err.PERMISSION_DENIED) {
           setStatus('denied');
           setError(
-            'Your browser refused to share your location. Nothing is lost — typing coordinates in gives exactly the same sky.',
+            'Your browser refused to share your location. Nothing is lost: typing coordinates in gives exactly the same sky.',
           );
         } else {
           setStatus('unavailable');
@@ -134,7 +134,7 @@ export function useObserverSite() {
 
 /**
  * Times are always shown in the device's own timezone. That is right for the
- * ordinary case — you are standing where you are — but wrong if someone types
+ * ordinary case (you are standing where you are), but wrong if someone types
  * in coordinates on the far side of the world, so the interface says so when
  * the two clearly disagree.
  */

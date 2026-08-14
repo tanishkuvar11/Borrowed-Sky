@@ -1,5 +1,5 @@
 /**
- * Twilight Instrument — design tokens.
+ * Twilight Instrument: design tokens.
  *
  * The palette is built for a screen used outdoors at night. Backgrounds sit
  * near black so the display does not blow out dark-adapted eyes, brass carries
@@ -26,7 +26,7 @@
    * Brass as a material rather than a colour.
    *
    * A single flat gold fill reads as a swatch; what makes metal look like metal
-   * is that it reflects a *scene* — bright where it catches light, near-black in
+   * is that it reflects a *scene*: bright where it catches light, near-black in
    * the shadowed quarter, with a hard specular line between. So every brass
    * edge in the app is this gradient, and the highlight always runs the same way
    * because a single light source is what stops a panel of instruments from
@@ -79,11 +79,47 @@
   --dish-bottom: #0a0a16;
 
   /* --- type --- */
-  --font-display: 'Cabinet Grotesk', 'Segoe UI', system-ui, sans-serif;
-  --font-body: 'Newsreader', Georgia, 'Times New Roman', serif;
-  --font-data: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', monospace;
+  /*
+   * Four faces, four jobs.
+   *
+   * Cormorant Garamond speaks. A high-contrast old-style serif whose hairlines
+   * go almost to nothing at display sizes, which is the whole effect: at 300 it
+   * reads as light falling on the type rather than ink sitting on it, and its
+   * italic is calligraphic enough that one emphasised word carries a line.
+   * Used large only. Below about 1.5rem the contrast works against it and the
+   * thin strokes start to disappear.
+   *
+   * Ainslie Sans narrates too. One family across headline and body, so the
+   * page holds together on its shapes rather than on a pairing, with size and
+   * weight carrying the whole hierarchy instead.
+   *
+   * Unbounded stamps. It keeps every uppercase label, button and control,
+   * because the instrument furniture should read as struck into metal, and a
+   * delicate serif there would undo the whole conceit.
+   *
+   * Share Tech Mono takes every number and every provenance line. It ships one
+   * weight only, which is why nothing anywhere asks it for bold: a synthetic
+   * bold on a face this light smears at the sizes used here.
+   */
+  /*
+   * Cormorant Garamond speaks. A high-contrast old-style serif whose hairlines
+   * go almost to nothing at display size, which is the whole effect: at 300 it
+   * reads as light falling on the type rather than ink sitting on it, and its
+   * true italic is calligraphic enough that one emphasised word carries a
+   * line. Used large only. Below about 1.5rem the contrast works against it
+   * and the thin strokes start to disappear, which is why the body is a sans.
+   *
+   * It narrates as well. One family throughout, so the page holds together on
+   * its own shapes; the cost is that Cormorant is drawn for display, and its
+   * hairlines thin out badly below about 1rem, which is why the body sizes
+   * below run larger than they would for a sans.
+   */
+  --font-headline: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --font-body: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --font-display: 'Unbounded', 'Segoe UI', system-ui, sans-serif;
+  --font-data: 'Share Tech Mono', ui-monospace, 'Cascadia Mono', monospace;
 
-  /* A modest scale — this is an instrument panel, not a poster. */
+  /* A modest scale: this is an instrument panel, not a poster. */
   --t-display: clamp(1.75rem, 6vw, 2.6rem);
   --t-title: clamp(1.15rem, 3.6vw, 1.5rem);
   --t-body: 1rem;
@@ -181,21 +217,32 @@
 /** Every measured number in the app. Tabular so digits do not jitter live. */
 .readout {
   font-family: var(--font-data);
+  /* Share Tech Mono has one weight. Anything but 400 asks the browser to fake
+     it, which thickens the strokes unevenly at these sizes. */
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' 1;
+  letter-spacing: 0.02em;
   color: var(--starlight);
 }
 
 /**
  * Provenance mark. This app's central claim is that nothing is invented, so
- * every panel carries the source of its numbers in the smallest type available —
+ * every panel carries the source of its numbers in the smallest type available:
  * the equivalent of a maker's mark engraved on the barrel.
  */
 .provenance {
-  font-family: var(--font-data);
+  /*
+   * Set in the label face rather than the mono, so a credit reads as part of
+   * the instrument's engraving alongside the field names. Unbounded is wide,
+   * so the tracking that suits an uppercase label is taken back out here,
+   * where these are running sentences.
+   */
+  font-family: var(--font-display);
   font-size: var(--t-micro);
+  font-weight: 300;
   color: var(--starlight-mute);
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
 }
 
 .panel {

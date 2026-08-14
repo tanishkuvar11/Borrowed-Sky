@@ -41,7 +41,7 @@ export const PLANETS = [
 
 /**
  * Static encyclopedic descriptions. These are fixed facts about the bodies, not
- * computed observations — they never stand in for measured data.
+ * computed observations; they never stand in for measured data.
  */
 export const BODY_FACTS: Record<string, string> = {
   Sun: 'The star our planet orbits. Never look at it directly.',
@@ -49,7 +49,7 @@ export const BODY_FACTS: Record<string, string> = {
   Mercury: 'The smallest planet, and the closest one to the Sun.',
   Venus: 'The hottest planet, wrapped in thick cloud that reflects sunlight brilliantly.',
   Mars: 'The rusty desert world that robotic rovers are exploring right now.',
-  Jupiter: 'The largest planet — a gas giant with a storm wider than Earth.',
+  Jupiter: 'The largest planet, a gas giant with a storm wider than Earth.',
   Saturn: 'The ringed gas giant. Even a small telescope shows the rings.',
   Uranus: 'An ice giant tipped almost entirely on its side.',
   Neptune: 'The most distant planet, with the fastest winds in the Solar System.',
@@ -182,7 +182,7 @@ function conditionsSummary(darkness: DarknessLevel, moonFraction: number, moonUp
       }
       return moonUp
         ? 'Fully dark, with the Moon adding a little light.'
-        : 'Fully dark with no Moon — the best conditions you will get.';
+        : 'Fully dark with no Moon: the best conditions you will get.';
   }
 }
 

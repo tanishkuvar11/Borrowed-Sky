@@ -92,7 +92,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const projectId = process.env.WATSONX_PROJECT_ID;
 
   if (!apiKey || !projectId) {
-    // Not an error condition — just an unconfigured deployment. The client has a
+    // Not an error condition, just an unconfigured deployment. The client has a
     // deterministic narrator for exactly this case.
     sendJson(res, 503, {
       error: 'ai_unconfigured',
@@ -124,7 +124,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (!skyContext || typeof skyContext !== 'object') {
     sendJson(res, 400, {
       error: 'missing_context',
-      message: 'skyContext is required — the model is never allowed to compute the sky itself.',
+      message: 'skyContext is required. The model is never allowed to compute the sky itself.',
     });
     return;
   }

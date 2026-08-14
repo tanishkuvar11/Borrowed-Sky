@@ -3,7 +3,7 @@
  *
  * Every question is answered against a fresh snapshot of the computed sky, so
  * "what's that bright one?" resolves against what is genuinely overhead at the
- * moment of asking. The model is never the source of a position — only of the
+ * moment of asking. The model is never the source of a position, only of the
  * sentence describing it.
  */
 

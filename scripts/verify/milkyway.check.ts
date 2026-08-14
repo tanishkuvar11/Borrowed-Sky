@@ -74,7 +74,7 @@ for (const c of cases) {
   check(
     c.label,
     arcsec < c.tol,
-    `off by ${arcsec.toFixed(1)}" — got RA ${got.ra.toFixed(4)}° Dec ${got.dec.toFixed(4)}°`,
+    `off by ${arcsec.toFixed(1)}", got RA ${got.ra.toFixed(4)}° Dec ${got.dec.toFixed(4)}°`,
   );
 }
 
@@ -86,7 +86,7 @@ check('produces a usable number of patches', patches.length > 300, `${patches.le
 const unitLengths = patches.every((p) => Math.abs(Math.hypot(p.v.x, p.v.y, p.v.z) - 1) < 1e-9);
 check('every patch is a unit vector', unitLengths);
 
-// Brightness must favour the bulge over the anticentre — the single most
+// Brightness must favour the bulge over the anticentre: the single most
 // recognisable property of the real band.
 const centreVec = galacticToEqj(0, 0);
 const antiVec = galacticToEqj(180, 0);

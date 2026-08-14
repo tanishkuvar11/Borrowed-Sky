@@ -3,7 +3,7 @@
  *
  * Everything the rest of the app computes hangs off these four numbers, so they
  * sit permanently in the corner where they can be checked. Latitude and
- * longitude are shown in degrees, minutes and seconds — the form they appear in
+ * longitude are shown in degrees, minutes and seconds: the form they appear in
  * on a chart, and the form that makes it obvious how much precision is actually
  * being claimed.
  */
