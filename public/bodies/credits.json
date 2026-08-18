@@ -1,0 +1,66 @@
+[
+  {
+    "body": "mercury",
+    "file": "Mercury in color - Prockter07-edit1.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Mercury_in_color_-_Prockter07-edit1.jpg",
+    "author": "National Aeronautics and Space Administration / Johns Hopkins University Applied Physics Laboratory / Carnegie Institution of Washington",
+    "credit": "NASA . Edited version of Mercury in color - Prockter07.jpg by jjron (cropped to square).",
+    "licence": "Public domain"
+  },
+  {
+    "body": "venus",
+    "file": "Venus globe.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Venus_globe.jpg",
+    "author": "NASA/JPL",
+    "credit": "http://photojournal.jpl.nasa.gov/catalog/PIA00104",
+    "licence": "Public domain"
+  },
+  {
+    "body": "moon",
+    "file": "Moon nearside LRO.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Moon_nearside_LRO.jpg",
+    "author": "NASA/GSFC/Arizona State University",
+    "credit": "http://apod.nasa.gov/apod/ap110303.html (see also http://lroc.sese.asu.edu/posts/293 )",
+    "licence": "Public domain"
+  },
+  {
+    "body": "mars",
+    "file": "Mars Valles Marineris.jpeg",
+    "source": "https://commons.wikimedia.org/wiki/File:Mars_Valles_Marineris.jpeg",
+    "author": "NASA / USGS (see PIA04304 catalog page )",
+    "credit": "http://nssdc.gsfc.nasa.gov/photo_gallery/photogallery-mars.html http://nssdc.gsfc.nasa.gov/image/planetary/mars/marsglobe1.jpg",
+    "licence": "Public domain"
+  },
+  {
+    "body": "jupiter",
+    "file": "Jupiter and its shrunken Great Red Spot.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Jupiter_and_its_shrunken_Great_Red_Spot.jpg",
+    "author": "NASA, ESA, and A. Simon (Goddard Space Flight Center)",
+    "credit": "http://www.spacetelescope.org/images/heic1410a/ or http://hubblesite.org/newscenter/archive/releases/2014/24/image/b/ ( Archive )",
+    "licence": "Public domain"
+  },
+  {
+    "body": "saturn",
+    "file": "Saturn (planet) large.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Saturn_(planet)_large.jpg",
+    "author": "Voyager 2",
+    "credit": "https://voyager.jpl.nasa.gov/galleries/images-voyager-took/saturn/",
+    "licence": "Public domain"
+  },
+  {
+    "body": "uranus",
+    "file": "Uranus2.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Uranus2.jpg",
+    "author": "NASA/JPL-Caltech",
+    "credit": "https://web.archive.org/web/20090119235457/http://planetquest.jpl.nasa.gov/milestones_show/slide1.html ( image link ) http://photojournal.jpl.nasa.gov/catalog/PIA18182 ( image link )",
+    "licence": "Public domain"
+  },
+  {
+    "body": "neptune",
+    "file": "Neptune Full.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Neptune_Full.jpg",
+    "author": "NASA",
+    "credit": "JPL image",
+    "licence": "Public domain"
+  }
+]

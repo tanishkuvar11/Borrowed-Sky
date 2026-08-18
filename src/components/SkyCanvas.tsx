@@ -78,12 +78,35 @@ function stillPreferred(): boolean {
  * This modulates brightness only. Nothing here moves anything: an object's
  * position is computed, and nudging it to look alive would be inventing a
  * measurement, which is the one thing this app does not do.
+ *
+ * It reaches the bright stars' haloes and nothing else. The faint field and
+ * the galactic band are cached between frames — that is what makes this scene
+ * affordable at all — and breathing them would mean rebuilding both caches
+ * sixty times a second to animate something at the very edge of perceptible.
+ * The haloes are where it actually reads anyway.
  */
 function seeingAt(ms: number): number {
   if (stillPreferred()) return 1;
   const t = ms / 1000;
   return 1 + 0.06 * Math.sin(t / 11.3) + 0.035 * Math.sin(t / 4.7 + 1.9);
 }
+
+/**
+ * The frame the sky is painted on, between the moves that change it.
+ *
+ * Almost everything on this canvas is fixed until the view turns: the band,
+ * the star field, the figure lines, the ground and the horizon do not care
+ * what time it is at sixty hertz. Only the objects, their labels, the
+ * scintillation and the reticle do. Redrawing the first group to animate the
+ * second was costing about nine tenths of every frame, on a scene that a trace
+ * showed to be almost entirely rasterisation.
+ *
+ * So the fixed part is rendered once into this and stamped until the key
+ * changes. Opaque, because it carries the sky's own background, which means
+ * stamping it also clears the frame.
+ */
+let sceneBuffer: HTMLCanvasElement | null = null;
+let sceneKey = '';
 
 /**
  * Where text has already been put this frame.
@@ -139,6 +162,16 @@ export interface SkyCanvasProps {
   selectedId: string | null;
   showConstellations: boolean;
   showGrid: boolean;
+  /**
+   * Panels floating over the canvas that labels must keep clear of.
+   *
+   * The label system can only see what the canvas drew, so it happily put a
+   * satellite's name underneath the guide panel, where it is invisible and has
+   * taken a slot a readable label could have used. These are read each frame
+   * and reserved before anything else, which is the only way the two layers
+   * can agree about space they cannot otherwise see.
+   */
+  obstacles?: React.RefObject<HTMLElement | null>[];
   /**
    * The measuring furniture: cardinal marks and the elevation tape. On in the
    * app, where the canvas is an instrument you read. Off on the overture, where
@@ -352,6 +385,7 @@ export function SkyCanvas({
   selectedId,
   showConstellations,
   showGrid,
+  obstacles,
   chrome = true,
   landmarkAzimuth = null,
   landmarkFade = 1,
@@ -376,6 +410,7 @@ export function SkyCanvas({
     selectedId,
     showConstellations,
     showGrid,
+    obstacles,
     chrome,
     landmarkAzimuth,
     landmarkFade,
@@ -392,6 +427,7 @@ export function SkyCanvas({
     selectedId,
     showConstellations,
     showGrid,
+    obstacles,
     chrome,
     landmarkAzimuth,
     landmarkFade,
@@ -454,38 +490,46 @@ export function SkyCanvas({
      */
     const intervals: number[] = [];
     let lastFrameAt = 0;
-    let slowRuns = 0;
     let fastRuns = 0;
 
     const pace = (now: number) => {
       if (lastFrameAt) intervals.push(now - lastFrameAt);
       lastFrameAt = now;
-      if (intervals.length < 90) return;
+      if (intervals.length < 24) return;
 
       const sorted = [...intervals].sort((a, b) => a - b);
       const median = sorted[sorted.length >> 1];
       intervals.length = 0;
 
-      if (median > 24 && ratio > MIN_RATIO) {
-        slowRuns += 1;
+      if (median > 22 && ratio > MIN_RATIO) {
+        /*
+         * Down at once, and by however much is needed.
+         *
+         * The first version took a sample of ninety frames and wanted two
+         * consecutive verdicts before moving one step — which on a machine
+         * that was struggling meant the better part of a minute of stutter
+         * before anything happened, and four of those before it arrived. The
+         * whole point is to get out of trouble quickly; being cautious about
+         * *entering* a lower resolution is caution in the wrong direction.
+         *
+         * The step is sized from how far over budget the frame is, so a
+         * machine that is badly behind lands near the bottom immediately
+         * instead of walking there.
+         */
+        const over = median / 16.7;
+        ratio = Math.max(MIN_RATIO, ratio - (over > 2.5 ? 0.75 : over > 1.6 ? 0.5 : 0.25));
         fastRuns = 0;
-        if (slowRuns >= 2) {
-          slowRuns = 0;
-          ratio = Math.max(MIN_RATIO, ratio - 0.25);
-          resize();
-        }
-      } else if (median < 18 && ratio < MAX_RATIO) {
+        resize();
+      } else if (median < 17 && ratio < MAX_RATIO) {
         fastRuns += 1;
-        slowRuns = 0;
         // Slower to climb than to fall. Being briefly soft is a much smaller
-        // fault than oscillating between sharp and soft every two seconds.
-        if (fastRuns >= 4) {
+        // fault than oscillating between sharp and soft every second.
+        if (fastRuns >= 6) {
           fastRuns = 0;
           ratio = Math.min(MAX_RATIO, ratio + 0.25);
           resize();
         }
       } else {
-        slowRuns = 0;
         fastRuns = 0;
       }
     };
@@ -510,7 +554,22 @@ export function SkyCanvas({
       const targets: HitTarget[] = [];
       labelSlots.length = 0;
 
-      drawBackground(ctx, width, height, s.conditions);
+      // The floating panels claim their space before any label asks for some.
+      if (s.obstacles) {
+        const frame = canvas.getBoundingClientRect();
+        for (const ref of s.obstacles) {
+          const el = ref.current;
+          if (!el) continue;
+          const box = el.getBoundingClientRect();
+          if (!box.width || !box.height) continue;
+          labelSlots.push({
+            x: box.left - frame.left,
+            y: box.top - frame.top,
+            w: box.width,
+            h: box.height,
+          });
+        }
+      }
 
       const observerObj = toObserver(s.site);
       const time = MakeTime(s.now);
@@ -525,30 +584,89 @@ export function SkyCanvas({
         return projectVector(v, horBasis, cx, cy, scale);
       };
 
-      // Faintest first: the band sits behind everything, and the afterglow is
-      // atmosphere in front of it but still behind every object.
-      drawMilkyWay(
-        ctx,
-        MILKY_WAY,
-        MILKY_WAY_DUST,
-        view,
-        cx,
-        cy,
-        scale,
-        width,
-        height,
-        dpr,
-        s.conditions,
-        seeing,
-      );
-      drawAfterglow(ctx, projectHor, s.conditions, width, height);
+      /*
+       * Everything the view holds still. Rounded where rounding is invisible —
+       * the view matrix to three places is about a twentieth of a degree, and
+       * the sky's brightness to two — so that sidereal drift and the ticking
+       * clock rebuild this every several seconds rather than every frame.
+       */
+      const bw = Math.round(width * dpr);
+      const bh = Math.round(height * dpr);
+      let key = `${bw}x${bh}|${s.nightVision}|${s.showGrid}|${s.showConstellations}|${s.chrome}`;
+      key += `|${(s.conditions?.sunAltitude ?? 0).toFixed(2)}`;
+      key += `|${(s.conditions?.moonAltitude ?? 0).toFixed(1)}`;
+      key += `|${(s.conditions?.moonIlluminatedFraction ?? 0).toFixed(2)}`;
+      key += `|${s.landmarkAzimuth ?? 'n'}|${(s.landmarkFade ?? 1).toFixed(2)}`;
+      for (let i = 0; i < 12; i++) key += `|${view[i].toFixed(3)}`;
 
-      if (s.showGrid) drawAltAzGrid(ctx, projectHor);
-      if (s.showConstellations && s.catalog) {
-        drawConstellations(ctx, s.constellations, view, cx, cy, scale, s.conditions, s.chrome);
+      const scene = (sceneBuffer ??= document.createElement('canvas'));
+      if (scene.width !== bw || scene.height !== bh) {
+        scene.width = bw;
+        scene.height = bh;
+        sceneKey = '';
       }
+
+      if (key !== sceneKey) {
+        sceneKey = key;
+        const g = scene.getContext('2d', { alpha: false });
+        if (g) {
+          g.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+          drawBackground(g, width, height, s.conditions);
+
+          // Faintest first: the band sits behind everything, and the afterglow
+          // is atmosphere in front of it but still behind every object.
+          drawMilkyWay(
+            g,
+            MILKY_WAY,
+            MILKY_WAY_DUST,
+            view,
+            cx,
+            cy,
+            scale,
+            width,
+            height,
+            dpr,
+            s.conditions,
+            1,
+          );
+          drawAfterglow(g, projectHor, s.conditions, width, height);
+
+          if (s.showGrid) drawAltAzGrid(g, projectHor);
+          if (s.showConstellations && s.catalog) {
+            drawConstellations(g, s.constellations, view, cx, cy, scale, s.conditions, s.chrome);
+          }
+          if (s.catalog) {
+            drawStarField(g, s.catalog, view, cx, cy, scale, radius, s.camera.fov, s.conditions, s.chrome, dpr);
+          }
+          drawGround(g, horBasis, cx, cy, scale, width, height);
+          drawScenery(
+            g,
+            horBasis,
+            cx,
+            cy,
+            scale,
+            width,
+            height,
+            s.conditions,
+            s.landmarkAzimuth ?? null,
+            s.landmarkFade ?? 1,
+          );
+          drawHorizon(g, projectHor, width, height);
+          if (s.chrome) drawCardinals(g, projectHor);
+        }
+      }
+
+      // One blit, in place of everything above it.
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(scene, 0, 0);
+      ctx.restore();
+
+      // --- and now only what actually changes between frames ---------------
+
       if (s.catalog) {
-        drawStars(
+        drawStarHighlights(
           ctx,
           s.catalog,
           view,
@@ -562,24 +680,8 @@ export function SkyCanvas({
           s.chrome,
           clock,
           seeing,
-          dpr,
         );
       }
-      drawGround(ctx, horBasis, cx, cy, scale, width, height);
-      drawScenery(
-        ctx,
-        horBasis,
-        cx,
-        cy,
-        scale,
-        width,
-        height,
-        s.conditions,
-        s.landmarkAzimuth ?? null,
-        s.landmarkFade ?? 1,
-      );
-      drawHorizon(ctx, projectHor, width, height);
-      if (s.chrome) drawCardinals(ctx, projectHor);
       drawBodies(
         ctx,
         s.bodies,
@@ -1906,7 +2008,109 @@ function drawDeepField(
   ctx.restore();
 }
 
-function drawStars(
+/**
+ * How faint the chart plots, and how big a star of a given magnitude is.
+ *
+ * Two limits, not one. The *chart* limit governs which stars are drawn at
+ * chart weight and can be aimed at; the whole catalogue is drawn regardless,
+ * because a sky with five hundred stars in it looks like a diagram and a sky
+ * with five thousand looks like a sky.
+ */
+function chartLimitFor(catalog: StarCatalog, fov: number, chrome: boolean): number {
+  return chrome
+    ? Math.min(catalog.magLimit, 4.2 + Math.max(0, (70 - fov) / 70) * 2.3)
+    : catalog.magLimit;
+}
+
+/** How much can be seen at all: geometry stays right, daylight does not. */
+function starVisibility(conditions: SkyConditions | null): number {
+  const sunAltitude = conditions?.sunAltitude ?? -30;
+  return Math.max(0.16, Math.min(1, (-sunAltitude + 4) / 14));
+}
+
+/**
+ * The star field: every dot, and nothing that moves.
+ *
+ * This half goes into the cached scene. Five thousand stars is what makes the
+ * field look like a sky rather than a diagram, and none of them has any reason
+ * to be redrawn until the view turns — they do not twinkle, carry no label and
+ * cannot be aimed at. Everything that *does* change from frame to frame lives
+ * in drawStarHighlights instead.
+ */
+function drawStarField(
+  ctx: CanvasRenderingContext2D,
+  catalog: StarCatalog,
+  view: Float64Array,
+  cx: number,
+  cy: number,
+  scale: number,
+  radius: number,
+  fov: number,
+  conditions: SkyConditions | null,
+  chrome: boolean,
+  dpr: number,
+) {
+  const chartLimit = chartLimitFor(catalog, fov, chrome);
+  const pixelScale = Math.max(0.75, Math.min(1.6, radius / 320));
+  const visibility = starVisibility(conditions);
+
+  const buckets: number[][] = palette.starColors.map(() => []);
+  const vectors = catalog.vectors;
+
+  for (let i = 0; i < catalog.count; i++) {
+    const mag = catalog.magnitude[i];
+    // The catalogue is sorted brightest-first, so this exits early.
+    if (mag > chartLimit) break;
+
+    const o = i * 3;
+    const x = vectors[o];
+    const y = vectors[o + 1];
+    const z = vectors[o + 2];
+
+    if (view[9] * x + view[10] * y + view[11] * z <= 0) continue; // below the horizon
+    const Z = view[6] * x + view[7] * y + view[8] * z;
+    if (Z <= 0) continue; // behind the viewer
+
+    const k = scale / (1 + Z);
+    buckets[catalog.colorBucket[i]].push(
+      cx + (view[0] * x + view[1] * y + view[2] * z) * k,
+      cy - (view[3] * x + view[4] * y + view[5] * z) * k,
+      starRadius(mag, chartLimit, pixelScale),
+    );
+  }
+
+  ctx.save();
+  // Faintest first, so the depth layer sits behind the chart rather than
+  // speckling over it.
+  drawDeepField(ctx, catalog, view, cx, cy, scale, pixelScale, chartLimit, dpr, visibility * 0.72);
+
+  ctx.globalAlpha = visibility;
+  for (let b = 0; b < buckets.length; b++) {
+    const list = buckets[b];
+    if (!list.length) continue;
+    ctx.fillStyle = palette.starColors[b];
+    ctx.beginPath();
+    for (let i = 0; i < list.length; i += 3) {
+      const px = list[i];
+      const py = list[i + 1];
+      const r = list[i + 2];
+      ctx.moveTo(px + r, py);
+      ctx.arc(px, py, r, 0, TAU);
+    }
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/**
+ * The brightest stars: their haloes, their names, and where a tap lands.
+ *
+ * Drawn live every frame, because this is the half that is alive — the haloes
+ * scintillate, and the names have to queue for space against the object labels
+ * which move. It is a couple of dozen stars, so the cost is nothing next to
+ * the field behind them.
+ */
+function drawStarHighlights(
   ctx: CanvasRenderingContext2D,
   catalog: StarCatalog,
   view: Float64Array,
@@ -1920,39 +2124,18 @@ function drawStars(
   chrome: boolean,
   clock: number,
   seeing: number,
-  dpr: number,
 ) {
-  /*
-   * Zooming in reveals fainter stars, the way more magnification would.
-   *
-   * Two limits, not one. The *chart* limit governs which stars are drawn at
-   * chart weight and can be aimed at; the whole catalogue is drawn regardless,
-   * because a sky with five hundred stars in it looks like a diagram and a sky
-   * with five thousand looks like a sky. The faint majority are painted as a
-   * depth layer underneath: too small and too dim to read as plotted points,
-   * present enough that the field has a floor rather than an edge.
-   *
-   * 5,070 stars sorted into twelve colour buckets is twelve fills, which costs
-   * about as much as the few hundred did.
-   */
-  const chartLimit = chrome
-    ? Math.min(catalog.magLimit, 4.2 + Math.max(0, (70 - fov) / 70) * 2.3)
-    : catalog.magLimit;
+  const chartLimit = chartLimitFor(catalog, fov, chrome);
   const pixelScale = Math.max(0.75, Math.min(1.6, radius / 320));
+  const visibility = starVisibility(conditions);
 
-  // In daylight the geometry is still correct but nothing is actually visible,
-  // so the stars fade rather than implying you could see them.
-  const sunAltitude = conditions?.sunAltitude ?? -30;
-  const visibility = Math.max(0.16, Math.min(1, (-sunAltitude + 4) / 14));
-
-  const buckets: number[][] = palette.starColors.map(() => []);
   const bright: { x: number; y: number; r: number; index: number; airmass: number }[] = [];
-
   const vectors = catalog.vectors;
+
   for (let i = 0; i < catalog.count; i++) {
     const mag = catalog.magnitude[i];
-    // The catalogue is sorted brightest-first, so this exits early.
-    if (mag > chartLimit) break;
+    // These are the first-magnitude stars, so this exits almost immediately.
+    if (mag >= 1.6) break;
 
     const o = i * 3;
     const x = vectors[o];
@@ -1965,50 +2148,27 @@ function drawStars(
     if (Z <= 0) continue; // behind the viewer
 
     const k = scale / (1 + Z);
-    const px = cx + (view[0] * x + view[1] * y + view[2] * z) * k;
-    const py = cy - (view[3] * x + view[4] * y + view[5] * z) * k;
-
-    const r = starRadius(mag, chartLimit, pixelScale);
-    buckets[catalog.colorBucket[i]].push(px, py, r);
-
-    // U is the sine of the star's altitude, so 1/U is its airmass: how much
-    // atmosphere the light crossed. Scintillation scales with it, which is why
-    // stars low down visibly twinkle and stars overhead sit still.
-    if (mag < 1.6) bright.push({ x: px, y: py, r, index: i, airmass: 1 / Math.max(0.09, U) });
+    bright.push({
+      x: cx + (view[0] * x + view[1] * y + view[2] * z) * k,
+      y: cy - (view[3] * x + view[4] * y + view[5] * z) * k,
+      r: starRadius(mag, chartLimit, pixelScale),
+      index: i,
+      // U is the sine of the star's altitude, so 1/U is its airmass: how much
+      // atmosphere the light crossed. Scintillation scales with it, which is
+      // why stars low down visibly twinkle and stars overhead sit still.
+      airmass: 1 / Math.max(0.09, U),
+    });
   }
 
-  const fill = (lists: number[][], alpha: number) => {
-    ctx.globalAlpha = alpha;
-    for (let b = 0; b < lists.length; b++) {
-      const list = lists[b];
-      if (!list.length) continue;
-      ctx.fillStyle = palette.starColors[b];
-      ctx.beginPath();
-      for (let i = 0; i < list.length; i += 3) {
-        const px = list[i];
-        const py = list[i + 1];
-        const r = list[i + 2];
-        ctx.moveTo(px + r, py);
-        ctx.arc(px, py, r, 0, TAU);
-      }
-      ctx.fill();
-    }
-  };
-
   ctx.save();
-  // Faintest first, so the depth layer sits behind the chart rather than
-  // speckling over it.
-  drawDeepField(ctx, catalog, view, cx, cy, scale, pixelScale, chartLimit, dpr, visibility * 0.72 * seeing);
-  fill(buckets, visibility);
   ctx.globalAlpha = visibility;
-
-  // The brightest stars get a halo and a name: the ones people actually use to
-  // find their way around the sky.
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   ctx.font = "500 11px 'Cabinet Grotesk', system-ui, sans-serif";
+
   const t = clock / 1000;
   const still = stillPreferred();
+
   for (const star of bright) {
     /*
      * Scintillation. The amplitude comes from the airmass, so it is a property
@@ -2020,7 +2180,7 @@ function drawStars(
     const phase = star.index * 2.399963;
     const shimmer = still
       ? 1
-      : 1 +
+      : seeing +
         Math.min(0.4, (star.airmass - 1) * 0.16) *
           (Math.sin(t * 2.7 + phase) * 0.6 + Math.sin(t * 4.3 + phase * 1.7) * 0.4);
 
@@ -2049,21 +2209,20 @@ function drawStars(
     ctx.fill();
 
     const name = catalog.proper[star.index];
-    if (name) {
-      // cx and cy are the frame centre, so 2cx and 2cy are its width and height.
-      const onScreen =
-        star.x > -24 && star.x < cx * 2 + 24 && star.y > -24 && star.y < cy * 2 + 24;
-      if (onScreen) {
-        targets.push({ id: `star-${star.index}`, x: star.x, y: star.y, radius: star.r });
-      }
+    if (!name || !chrome) continue;
 
-      // The star itself is already drawn; only its name has to queue for room.
-      const lx = star.x + star.r + 7;
-      const w = ctx.measureText(name).width;
-      if (claimLabel(lx, star.y - 6, w, 12)) {
-        ctx.fillStyle = palette.starLabel;
-        ctx.fillText(name, lx, star.y);
-      }
+    // cx and cy are the frame centre, so 2cx and 2cy are its width and height.
+    const onScreen = star.x > -24 && star.x < cx * 2 + 24 && star.y > -24 && star.y < cy * 2 + 24;
+    if (onScreen) {
+      targets.push({ id: `star-${star.index}`, x: star.x, y: star.y, radius: star.r });
+    }
+
+    // The star itself is already drawn; only its name has to queue for room.
+    const lx = star.x + star.r + 7;
+    const w = ctx.measureText(name).width;
+    if (claimLabel(lx, star.y - 6, w, 12)) {
+      ctx.fillStyle = palette.starLabel;
+      ctx.fillText(name, lx, star.y);
     }
   }
   ctx.restore();

@@ -91,6 +91,11 @@ export function SkyView({
   const [showGrid, setShowGrid] = useState(false);
   const [railTab, setRailTab] = useState<RailTab>('objects');
 
+  // The chart's labels cannot see the panels floating over it, so it is told.
+  const asideRef = useRef<HTMLDivElement>(null);
+  const deckRef = useRef<HTMLDivElement>(null);
+  const obstacles = useMemo(() => [asideRef, deckRef], []);
+
   // Where the view points when the compass is not driving it. Starts aimed at
   // the celestial equator's high point for this latitude, which is where most
   // of the planets will be.
@@ -274,6 +279,7 @@ export function SkyView({
           selectedId={selectedId}
           showConstellations={showConstellations}
           showGrid={showGrid}
+          obstacles={obstacles}
           nightVision={nightVision}
           onSelect={setSelectedId}
           onPan={handlePan}
@@ -306,7 +312,7 @@ export function SkyView({
         own; three separately positioned panels down one side is what made this
         corner read as assembled.
       */}
-      <div className="sky-view__aside">
+      <div className="sky-view__aside" ref={asideRef}>
         <ReadoutPanel site={site} now={now} onChangeSite={onChangeSite} />
         <ObjectRail
           bodies={bodies}
@@ -322,7 +328,7 @@ export function SkyView({
         />
       </div>
 
-      <div className="sky-view__deck">
+      <div className="sky-view__deck" ref={deckRef}>
         <HorizonDial heading={camera.azimuth} live={compassLive} />
 
         {aimNote && (
