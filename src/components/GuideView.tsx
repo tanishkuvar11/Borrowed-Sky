@@ -136,7 +136,7 @@ export function GuideView({
         </div>
       </div>
 
-      <div className="chat">
+      <div className={messages.length === 0 ? 'chat chat--empty' : 'chat'}>
         {messages.length === 0 && (
           <div className="chat__empty">
             <p className="engrave">Try asking</p>
@@ -147,6 +147,41 @@ export function GuideView({
                 </button>
               ))}
             </div>
+
+            {/*
+              What the guide is actually holding when you ask.
+
+              This space used to be blank, and blank was the wrong answer for
+              it: the page's claim, two paragraphs up, is that answers come
+              from computed positions and nothing else. Printing the count and
+              the conditions is that claim being checkable rather than stated,
+              and it is the same snapshot the question will be sent with.
+            */}
+            {conditions && (
+              <dl className="context-note">
+                <div>
+                  <dt className="engrave">In view</dt>
+                  <dd className="readout">
+                    {bodies.filter((b) => b.altitude > 0).length} of {bodies.length} objects above
+                    your horizon
+                  </dd>
+                </div>
+                <div>
+                  <dt className="engrave">Conditions</dt>
+                  <dd className="readout">{conditions.summary}</dd>
+                </div>
+                <div>
+                  <dt className="engrave">Moon</dt>
+                  <dd className="readout">
+                    {conditions.moonPhaseName} ·{' '}
+                    {Math.round(conditions.moonIlluminatedFraction * 100)}% lit ·{' '}
+                    {conditions.moonAltitude > 0
+                      ? `${Math.round(conditions.moonAltitude)}° up`
+                      : 'below the horizon'}
+                  </dd>
+                </div>
+              </dl>
+            )}
           </div>
         )}
 

@@ -192,10 +192,19 @@ export function TimelineView({
                   // A four-minute station pass is only a few pixels wide, so its
                   // name goes beside the bar rather than being clipped inside it.
                   const narrow = barWidth < 76;
+                  // ...and on whichever side of it there is room. Late in the
+                  // night a short pass sits near the end of the scrollable
+                  // content, where a name hung off its right ran past the end
+                  // and was clipped away entirely.
+                  const before = narrow && left + barWidth > width - 120;
                   return (
                     <button
                       key={span.id}
-                      className={`bar bar--${span.kind} bar--${span.quality}${narrow ? ' bar--narrow' : ''}`}
+                      className={
+                        `bar bar--${span.kind} bar--${span.quality}` +
+                        (narrow ? ' bar--narrow' : '') +
+                        (before ? ' bar--narrow-before' : '')
+                      }
                       style={{ left, width: barWidth }}
                       onClick={() => setExpanded(expanded === span.id ? null : span.id)}
                       aria-expanded={expanded === span.id}

@@ -23,14 +23,28 @@ body {
   overscroll-behavior: none;
 }
 
+/*
+ * Headings speak; they do not stamp.
+ *
+ * These were set in Unbounded at 800, which is the label face doing a job it
+ * was not drawn for: it is for uppercase furniture struck into metal, and at
+ * heading size and weight it reads as a product logo. That single choice was
+ * most of why the reading views looked like a different application from the
+ * sky — the overture and the wordmark are Cormorant, and every title in here
+ * was shouting in another voice.
+ *
+ * Light, because Cormorant is a display serif whose hairlines going almost to
+ * nothing is the whole effect, and because a title does not need weight when
+ * it already has size and space.
+ */
 h1,
 h2,
 h3 {
-  font-family: var(--font-display);
-  font-weight: 800;
-  line-height: 1.1;
+  font-family: var(--font-headline);
+  font-weight: 300;
+  line-height: 1.12;
   margin: 0;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.005em;
 }
 
 p {
@@ -113,22 +127,38 @@ button {
 
 /* --- controls ------------------------------------------------------------ */
 
+/*
+ * Gold is not a fill.
+ *
+ * It means precision, selection, importance — and a control painted solid gold
+ * says all three at maximum volume, which is why a single "Ask" button was
+ * ending up the loudest object on a screen whose subject is the sky. Every
+ * emphasised control here is instead *lit*: the same dark body as its
+ * neighbours, with warm light coming from inside it and a bright rule under
+ * the label. It reads as the live one without becoming a gold rectangle.
+ */
 .button {
   font-family: var(--font-display);
   font-size: var(--t-small);
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-weight: 500;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   padding: 0.6rem 1.1rem;
-  border-radius: var(--radius);
+  border-radius: 7px;
   border: var(--rule) solid var(--brass-hairline);
-  background: transparent;
+  background: linear-gradient(180deg, rgba(30, 22, 48, 0.5) 0%, rgba(7, 7, 16, 0.62) 100%);
+  box-shadow: inset 0 1px 0 rgba(232, 204, 122, 0.1);
   color: var(--starlight);
-  transition: border-color 160ms var(--ease), background 160ms var(--ease);
+  transition:
+    border-color 220ms var(--ease),
+    box-shadow 220ms var(--ease),
+    color 220ms var(--ease);
 }
 .button:hover:not(:disabled) {
-  border-color: var(--brass);
-  background: var(--brass-wash);
+  border-color: var(--brass-dim);
+  box-shadow:
+    inset 0 1px 0 rgba(232, 204, 122, 0.2),
+    inset 0 0 26px -10px var(--brass);
 }
 .button:disabled {
   opacity: 0.45;
@@ -136,13 +166,27 @@ button {
 }
 
 .button--primary {
-  background: var(--brass);
-  border-color: var(--brass);
-  color: var(--ink-void);
+  position: relative;
+  border-color: var(--brass-dim);
+  color: var(--brass-bright);
+  box-shadow:
+    inset 0 1px 0 rgba(232, 204, 122, 0.22),
+    inset 0 0 30px -8px var(--brass);
+}
+.button--primary::after {
+  content: '';
+  position: absolute;
+  inset: auto 22% 0 22%;
+  height: 1px;
+  background: var(--brass-bright);
+  box-shadow: 0 0 10px 0 var(--brass);
+  opacity: 0.8;
 }
 .button--primary:hover:not(:disabled) {
-  background: var(--brass-bright);
-  border-color: var(--brass-bright);
+  border-color: var(--brass);
+  box-shadow:
+    inset 0 1px 0 rgba(232, 204, 122, 0.3),
+    inset 0 0 34px -6px var(--brass);
 }
 
 .button--large {
@@ -172,25 +216,33 @@ button {
 .pill {
   font-family: var(--font-display);
   font-size: var(--t-micro);
-  font-weight: 700;
-  letter-spacing: 0.1em;
+  font-weight: 500;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  padding: 0.4rem 0.7rem;
+  padding: 0.45rem 0.85rem;
   border-radius: 999px;
   border: var(--rule) solid var(--brass-hairline);
-  background: var(--veil);
+  background: linear-gradient(180deg, rgba(30, 22, 48, 0.45) 0%, rgba(7, 7, 16, 0.6) 100%);
   color: var(--starlight-soft);
   white-space: nowrap;
-  transition: all 160ms var(--ease);
+  transition:
+    border-color 220ms var(--ease),
+    box-shadow 220ms var(--ease),
+    color 220ms var(--ease),
+    transform 220ms var(--ease);
 }
 .pill:hover {
-  border-color: var(--brass);
+  border-color: var(--brass-dim);
   color: var(--starlight);
+  transform: translateY(-1px);
+  box-shadow: inset 0 0 22px -10px var(--brass);
 }
 .pill.is-on {
-  background: var(--brass);
-  border-color: var(--brass);
-  color: var(--ink-void);
+  border-color: var(--brass-dim);
+  color: var(--brass-bright);
+  box-shadow:
+    inset 0 1px 0 rgba(232, 204, 122, 0.2),
+    inset 0 0 26px -8px var(--brass);
 }
 
 .icon-button {
@@ -215,26 +267,45 @@ button {
   border-color: transparent;
 }
 
+/* The same switch as the sky screen's tabs, so a control means one thing. */
 .toggle {
   display: inline-flex;
   border: var(--rule) solid var(--brass-hairline);
-  border-radius: var(--radius);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(24, 18, 40, 0.45) 0%, rgba(7, 7, 16, 0.6) 100%);
+  box-shadow: inset 0 1px 0 rgba(232, 204, 122, 0.1);
   overflow: hidden;
 }
 .toggle__option {
+  position: relative;
   font-family: var(--font-display);
   font-size: var(--t-micro);
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-weight: 500;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  padding: 0.4rem 0.7rem;
-  background: transparent;
+  padding: 0.5rem 0.85rem;
+  background: none;
   border: 0;
   color: var(--starlight-mute);
+  transition: color 220ms var(--ease), background 220ms var(--ease);
+}
+.toggle__option + .toggle__option {
+  box-shadow: inset 1px 0 0 var(--brass-engrave);
+}
+.toggle__option:hover {
+  color: var(--starlight-soft);
 }
 .toggle__option.is-on {
-  background: var(--brass);
-  color: var(--ink-void);
+  color: var(--brass-bright);
+  background: linear-gradient(180deg, rgba(201, 162, 39, 0.16) 0%, rgba(201, 162, 39, 0.04) 100%);
+}
+.toggle__option.is-on::after {
+  content: '';
+  position: absolute;
+  inset: auto 18% 0 18%;
+  height: 1px;
+  background: var(--brass-bright);
+  box-shadow: 0 0 10px 0 var(--brass);
 }
 
 .field {
@@ -1923,8 +1994,9 @@ button {
 }
 
 .view__title {
-  font-size: var(--t-title);
-  margin: 0.35rem 0 0.6rem;
+  /* Larger than it was: Cormorant at 300 needs the size to hold its strokes. */
+  font-size: clamp(1.9rem, 6vw, 2.6rem);
+  margin: 0.15rem 0 0.7rem;
 }
 .view__lede {
   color: var(--starlight-soft);
@@ -1933,7 +2005,9 @@ button {
 
 .notice {
   border: var(--rule) solid var(--brass-hairline);
-  border-radius: var(--radius-panel);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(28, 20, 46, 0.45) 0%, rgba(7, 7, 16, 0.6) 100%);
+  box-shadow: inset 0 1px 0 rgba(232, 204, 122, 0.1);
   padding: 0.9rem 1rem;
   margin-bottom: 1.25rem;
   font-size: var(--t-small);
@@ -1969,12 +2043,18 @@ button {
 
 /* --- timeline strip ------------------------------------------------------ */
 
+/*
+ * The timeline. Held in a frame of its own rather than run edge to edge with a
+ * rule above and below it, which is the shape of a table on a web page.
+ */
 .strip {
   overflow-x: auto;
   overflow-y: hidden;
-  border-top: var(--rule) solid var(--brass-hairline);
-  border-bottom: var(--rule) solid var(--brass-hairline);
-  margin: 1.25rem 0;
+  border: var(--rule) solid var(--brass-hairline);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(22, 16, 36, 0.5) 0%, rgba(6, 6, 14, 0.66) 100%);
+  box-shadow: inset 0 1px 0 rgba(232, 204, 122, 0.1);
+  margin: 1.25rem var(--pad-edge);
   scrollbar-width: thin;
 }
 
@@ -2054,20 +2134,24 @@ button {
   align-items: center;
   padding: 0 0.5rem;
   border: var(--rule) solid var(--brass-hairline);
-  border-left-width: 3px;
-  border-radius: var(--radius);
-  background: var(--veil-soft);
+  border-left-width: 2px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, rgba(32, 23, 52, 0.72) 0%, rgba(10, 9, 22, 0.82) 100%);
+  box-shadow: inset 0 1px 0 rgba(232, 204, 122, 0.1);
   overflow: hidden;
-  transition: background 160ms var(--ease);
+  transition: box-shadow 220ms var(--ease), border-color 220ms var(--ease);
 }
 .bar:hover {
-  background: var(--ink-plum-lift);
+  border-color: var(--brass-dim);
+  box-shadow:
+    inset 0 1px 0 rgba(232, 204, 122, 0.2),
+    inset 0 0 26px -10px var(--brass);
 }
 .bar__label {
   font-family: var(--font-display);
   font-size: var(--t-micro);
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-weight: 500;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   white-space: nowrap;
   color: var(--starlight);
@@ -2095,6 +2179,17 @@ button {
   position: absolute;
   left: calc(100% + 6px);
   text-shadow: 0 1px 4px var(--ink-void);
+}
+
+/*
+ * ...on whichever side there is room for it. A four-minute pass late in the
+ * night sits near the right end of the scrollable timeline, and its name hung
+ * off the right of the bar ran straight past the end of the content, where it
+ * was clipped by the scroll container.
+ */
+.bar--narrow-before .bar__label {
+  left: auto;
+  right: calc(100% + 6px);
 }
 
 .strip__now {
@@ -2125,12 +2220,23 @@ button {
 
 .agenda__item {
   border: var(--rule) solid var(--brass-engrave);
-  border-radius: var(--radius);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(28, 20, 46, 0.4) 0%, rgba(7, 7, 16, 0.55) 100%);
+  box-shadow: inset 0 1px 0 rgba(232, 204, 122, 0.08);
   overflow: hidden;
+  transition: box-shadow 220ms var(--ease), border-color 220ms var(--ease);
+}
+.agenda__item:hover {
+  border-color: var(--brass-hairline);
+  box-shadow:
+    inset 0 1px 0 rgba(232, 204, 122, 0.16),
+    inset 0 0 34px -16px var(--brass);
 }
 .agenda__item.is-open {
-  border-color: var(--brass-hairline);
-  background: var(--lift);
+  border-color: var(--brass-dim);
+  box-shadow:
+    inset 0 1px 0 rgba(232, 204, 122, 0.2),
+    inset 0 0 40px -16px var(--brass);
 }
 
 .agenda__head {
@@ -2160,9 +2266,10 @@ button {
 
 .agenda__name {
   font-family: var(--font-display);
-  font-weight: 700;
-  font-size: var(--t-small);
-  letter-spacing: 0.02em;
+  font-weight: 500;
+  font-size: var(--t-micro);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
 .agenda__when {
   margin-left: auto;
@@ -2206,9 +2313,37 @@ button {
   align-content: start;
 }
 
+/*
+ * With nothing said yet, the suggestions sit in the middle of the space rather
+ * than at the top of it. Top-aligned they left a screen-height void underneath
+ * them, and a void reads as something failing to load.
+ */
+.chat--empty {
+  align-content: center;
+}
+
 .chat__empty {
   display: grid;
-  gap: 0.6rem;
+  gap: 0.7rem;
+  max-width: 42rem;
+}
+
+/* What the guide is holding right now: the page's claim, made checkable. */
+.context-note {
+  display: grid;
+  gap: 0.55rem;
+  margin: 1.25rem 0 0;
+  padding-top: 1rem;
+  border-top: var(--rule) solid var(--brass-engrave);
+}
+.context-note > div {
+  display: grid;
+  gap: 0.15rem;
+}
+.context-note dd {
+  margin: 0;
+  font-size: var(--t-small);
+  color: var(--starlight-soft);
 }
 .chat__suggestions {
   display: flex;
