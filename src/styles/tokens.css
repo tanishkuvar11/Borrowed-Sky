@@ -135,6 +135,26 @@
 
   --shadow-panel: 0 10px 40px rgba(0, 0, 0, 0.55);
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  /* For things that settle rather than arrive: a little overshoot, then rest. */
+  --ease-settle: cubic-bezier(0.34, 1.2, 0.44, 1);
+
+  /*
+   * The height the floating chrome reserves at each end of the frame.
+   *
+   * Named because two different things need to agree on it: the header and the
+   * rail position themselves against it, and the reading views pad themselves
+   * by it so their first and last lines are not hidden underneath.
+   */
+  --topbar-h: 68px;
+  --rail-h: 66px;
+
+  /*
+   * The instrument's own spacing step. Everything that floats over the sky is
+   * placed on multiples of it, so panels line up with each other across the
+   * frame instead of each being nudged into place on its own.
+   */
+  --step: 0.5rem;
+  --inset: clamp(0.75rem, 1.6vw, 1.25rem);
 
   color-scheme: dark;
 }

@@ -140,7 +140,12 @@ export default function App() {
         </p>
       )}
 
-      <main className="app__main">
+      {/*
+        Only the sky runs under the floating chrome. The reading views are
+        documents, and a document whose first line sits behind the header is
+        just a bug wearing a design.
+      */}
+      <main className={view === 'sky' ? 'app__main app__main--bleed' : 'app__main'}>
         {view === 'sky' && (
           <SkyView
             catalog={sky.catalog}
@@ -200,6 +205,16 @@ export default function App() {
           />
         )}
       </main>
+
+      {/*
+        The optics. Over the sky, under the controls: a lens sits in front of
+        what it is imaging and behind the hand working the instrument.
+      */}
+      <div className="optics" aria-hidden>
+        <span className="optics__vignette" />
+        <span className="optics__aperture" />
+        <span className="optics__grain" />
+      </div>
 
       {toast && (
         <p className="toast" role="status">

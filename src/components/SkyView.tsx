@@ -12,8 +12,9 @@ import { MakeTime } from 'astronomy-engine';
 
 import { SkyCanvas } from './SkyCanvas';
 import { ObjectSheet } from './ObjectSheet';
+import { ObjectRail, type RailTab } from './ObjectRail';
 import { ReadoutPanel } from './ReadoutPanel';
-import { CompassStrip } from './CompassStrip';
+import { HorizonDial } from './HorizonDial';
 import { GuidePlaque } from './GuidePlaque';
 import { orientationState, type Orientation } from './OrientationSheet';
 import {
@@ -88,6 +89,7 @@ export function SkyView({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showConstellations, setShowConstellations] = useState(true);
   const [showGrid, setShowGrid] = useState(false);
+  const [railTab, setRailTab] = useState<RailTab>('objects');
 
   // Where the view points when the compass is not driving it. Starts aimed at
   // the celestial equator's high point for this latitude, which is where most
@@ -227,28 +229,30 @@ export function SkyView({
         </div>
       )}
 
-      <ReadoutPanel site={site} now={now} onChangeSite={onChangeSite} />
-
-      <div className="sky-view__layers">
-        <button
-          className={showConstellations ? 'layer-chip is-on' : 'layer-chip'}
-          onClick={() => setShowConstellations((v) => !v)}
-          aria-pressed={showConstellations}
-        >
-          Figures
-        </button>
-        <button
-          className={showGrid ? 'layer-chip is-on' : 'layer-chip'}
-          onClick={() => setShowGrid((v) => !v)}
-          aria-pressed={showGrid}
-        >
-          Grid
-        </button>
-        <span className="layer-chip layer-chip--static readout">{Math.round(fov)}°</span>
+      {/*
+        The left column. One stack, so the plate, the tabs and the list share an
+        edge and a rhythm rather than each being placed against the frame on its
+        own; three separately positioned panels down one side is what made this
+        corner read as assembled.
+      */}
+      <div className="sky-view__aside">
+        <ReadoutPanel site={site} now={now} onChangeSite={onChangeSite} />
+        <ObjectRail
+          bodies={bodies}
+          tab={railTab}
+          onTab={setRailTab}
+          fov={fov}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          showConstellations={showConstellations}
+          onShowConstellations={setShowConstellations}
+          showGrid={showGrid}
+          onShowGrid={setShowGrid}
+        />
       </div>
 
       <div className="sky-view__deck">
-        <CompassStrip heading={camera.azimuth} live={compassLive} />
+        <HorizonDial heading={camera.azimuth} live={compassLive} />
 
         {aimNote && (
           <button className="aim-note" onClick={onOpenCompass}>

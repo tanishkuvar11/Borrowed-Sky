@@ -491,7 +491,7 @@ export function SkyCanvas({
       // Heading is read off the compass strip below the canvas; what stays here
       // is the elevation scale, laid out linearly and calibrated against the
       // projection's exact rate at the index mark, the way a real tape is ruled.
-      if (s.chrome) drawAltitudeTape(ctx, width, height, s.camera, scale * (Math.PI / 360));
+      if (s.chrome) drawAltitudeArc(ctx, width, height, s.camera, scale * (Math.PI / 360));
 
       targetsRef.current = targets;
 
@@ -2017,42 +2017,105 @@ function drawMoonPhase(
   ctx.restore();
 }
 
-/** Altitude tape down the right edge: how far above the horizon you are aimed. */
-function drawAltitudeTape(
+/**
+ * The elevation scale down the right edge: how far above the horizon you are
+ * aimed.
+ *
+ * Curved, and for the same reason the horizon is. A straight ruled tape down
+ * the side of a frame is a scrollbar; a divided arc is the limb of an
+ * instrument. The curvature is slight — the arc bows out by about a twelfth of
+ * its length — but it is enough that the scale reads as belonging to a
+ * circular fitting rather than to the edge of a window.
+ *
+ * The graduations themselves are unchanged: laid out linearly and calibrated
+ * against the projection's exact rate at the index mark, the way a real tape is
+ * ruled.
+ */
+function drawAltitudeArc(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
   camera: Camera,
   pixelsPerDegree: number,
 ) {
-  const tapeWidth = 40;
-  const x0 = width - tapeWidth;
+  // Centre of curvature well off to the left, so the limb is nearly vertical.
+  const R = Math.max(height * 1.4, 600);
+  const outer = width - 18;
+  const cx = outer - R;
+  const cy = height / 2;
+
+  /** Where on the limb a given altitude falls, and which way is "out". */
+  const at = (deg: number) => {
+    const y = cy - (deg - camera.altitude) * pixelsPerDegree;
+    const dy = y - cy;
+    if (Math.abs(dy) > R) return null;
+    const dx = Math.sqrt(R * R - dy * dy);
+    return { x: cx + dx, y, nx: dx / R, ny: dy / R };
+  };
 
   ctx.save();
-  ctx.beginPath();
-  ctx.rect(x0, 0, tapeWidth, height);
-  ctx.clip();
-
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
 
-  for (let deg = -10; deg <= 90; deg += 5) {
-    const y = height / 2 - (deg - camera.altitude) * pixelsPerDegree;
-    if (y < 10 || y > height - 4) continue;
+  // The limb itself, drawn only over the range the scale actually covers, so
+  // it stops where the readings stop instead of running off both ends.
+  ctx.beginPath();
+  let started = false;
+  for (let deg = -20; deg <= 90; deg += 2) {
+    const p = at(deg);
+    if (!p) continue;
+    if (p.y < -20 || p.y > height + 20) continue;
+    if (started) ctx.lineTo(p.x, p.y);
+    else {
+      ctx.moveTo(p.x, p.y);
+      started = true;
+    }
+  }
+  ctx.strokeStyle = palette.tapeRule;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  for (let deg = -20; deg <= 90; deg += 2) {
+    const p = at(deg);
+    if (!p) continue;
+    if (p.y < 12 || p.y > height - 8) continue;
 
     const major = deg % 30 === 0;
+    const medium = deg % 10 === 0;
+
     ctx.strokeStyle = major ? palette.tickMajor : palette.tickMinor;
-    ctx.lineWidth = 1;
+    ctx.globalAlpha = major ? 0.9 : medium ? 0.55 : 0.28;
+    ctx.lineWidth = major ? 1.3 : 1;
+    const len = major ? 12 : medium ? 8 : 4;
     ctx.beginPath();
-    ctx.moveTo(width - (major ? 13 : 8), y);
-    ctx.lineTo(width, y);
+    ctx.moveTo(p.x, p.y);
+    ctx.lineTo(p.x + p.nx * len, p.y + p.ny * len);
     ctx.stroke();
 
     if (major) {
-      ctx.font = "500 10px 'IBM Plex Mono', monospace";
+      ctx.globalAlpha = 0.85;
+      ctx.font = "400 10px 'Share Tech Mono', ui-monospace, monospace";
       ctx.fillStyle = palette.tapeLabel;
-      ctx.fillText(`${deg}°`, width - 16, y);
+      ctx.fillText(`${deg}°`, p.x - 7, p.y);
     }
   }
+
+  /*
+   * The index: where the view is actually aimed. Without it the scale says how
+   * high things are but not how high *you* are looking, which is the one thing
+   * an elevation readout is for.
+   */
+  const here = at(camera.altitude);
+  if (here) {
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = palette.index;
+    ctx.beginPath();
+    ctx.moveTo(here.x + here.nx * 3, here.y + here.ny * 3);
+    ctx.lineTo(here.x + here.nx * 11 - here.ny * 5, here.y + here.ny * 11 + here.nx * 5);
+    ctx.lineTo(here.x + here.nx * 11 + here.ny * 5, here.y + here.ny * 11 - here.nx * 5);
+    ctx.closePath();
+    ctx.fill();
+  }
+
   ctx.restore();
 }
