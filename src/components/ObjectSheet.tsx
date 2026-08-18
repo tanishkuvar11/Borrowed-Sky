@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { PlanetMark } from './planet-marks';
 import { askGuide, buildSkyContext, factFor, type GuideAnswer, type Tone } from '../lib/ai';
 import { compassPoint, heightInWords } from '../lib/astro/satellites';
 import type { ObserverSite, SkyBody, SkyConditions } from '../lib/astro/types';
@@ -103,8 +104,16 @@ export function ObjectSheet({
   const belowHorizon = body.altitude < 0;
 
   return (
-    <aside className="sheet panel" role="dialog" aria-label={`About ${body.name}`}>
+    <aside className="sheet" role="dialog" aria-label={`About ${body.name}`}>
       <header className="sheet__head">
+        <span className="sheet__portrait" aria-hidden>
+          <PlanetMark
+            name={body.name}
+            kind={body.kind}
+            illuminatedFraction={body.illuminatedFraction}
+            size={52}
+          />
+        </span>
         <div>
           <p className="engrave">{KIND_LABEL[body.kind] ?? 'Object'}</p>
           <h2 className="sheet__name">{body.name}</h2>
@@ -136,10 +145,19 @@ export function ObjectSheet({
           <dt className="engrave">Azimuth</dt>
           <dd className="readout">{body.azimuth.toFixed(1)}°</dd>
         </div>
-        <div className="reading">
-          <dt className="engrave">Magnitude</dt>
-          <dd className="readout">{body.magnitude.toFixed(2)}</dd>
-        </div>
+        {/*
+          Not for satellites. Their magnitude field is a sort key — brightness
+          depends on range, phase and attitude in ways SGP4 does not model —
+          and printing "8.00" next to the word Magnitude states a measurement
+          nobody made. What they can be seen by is whether they are in
+          sunlight, which the chip below says outright.
+        */}
+        {body.kind !== 'satellite' && (
+          <div className="reading">
+            <dt className="engrave">Magnitude</dt>
+            <dd className="readout">{body.magnitude.toFixed(2)}</dd>
+          </div>
+        )}
         {distance && (
           <div className="reading">
             <dt className="engrave">Distance</dt>

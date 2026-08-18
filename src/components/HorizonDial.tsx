@@ -215,9 +215,16 @@ export function HorizonDial({ heading, live }: { heading: number; live: boolean 
         ctx.stroke();
 
         if (major) {
-          ctx.font = "500 13px 'Cabinet Grotesk', system-ui, sans-serif";
-          ctx.fillStyle = starlight;
-          ctx.fillText(cardinal, x, y - 11);
+          /*
+           * Except right under the index, where the dial is already printing
+           * the same letter. Two E's a few pixels apart read as a rendering
+           * fault, and the one on the dial is the one being pointed at.
+           */
+          if (Math.abs(offset) > 3) {
+            ctx.font = "500 13px 'Cabinet Grotesk', system-ui, sans-serif";
+            ctx.fillStyle = starlight;
+            ctx.fillText(cardinal, x, y - 11);
+          }
         } else if (medium && normalised % 30 === 0) {
           ctx.font = "400 10px 'Share Tech Mono', ui-monospace, monospace";
           ctx.fillStyle = brass;

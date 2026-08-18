@@ -522,6 +522,7 @@ export function SkyCanvas({
         s.selectedId,
         targets,
         s.chrome !== false,
+        clock,
       );
 
       // Last, so they take whatever room the objects did not want.
@@ -1881,6 +1882,7 @@ function drawBodies(
   targets: HitTarget[],
   /** False on the overture, where these are scenery rather than readings. */
   chrome: boolean,
+  clock: number,
 ) {
   ctx.save();
   ctx.textAlign = 'left';
@@ -1966,21 +1968,7 @@ function drawBodies(
       ctx.stroke();
     }
 
-    if (body.id === selectedId) {
-      ctx.strokeStyle = palette.selection;
-      ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      ctx.arc(point.x, point.y, size + 11, 0, TAU);
-      ctx.stroke();
-      // Engraved tick marks around the selection, like a reticle.
-      for (let a = 0; a < 4; a++) {
-        const angle = a * (TAU / 4) + TAU / 8;
-        ctx.beginPath();
-        ctx.moveTo(point.x + Math.cos(angle) * (size + 11), point.y + Math.sin(angle) * (size + 11));
-        ctx.lineTo(point.x + Math.cos(angle) * (size + 17), point.y + Math.sin(angle) * (size + 17));
-        ctx.stroke();
-      }
-    }
+    if (body.id === selectedId) drawTracking(ctx, point.x, point.y, size, clock);
 
     // Only register something as tappable if it is actually on screen. A marker
     // projected off the edge is still drawn (harmlessly clipped) but must not
@@ -2010,6 +1998,81 @@ function drawBodies(
       drawLeaderLabel(ctx, point.x, point.y, size, body, width);
     }
   }
+  ctx.restore();
+}
+
+/**
+ * The tracking reticle around whatever is selected.
+ *
+ * Two rings turning against each other, which is the whole idea: a static
+ * circle says "this one is highlighted", and two counter-rotating divided
+ * rings say "something is holding this". The inner one carries the divisions,
+ * the outer one four corner marks, and both turn slowly enough that you have
+ * to watch to see it — an instrument tracking a target is not in a hurry.
+ *
+ * Under them a soft warm pool of light, so the object appears lit rather than
+ * ringed. That distinction is most of the difference between a selection state
+ * and an illuminated one.
+ */
+function drawTracking(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  clock: number,
+) {
+  const t = stillPreferred() ? 0 : clock / 1000;
+  const inner = size + 11;
+  const outer = size + 19;
+
+  ctx.save();
+
+  // The light it is under. Layered and low rather than one bright ring.
+  const pool = ctx.createRadialGradient(x, y, size * 0.5, x, y, outer * 1.9);
+  pool.addColorStop(0, 'rgba(232, 204, 122, 0.16)');
+  pool.addColorStop(0.5, 'rgba(232, 204, 122, 0.05)');
+  pool.addColorStop(1, 'rgba(232, 204, 122, 0)');
+  ctx.fillStyle = pool;
+  ctx.beginPath();
+  ctx.arc(x, y, outer * 1.9, 0, TAU);
+  ctx.fill();
+
+  ctx.strokeStyle = palette.selection;
+
+  // Inner ring: a divided scale, turning one way.
+  ctx.globalAlpha = 0.75;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(x, y, inner, 0, TAU);
+  ctx.stroke();
+
+  const spin = t * 0.22;
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 24; i++) {
+    const a = spin + (i / 24) * TAU;
+    const long = i % 6 === 0;
+    ctx.globalAlpha = long ? 0.8 : 0.34;
+    ctx.beginPath();
+    ctx.moveTo(x + Math.cos(a) * inner, y + Math.sin(a) * inner);
+    ctx.lineTo(x + Math.cos(a) * (inner - (long ? 5 : 2.5)), y + Math.sin(a) * (inner - (long ? 5 : 2.5)));
+    ctx.stroke();
+  }
+
+  // Outer ring: four corner marks, turning the other way.
+  ctx.globalAlpha = 0.85;
+  ctx.lineWidth = 1.3;
+  const counter = -t * 0.14 + TAU / 8;
+  for (let i = 0; i < 4; i++) {
+    const a = counter + (i / 4) * TAU;
+    ctx.beginPath();
+    ctx.arc(x, y, outer, a - 0.16, a + 0.16);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + Math.cos(a) * outer, y + Math.sin(a) * outer);
+    ctx.lineTo(x + Math.cos(a) * (outer + 5), y + Math.sin(a) * (outer + 5));
+    ctx.stroke();
+  }
+
   ctx.restore();
 }
 

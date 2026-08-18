@@ -143,6 +143,77 @@ export function SkyView({
     setFov((prev) => Math.max(MIN_FOV, Math.min(MAX_FOV, prev * factor)));
   }, []);
 
+  /*
+   * Picking something out of the column aims the chart at it.
+   *
+   * Without this the column and the chart are two separate things: you choose
+   * Saturn, a dossier opens, and the sky carries on pointing somewhere else
+   * with a tracking reticle drawn around a marker that is nowhere on screen.
+   * Selecting a target and slewing to it is one action, not two.
+   *
+   * Tapping a marker that is already on the chart does not slew — it is
+   * already where you are looking, and moving the sky out from under the
+   * finger that just touched it would be worse than doing nothing.
+   */
+  const slewRef = useRef<number | null>(null);
+
+  const slewTo = useCallback(
+    (body: SkyBody) => {
+      if (followCompass && orientation.status === 'active') onFollowCompass(false);
+
+      const from = { ...cameraRef.current };
+      // The short way round: aiming east from a view facing west should turn
+      // through south, not spin the whole card through north.
+      let delta = body.azimuth - from.azimuth;
+      while (delta > 180) delta -= 360;
+      while (delta < -180) delta += 360;
+
+      const target = { azimuth: from.azimuth + delta, altitude: Math.max(-10, Math.min(85, body.altitude)) };
+      const start = performance.now();
+      const DURATION = 620;
+
+      if (slewRef.current !== null) cancelAnimationFrame(slewRef.current);
+
+      // Reduced motion means arrive, not travel.
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        setManualAim({ azimuth: ((target.azimuth % 360) + 360) % 360, altitude: target.altitude, roll: 0 });
+        return;
+      }
+
+      const step = () => {
+        const p = Math.min(1, (performance.now() - start) / DURATION);
+        // Ease out cubic: leaves quickly, settles slowly, which is how a
+        // damped mount actually behaves.
+        const e = 1 - Math.pow(1 - p, 3);
+        setManualAim({
+          azimuth: (((from.azimuth + delta * e) % 360) + 360) % 360,
+          altitude: from.altitude + (target.altitude - from.altitude) * e,
+          roll: 0,
+        });
+        if (p < 1) slewRef.current = requestAnimationFrame(step);
+        else slewRef.current = null;
+      };
+      slewRef.current = requestAnimationFrame(step);
+    },
+    [followCompass, orientation.status, onFollowCompass],
+  );
+
+  useEffect(
+    () => () => {
+      if (slewRef.current !== null) cancelAnimationFrame(slewRef.current);
+    },
+    [],
+  );
+
+  const selectFromList = useCallback(
+    (id: string) => {
+      setSelectedId(id);
+      const body = bodies.find((b) => b.id === id);
+      if (body) slewTo(body);
+    },
+    [bodies, slewTo],
+  );
+
   // --- turn a tapped id back into a full object ---------------------------
 
   const constellationNames = useMemo(() => {
@@ -190,7 +261,7 @@ export function SkyView({
   const aimNote = AIM_NOTE[orientationState(orientation, followCompass)];
 
   return (
-    <div className="sky-view">
+    <div className={selectedBody ? 'sky-view sky-view--tracking' : 'sky-view'}>
       {catalog ? (
         <SkyCanvas
           catalog={catalog}
@@ -243,7 +314,7 @@ export function SkyView({
           onTab={setRailTab}
           fov={fov}
           selectedId={selectedId}
-          onSelect={setSelectedId}
+          onSelect={selectFromList}
           showConstellations={showConstellations}
           onShowConstellations={setShowConstellations}
           showGrid={showGrid}
