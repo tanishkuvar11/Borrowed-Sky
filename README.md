@@ -66,11 +66,13 @@ So the app models all three conditions and reports them separately: a pass is on
 The astronomy is checked against sources independent of the code, not against itself:
 
 ```
-npm run verify                               # typecheck + all four astronomy checks
+npm run verify                               # typecheck + every check below
 npx tsx scripts/verify/frames.check.ts       # coordinate transforms
 npx tsx scripts/verify/satellites.check.ts   # SGP4, eclipse test, pass search
 npx tsx scripts/verify/events.check.ts       # timeline across four latitudes
 npx tsx scripts/verify/milkyway.check.ts     # galactic frame
+npx tsx scripts/verify/grounding.check.ts    # the guard on Granite's answers
+npm run verify:granite                       # live call to watsonx, needs credentials
 ```
 
 - `frames.check.ts` cross-checks the fast matrix pipeline against astronomy-engine's own `DefineStar → Equator → Horizon` path, two routes sharing no code. They agree to **0.01 arcseconds** across five stars, four sites and three dates.
@@ -155,7 +157,19 @@ It was chosen deliberately. Every other data path here is verified by something 
 
 The brief handed to Bob is [`BOB-TASK.md`](BOB-TASK.md), written before any of the work started: the module signature, the three classes of claim to check, the tolerance rule, the retry behaviour, eight test cases, and the constraint that its tests compute a real sky rather than fabricating one.
 
-*This section will be completed with an account of how that went: what Bob planned, what it wrote, what it got wrong on the first pass, and where a human had to decide. That account is worth writing honestly or not at all.*
+### How it went
+
+Bob planned before it wrote, and the plan was good. It read the files the brief pointed at, restated the three constraints most likely to be missed, and proposed a structure close to the one that shipped. Two things it decided on its own were better than the brief: excluding `observedAt` from the number pool, because scanning digits out of an ISO timestamp injects 2026, 08, 18 and gives false claims accidental cover, and stating in a comment that the number check pools every value regardless of what it measures, so `magnitude 47` passes if some object happens to sit at 47 degrees altitude. That weakness is real and the code now says so rather than reading as though the check were tighter than it is.
+
+Three things were caught and fixed, and they are worth recording because two of them were the same mistake.
+
+**A `require()` in an ES module.** The first version loaded the star names through a dynamic `require`, which is not defined under the ESM compilation this repo uses. It failed, the surrounding `catch` swallowed it, and the star list was silently empty. The test that should have caught it passed, because an empty list flags nothing. Bob found this one itself.
+
+**The tolerance test was altitude dependent.** The brief asked for a case proving that a rounded value still passes. Rounding to the nearest 5 degrees does not clear a 5 percent window at low altitude: at 13 degrees, 5 percent is 0.65, and a 2.5 degree rounding error fails. Bob spotted that the test would pass or fail depending on where the Moon happened to be that evening, and rounded to the nearest whole degree instead, which sits inside the 0.5 degree absolute floor at any altitude.
+
+**The star check disabled itself in production.** This was the serious one, and it was the same failure as the first: read the catalogue from disk, wrap it in a `catch`, carry on with an empty list. It worked locally and every test passed. On Vercel it would not have, because `public/` is uploaded as static assets and is not on a serverless function's filesystem, so the check that catches invented star names would have reported success on every answer. Running `checkGrounding` in a directory with no `public/` returns `ok: true` for "look for Betelgeuse". The fix was to stop reading and start generating: `scripts/build-catalog.mjs` now emits `api/_lib/star-names.ts` alongside the catalogues, `grounding.ts` imports it statically, and the swallowing `catch` is gone, so an absent list is now a loud startup failure rather than a quiet no-op.
+
+The pattern across all three is one thing: a fallback that hides a disabled check reads as robustness and behaves as a silent hole. Bob wrote clean, well commented, correctly structured code and was reliably wrong in that one direction. Every correction came from asking what happens when this fails, not from reading the code as written.
 
 ---
 
@@ -244,5 +258,5 @@ The translation is the product. And it is aimed at people who are currently on t
 - [satellite.js](https://github.com/shashwatak/satellite-js), SGP4, MIT
 - [Celestrak](https://celestrak.org/), orbital elements, free and keyless
 - [IBM Granite](https://www.ibm.com/granite) on [watsonx.ai](https://www.ibm.com/products/watsonx-ai), narration, Apache 2.0 model family
-- The Royal Observatory silhouette on the landing page is traced from [*Flamsteed House, Royal Observatory, Greenwich, London*](https://commons.wikimedia.org/wiki/File:Flamsteed_House,_Royal_Observatory,_Greenwich,_London,_20260719_0921_4494.jpg) by Jakub Hałun, CC BY 4.0, via Wikimedia Commons
+- The Royal Observatory on the landing page is derived from [*Flamsteed House, Royal Observatory, Greenwich, London*](https://commons.wikimedia.org/wiki/File:Flamsteed_House,_Royal_Observatory,_Greenwich,_London,_20260719_0921_4494.jpg) by Jakub Hałun, CC BY 4.0, via Wikimedia Commons. The sky is cut out of it column by column and the remainder pushed towards a silhouette, so the photograph contributes a building and never a sky
 - Typefaces: Cormorant Garamond, Unbounded and Share Tech Mono (Google Fonts)

@@ -282,6 +282,17 @@ export function Overture({
             // Stood off the sunset bearing so it is in frame while the glow is
             // the subject, and pans away with the landscape after that.
             landmarkAzimuth={conditions.sunAzimuth + 36}
+            /*
+             * Covered once, and then gone.
+             *
+             * The horizon is what visually closes over the building, but its
+             * projected circle changes sense as the camera tilts, so left to
+             * itself it uncovers what it just covered and the observatory
+             * reappears among the stars two panels later. Scroll only ever runs
+             * one way, so the disappearance is driven from here instead, timed
+             * to finish about where the ground has finished rising over it.
+             */
+            landmarkFade={1 - ease(span(progress, 0.08, 0.26))}
             showGrid={false}
             chrome={false}
             nightVision={false}

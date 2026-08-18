@@ -35,12 +35,7 @@ import {
 import { toObserver } from '../lib/astro/solar';
 import { compassPoint } from '../lib/astro/satellites';
 import { buildMilkyWay, type MilkyWayPatch } from '../lib/astro/milkyway';
-import {
-  OBSERVATORY_ASPECT,
-  OBSERVATORY_BOX_H,
-  OBSERVATORY_BOX_W,
-  OBSERVATORY_PATH,
-} from '../lib/sky/observatory';
+
 import type { ObserverSite, SkyBody, SkyConditions } from '../lib/astro/types';
 
 /**
@@ -87,6 +82,15 @@ export interface SkyCanvasProps {
    * would be putting a building on a horizon it knows nothing about.
    */
   landmarkAzimuth?: number | null;
+  /**
+   * How present the landmark is, 0 to 1.
+   *
+   * The horizon alone cannot decide this. Its projected circle changes sense as
+   * the camera tilts, so the building is revealed and hidden again rather than
+   * being covered once, and the caller is the only thing that knows how far
+   * through the scroll it is.
+   */
+  landmarkFade?: number;
   /** Draw the whole scene on a red-only ramp to preserve dark adaptation. */
   nightVision: boolean;
   onSelect: (id: string | null) => void;
@@ -270,6 +274,7 @@ export function SkyCanvas({
   showGrid,
   chrome = true,
   landmarkAzimuth = null,
+  landmarkFade = 1,
   nightVision,
   onSelect,
   onPan,
@@ -293,6 +298,7 @@ export function SkyCanvas({
     showGrid,
     chrome,
     landmarkAzimuth,
+    landmarkFade,
     nightVision,
   });
   stateRef.current = {
@@ -308,6 +314,7 @@ export function SkyCanvas({
     showGrid,
     chrome,
     landmarkAzimuth,
+    landmarkFade,
     nightVision,
   };
 
@@ -400,6 +407,7 @@ export function SkyCanvas({
         height,
         s.conditions,
         s.landmarkAzimuth ?? null,
+        s.landmarkFade ?? 1,
       );
       drawHorizon(ctx, projectHor, width, height);
       if (s.chrome) drawCardinals(ctx, projectHor);
@@ -842,7 +850,23 @@ function arcSamples(
  * Built once. Path2D takes SVG path data directly, so the traced roofline is
  * parsed a single time and then only transformed per frame.
  */
-const OBSERVATORY = typeof Path2D === 'undefined' ? null : new Path2D(OBSERVATORY_PATH);
+/**
+ * The Royal Observatory foreground, as a photograph rather than a drawing.
+ *
+ * An earlier version traced the roofline into an SVG path and filled it. It
+ * was accurate and it looked like a wireframe, because a building at dusk is
+ * read from its texture and its mass, not its outline. This is the real
+ * photograph with the sky cut out of it: every pixel above the roofline is
+ * transparent, so the image contributes ground and never sky, and what remains
+ * is crushed towards a silhouette so it sits in the page's own twilight.
+ *
+ * Loaded once, drawn when ready. Until then the hero simply has no landmark in
+ * it, which is the correct failure: an empty foreground, never a fake one.
+ */
+const OBSERVATORY_IMAGE: HTMLImageElement | null =
+  typeof Image === 'undefined' ? null : new Image();
+if (OBSERVATORY_IMAGE) OBSERVATORY_IMAGE.src = 'scenery/observatory.png';
+
 
 /**
  * The observatory on the far bank.
@@ -863,73 +887,90 @@ function drawObservatory(
   cx: number,
   cy: number,
   scale: number,
+  width: number,
+  height: number,
   azimuth: number,
-  conditions: SkyConditions | null,
+  fade: number,
 ) {
-  if (!OBSERVATORY) return;
+  const img = OBSERVATORY_IMAGE;
+  if (fade <= 0.01) return;
+  if (!img || !img.complete || !img.naturalWidth) return;
 
   /*
-   * Close to the viewer, not on the far bank. A building a short walk away
-   * subtends a large angle and its base runs steeply down out of the frame,
-   * which is the difference between standing next to it and looking at it
-   * across a valley. The roofline still stops short of the horizon, so it
-   * remains scenery that cannot occlude anything computed.
+   * Placed rather than projected.
+   *
+   * Standing this on a compass bearing was tried at length and it is the wrong
+   * tool. The bearing decides a position and a rotation that both run away as
+   * the camera tilts, so the building swings, shrinks and leaves the frame, and
+   * every number that fixes one framing breaks the next. It is scenery on a
+   * page about Greenwich, not a computed object, and pretending otherwise cost
+   * more than it was ever going to return.
+   *
+   * So: upright, pinned to the bottom right, sized to the frame. The one thing
+   * it still takes from the sky is its height on screen, which follows the
+   * horizon, so that when the camera tilts up and the horizon drops away the
+   * ground goes with it instead of hanging in the middle of the stars.
    */
-  const base = projectVector(horVector(-13, azimuth), basis, cx, cy, scale);
-  const apex = projectVector(horVector(-2.2, azimuth), basis, cx, cy, scale);
-  if (!base || !apex) return;
+  const horizon = projectVector(horVector(0, azimuth), basis, cx, cy, scale);
+  if (!horizon) return;
 
-  const ux = apex.x - base.x;
-  const uy = apex.y - base.y;
-  const h = Math.hypot(ux, uy);
-  // Too small to make out, or the bearing has swung behind the viewer.
-  if (h < 14) return;
-
-  // Local axes at this bearing: up along the altitude gradient, right across it.
-  const nx = ux / h;
-  const ny = uy / h;
-  const rx = -ny;
-  const ry = nx;
+  const w = width * 0.52;
+  const h = w * (img.naturalHeight / img.naturalWidth);
 
   /*
-   * Path units to world pixels. The vertical is fixed by the altitude span; the
-   * horizontal follows from the real building's proportions, which undoes the
-   * stretch introduced when the trace was normalised into its box.
+   * Only the part that rises above the horizon is drawn.
+   *
+   * Everywhere else the foreground is clipped strictly below the brass line so
+   * it can never sit in front of something computed. This one is clipped the
+   * other way about, to the sky side, and the reasoning is the same in reverse:
+   * a building at dusk is legible only where its roofline meets the sky, and
+   * below the line the app already has its own ground, which the photograph
+   * would otherwise cover with a flat dark slab of somebody else's ground.
+   *
+   * What is left is a real skyline standing in real twilight, taking the bottom
+   * degree or two of sky away from the observer exactly as a real building on a
+   * real horizon does. The licence is narrow: the landing page is the only
+   * caller that passes a landmark bearing, so the sky view people actually
+   * navigate by is untouched.
    */
-  const sy = h / OBSERVATORY_BOX_H;
-  const sx = (sy * OBSERVATORY_BOX_H * OBSERVATORY_ASPECT) / OBSERVATORY_BOX_W;
-  const halfW = OBSERVATORY_BOX_W / 2;
+  /*
+   * Fixed in the frame, and left there.
+   *
+   * The building does not move at all. Tracking the horizon made it climb as
+   * the camera tilted up, which read as the observatory taking off; mirroring
+   * that made it sink, which read as it being lowered on a rope. It is a
+   * building, so it stays where it is, and the rising horizon simply closes
+   * over it as you scroll. The clip above does all the work.
+   */
+  const top = height * 0.77 - h * 0.74;
+
+  // Flush with the right edge, so the building holds the corner rather than
+  // floating in the middle of it.
+  const left = width - w * 1.0;
+
+  /*
+   * Gone once the horizon has climbed past the roof.
+   *
+   * The clip cannot express this on its own. When the camera tilts far enough
+   * up, the horizon leaves the top of the frame entirely, at which point every
+   * pixel on screen is on the sky side and the clip stops clipping, which
+   * reveals the whole photograph hanging in the middle of the star field. So
+   * the same fact the clip is drawing is also asked directly: how much of the
+   * building is still standing above the horizon, and once that reaches zero,
+   * nothing is drawn at all. Faded over the last quarter so the ground closes
+   * over it rather than switching it off.
+   */
+  const standing = (horizon.y - top) / (h * 0.25);
+  if (standing <= 0) return;
 
   ctx.save();
-  // Multiplied onto the current transform, not replacing it: the context is
-  // already scaled for device pixel ratio.
-  ctx.transform(
-    rx * sx,
-    ry * sx,
-    -nx * sy,
-    -ny * sy,
-    base.x - rx * sx * halfW + nx * sy * OBSERVATORY_BOX_H,
-    base.y - ry * sx * halfW + ny * sy * OBSERVATORY_BOX_H,
-  );
-
-  ctx.fillStyle = palette.landmark;
-  ctx.fill(OBSERVATORY);
-
-  /*
-   * A rim along the roofline. Without it the building is a dark shape on dark
-   * ground and simply disappears; with it the edge catches what is left of the
-   * sky, which is what happens to a real silhouette on a lit horizon. It fades
-   * out by full dark, when there is nothing left up there to catch.
-   */
-  const rim = conditions ? Math.max(0, 1 - (-conditions.sunAltitude - 4) / 13) : 0.3;
-  if (rim > 0.02) {
-    ctx.strokeStyle = palette.landmarkRim.replace('ALPHA', (rim * 0.45).toFixed(3));
-    // Undo the transform's scale so the rim is a hairline on screen, not one
-    // scaled up with the building.
-    ctx.lineWidth = 1 / sy;
-    ctx.stroke(OBSERVATORY);
+  const skyline = altitudeCircle(basis, 0, cx, cy, scale);
+  if (skyline) {
+    pathAbove(ctx, skyline, width, height);
+    ctx.clip();
   }
-
+  ctx.globalAlpha = 0.96 * Math.min(1, standing) * fade;
+  ctx.drawImage(img, left, top, w, h);
   ctx.restore();
 }
 
@@ -966,6 +1007,7 @@ function drawScenery(
   height: number,
   conditions: SkyConditions | null,
   landmarkAzimuth: number | null,
+  landmarkFade: number,
 ) {
   const horizon = altitudeCircle(basis, 0, cx, cy, scale);
   if (!horizon) return;
@@ -1022,9 +1064,6 @@ function drawScenery(
     ctx.fill(circle.outside ? 'evenodd' : 'nonzero');
   }
 
-  if (landmarkAzimuth != null) {
-    drawObservatory(ctx, basis, cx, cy, scale, landmarkAzimuth, conditions);
-  }
 
   // Still water below the hills, catching the afterglow.
   const shore = altitudeCircle(basis, -8, cx, cy, scale);
@@ -1062,6 +1101,19 @@ function drawScenery(
   }
 
   ctx.restore();
+
+  /*
+   * Outside the ground clip, and last of all.
+   *
+   * Two reasons. It is drawn last because the water and the fade that darkens
+   * the near shore were both landing on top of it, which flattened the building
+   * into the bank behind it however large it was made. It is drawn outside the
+   * clip because this is the one piece of scenery allowed to break the horizon:
+   * see the note on drawObservatory.
+   */
+  if (landmarkAzimuth != null) {
+    drawObservatory(ctx, basis, cx, cy, scale, width, height, landmarkAzimuth, landmarkFade);
+  }
 }
 
 function drawAltAzGrid(
@@ -1112,6 +1164,27 @@ function strokePath(
 }
 
 /** Traces the region below a given altitude. Leaves the path ready to fill or clip. */
+/**
+ * The sky side of an altitude circle, as a path ready to clip or fill.
+ *
+ * Exactly pathBelow with the winding reversed: whichever of the two cases puts
+ * the disc on the ground side, the other one is the sky.
+ */
+function pathAbove(
+  ctx: CanvasRenderingContext2D,
+  circle: { x: number; y: number; radius: number; outside: boolean },
+  width: number,
+  height: number,
+) {
+  ctx.beginPath();
+  if (circle.outside) {
+    ctx.arc(circle.x, circle.y, circle.radius, 0, TAU);
+  } else {
+    ctx.rect(0, 0, width, height);
+    ctx.arc(circle.x, circle.y, circle.radius, 0, TAU, true);
+  }
+}
+
 function pathBelow(
   ctx: CanvasRenderingContext2D,
   circle: { x: number; y: number; radius: number; outside: boolean },
