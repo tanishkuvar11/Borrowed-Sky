@@ -65,6 +65,31 @@
   --dusk-rose: #e0879b;
   --dusk-rose-dim: rgba(224, 135, 155, 0.16);
 
+  /*
+   * The instrument's materials, as bare channel triples.
+   *
+   * Every floating panel needs the same colour at a dozen different alphas —
+   * a body gradient, a top sheen, an inner lamp — and writing those as literal
+   * rgba() meant night-vision mode could not reach them. Under red light the
+   * whole point is that nothing on screen is any other colour, and a panel
+   * quietly staying plum-and-gold defeats the mode it is sitting inside.
+   *
+   * Held as triples rather than colours so the alpha can vary at the call
+   * site: rgb(var(--sheen-rgb) / 0.14).
+   */
+  --sheen-rgb: 232 204 122;
+  --brass-rgb: 201 162 39;
+  --visible-rgb: 79 216 196;
+  --rose-rgb: 224 135 155;
+  /* The lit top of a panel, and the dark body under it. */
+  --glass-lift-rgb: 30 22 48;
+  --glass-body-rgb: 7 7 16;
+  /* Inside a turned bezel: the dished face and the well at its centre. */
+  --dish-lift-rgb: 36 26 56;
+  --dish-well-rgb: 5 5 12;
+  /* The scrims the header and rail fade out through. */
+  --scrim-rgb: 4 4 10;
+
   /* --- translucent surfaces that float over the sky --- */
   --veil-strong: rgba(7, 7, 15, 0.82);
   --veil: rgba(7, 7, 15, 0.62);
@@ -217,6 +242,17 @@
   --plate-bottom: rgba(12, 2, 2, 0.94);
   --dish-top: #2c0806;
   --dish-bottom: #0b0202;
+
+  /* The same materials, on the red-only ramp. */
+  --sheen-rgb: 255 122 92;
+  --brass-rgb: 194 64 47;
+  --visible-rgb: 255 122 92;
+  --rose-rgb: 194 64 47;
+  --glass-lift-rgb: 44 10 8;
+  --glass-body-rgb: 14 2 2;
+  --dish-lift-rgb: 46 10 8;
+  --dish-well-rgb: 10 1 1;
+  --scrim-rgb: 8 1 1;
 }
 
 /* --- shared primitives --------------------------------------------------- */

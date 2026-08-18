@@ -216,6 +216,30 @@ export default function App() {
         <span className="optics__grain" />
       </div>
 
+      {/*
+        The filter night-vision mode puts the planet portraits through.
+
+        A chain of CSS filters could not get there: sepia and hue-rotate barely
+        move the pale tones, so Saturn stayed a yellow ball in the corner of an
+        otherwise red screen — which costs exactly the dark adaptation the mode
+        exists to protect. A colour matrix can do it exactly. Each channel is
+        the pixel's Rec. 709 luminance scaled onto the red ramp, which is the
+        same rule the star catalogue's night palette already uses: under red
+        light the eye resolves no hue anyway, so only relative brightness is
+        worth keeping.
+      */}
+      <svg className="visually-hidden" aria-hidden focusable="false">
+        <filter id="night-ramp" colorInterpolationFilters="sRGB">
+          <feColorMatrix
+            type="matrix"
+            values="0.2126 0.7152 0.0722 0 0
+                    0.0808 0.2718 0.0274 0 0
+                    0.0595 0.2003 0.0202 0 0
+                    0      0      0      1 0"
+          />
+        </filter>
+      </svg>
+
       {toast && (
         <p className="toast" role="status">
           {toast}

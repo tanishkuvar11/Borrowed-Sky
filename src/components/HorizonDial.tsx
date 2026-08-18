@@ -98,6 +98,14 @@ export function HorizonDial({ heading, live }: { heading: number; live: boolean 
       const brass = readVar('--brass', '#c9a227');
       const brassBright = readVar('--brass-bright', '#e8cc7a');
       const starlight = readVar('--starlight', '#f2ede0');
+      /*
+       * The ground is read from the same token the panels are built on rather
+       * than written as a literal. Night-vision mode swaps that token to a red
+       * ramp, and a hard-coded navy band lying across the bottom of an
+       * otherwise red screen is exactly the leak the mode exists to prevent.
+       */
+      const groundRgb = readVar('--scrim-rgb', '4 4 10');
+      const ground = (alpha: number) => `rgb(${groundRgb} / ${alpha})`;
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, height);
@@ -129,11 +137,11 @@ export function HorizonDial({ heading, live }: { heading: number; live: boolean 
       ctx.closePath();
       ctx.clip();
 
-      const ground = ctx.createLinearGradient(0, crest, 0, height);
-      ground.addColorStop(0, 'rgba(7, 7, 16, 0.82)');
-      ground.addColorStop(0.28, 'rgba(4, 4, 11, 0.97)');
-      ground.addColorStop(1, 'rgba(3, 3, 8, 1)');
-      ctx.fillStyle = ground;
+      const fill = ctx.createLinearGradient(0, crest, 0, height);
+      fill.addColorStop(0, ground(0.82));
+      fill.addColorStop(0.28, ground(0.97));
+      fill.addColorStop(1, ground(1));
+      ctx.fillStyle = fill;
       ctx.fillRect(0, 0, width, height);
       ctx.restore();
 

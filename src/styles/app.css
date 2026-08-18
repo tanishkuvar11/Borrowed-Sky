@@ -146,8 +146,8 @@ button {
   padding: 0.6rem 1.1rem;
   border-radius: 7px;
   border: var(--rule) solid var(--brass-hairline);
-  background: linear-gradient(180deg, rgba(30, 22, 48, 0.5) 0%, rgba(7, 7, 16, 0.62) 100%);
-  box-shadow: inset 0 1px 0 rgba(232, 204, 122, 0.1);
+  background: linear-gradient(180deg, rgb(var(--glass-lift-rgb) / 0.5) 0%, rgb(var(--glass-body-rgb) / 0.62) 100%);
+  box-shadow: inset 0 1px 0 rgb(var(--sheen-rgb) / 0.1);
   color: var(--starlight);
   transition:
     border-color 220ms var(--ease),
@@ -157,7 +157,7 @@ button {
 .button:hover:not(:disabled) {
   border-color: var(--brass-dim);
   box-shadow:
-    inset 0 1px 0 rgba(232, 204, 122, 0.2),
+    inset 0 1px 0 rgb(var(--sheen-rgb) / 0.2),
     inset 0 0 26px -10px var(--brass);
 }
 .button:disabled {
@@ -170,7 +170,7 @@ button {
   border-color: var(--brass-dim);
   color: var(--brass-bright);
   box-shadow:
-    inset 0 1px 0 rgba(232, 204, 122, 0.22),
+    inset 0 1px 0 rgb(var(--sheen-rgb) / 0.22),
     inset 0 0 30px -8px var(--brass);
 }
 .button--primary::after {
@@ -185,7 +185,7 @@ button {
 .button--primary:hover:not(:disabled) {
   border-color: var(--brass);
   box-shadow:
-    inset 0 1px 0 rgba(232, 204, 122, 0.3),
+    inset 0 1px 0 rgb(var(--sheen-rgb) / 0.3),
     inset 0 0 34px -6px var(--brass);
 }
 
@@ -222,7 +222,7 @@ button {
   padding: 0.45rem 0.85rem;
   border-radius: 999px;
   border: var(--rule) solid var(--brass-hairline);
-  background: linear-gradient(180deg, rgba(30, 22, 48, 0.45) 0%, rgba(7, 7, 16, 0.6) 100%);
+  background: linear-gradient(180deg, rgb(var(--glass-lift-rgb) / 0.45) 0%, rgb(var(--glass-body-rgb) / 0.6) 100%);
   color: var(--starlight-soft);
   white-space: nowrap;
   transition:
@@ -241,7 +241,7 @@ button {
   border-color: var(--brass-dim);
   color: var(--brass-bright);
   box-shadow:
-    inset 0 1px 0 rgba(232, 204, 122, 0.2),
+    inset 0 1px 0 rgb(var(--sheen-rgb) / 0.2),
     inset 0 0 26px -8px var(--brass);
 }
 
@@ -272,8 +272,8 @@ button {
   display: inline-flex;
   border: var(--rule) solid var(--brass-hairline);
   border-radius: 8px;
-  background: linear-gradient(180deg, rgba(24, 18, 40, 0.45) 0%, rgba(7, 7, 16, 0.6) 100%);
-  box-shadow: inset 0 1px 0 rgba(232, 204, 122, 0.1);
+  background: linear-gradient(180deg, rgb(var(--glass-lift-rgb) / 0.45) 0%, rgb(var(--glass-body-rgb) / 0.6) 100%);
+  box-shadow: inset 0 1px 0 rgb(var(--sheen-rgb) / 0.1);
   overflow: hidden;
 }
 .toggle__option {
@@ -297,7 +297,7 @@ button {
 }
 .toggle__option.is-on {
   color: var(--brass-bright);
-  background: linear-gradient(180deg, rgba(201, 162, 39, 0.16) 0%, rgba(201, 162, 39, 0.04) 100%);
+  background: linear-gradient(180deg, rgb(var(--brass-rgb) / 0.16) 0%, rgb(var(--brass-rgb) / 0.04) 100%);
 }
 .toggle__option.is-on::after {
   content: '';
@@ -482,10 +482,10 @@ button {
    */
   background: linear-gradient(
     180deg,
-    rgba(4, 4, 10, 0.86) 0%,
-    rgba(4, 4, 10, 0.62) 42%,
-    rgba(4, 4, 10, 0.22) 74%,
-    rgba(4, 4, 10, 0) 100%
+    rgb(var(--scrim-rgb) / 0.86) 0%,
+    rgb(var(--scrim-rgb) / 0.62) 42%,
+    rgb(var(--scrim-rgb) / 0.22) 74%,
+    rgb(var(--scrim-rgb) / 0) 100%
   );
   /* The scrim is atmosphere; drags aimed at the sky must pass through it. */
   pointer-events: none;
@@ -534,8 +534,18 @@ button {
   text-indent: 0.22em;
   text-transform: uppercase;
   line-height: 1.15;
-  /* Lit from the same quarter as every brass edge in the app. */
-  background: linear-gradient(178deg, #fffaf0 0%, var(--starlight) 46%, #a89e88 100%);
+  /*
+   * Lit from the same quarter as every brass edge in the app. The two ends of
+   * the ramp are the app's own starlight lightened and darkened rather than
+   * fixed creams, so the wordmark goes red under night vision along with
+   * everything else instead of staying the one white thing on the screen.
+   */
+  background: linear-gradient(
+    178deg,
+    color-mix(in srgb, var(--starlight) 72%, white) 0%,
+    var(--starlight) 46%,
+    color-mix(in srgb, var(--starlight) 62%, black) 100%
+  );
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -584,11 +594,11 @@ button {
   border-radius: 50%;
   background:
     radial-gradient(circle at 50% 50%, transparent 68%, var(--brass-engrave) 69%, transparent 78%),
-    radial-gradient(circle at 38% 26%, rgba(232, 204, 122, 0.14) 0%, transparent 62%),
+    radial-gradient(circle at 38% 26%, rgb(var(--sheen-rgb) / 0.14) 0%, transparent 62%),
     var(--veil-strong);
   box-shadow:
     inset 0 0 0 1px var(--brass-hairline),
-    inset 0 1px 0 rgba(232, 204, 122, 0.16),
+    inset 0 1px 0 rgb(var(--sheen-rgb) / 0.16),
     0 2px 10px rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(6px);
   transition:
@@ -615,7 +625,7 @@ button {
 .rose:hover {
   box-shadow:
     inset 0 0 0 1px var(--brass-dim),
-    inset 0 1px 0 rgba(232, 204, 122, 0.26),
+    inset 0 1px 0 rgb(var(--sheen-rgb) / 0.26),
     0 2px 14px rgba(0, 0, 0, 0.6),
     0 0 22px -8px var(--brass);
 }
@@ -634,10 +644,10 @@ button {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: radial-gradient(circle at 36% 26%, rgba(36, 26, 56, 0.9) 0%, rgba(6, 6, 14, 0.95) 76%);
+  background: radial-gradient(circle at 36% 26%, rgb(var(--dish-lift-rgb) / 0.9) 0%, rgb(var(--glass-body-rgb) / 0.95) 76%);
   box-shadow:
     inset 0 1px 3px rgba(0, 0, 0, 0.9),
-    inset 0 0 0 1px rgba(232, 204, 122, 0.07);
+    inset 0 0 0 1px rgb(var(--sheen-rgb) / 0.07);
   color: var(--brass-bright);
   transition: color 240ms var(--ease);
 }
@@ -647,7 +657,7 @@ button {
   color: var(--visible);
   box-shadow:
     inset 0 1px 3px rgba(0, 0, 0, 0.9),
-    inset 0 0 0 1px rgba(79, 216, 196, 0.16),
+    inset 0 0 0 1px rgb(var(--visible-rgb) / 0.16),
     inset 0 0 14px -4px var(--visible);
 }
 .rose--paused .rose__face {
@@ -683,7 +693,7 @@ button {
   max-width: min(34rem, calc(100% - 2 * var(--pad-edge)));
   padding: 0.4rem 0.9rem;
   border-radius: 999px;
-  border: var(--rule) solid rgba(224, 135, 155, 0.3);
+  border: var(--rule) solid rgb(var(--rose-rgb) / 0.3);
   background: var(--veil-strong);
   backdrop-filter: blur(8px);
   color: var(--dusk-rose);
@@ -714,10 +724,10 @@ button {
   background:
     linear-gradient(
       180deg,
-      rgba(4, 4, 10, 0) 0%,
-      rgba(4, 4, 10, 0.42) 26%,
-      rgba(4, 4, 10, 0.86) 62%,
-      rgba(4, 4, 10, 0.96) 100%
+      rgb(var(--scrim-rgb) / 0) 0%,
+      rgb(var(--scrim-rgb) / 0.42) 26%,
+      rgb(var(--scrim-rgb) / 0.86) 62%,
+      rgb(var(--scrim-rgb) / 0.96) 100%
     ),
     linear-gradient(180deg, var(--brass-engrave) 0 1px, transparent 1px);
   padding-bottom: env(safe-area-inset-bottom);
@@ -803,11 +813,11 @@ button {
   border: 0;
   border-radius: 50%;
   background:
-    radial-gradient(circle at 38% 24%, rgba(232, 204, 122, 0.16) 0%, transparent 60%),
+    radial-gradient(circle at 38% 24%, rgb(var(--sheen-rgb) / 0.16) 0%, transparent 60%),
     var(--veil-strong);
   box-shadow:
     inset 0 0 0 1px var(--brass-hairline),
-    inset 0 1px 0 rgba(232, 204, 122, 0.2),
+    inset 0 1px 0 rgb(var(--sheen-rgb) / 0.2),
     0 -2px 16px rgba(0, 0, 0, 0.8),
     0 0 30px -14px var(--brass);
   backdrop-filter: blur(8px);
@@ -833,7 +843,7 @@ button {
 .rail__emblem:hover {
   box-shadow:
     inset 0 0 0 1px var(--brass-dim),
-    inset 0 1px 0 rgba(232, 204, 122, 0.3),
+    inset 0 1px 0 rgb(var(--sheen-rgb) / 0.3),
     0 -2px 16px rgba(0, 0, 0, 0.8),
     0 0 34px -10px var(--brass);
 }
@@ -854,10 +864,10 @@ button {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: radial-gradient(circle at 36% 26%, rgba(36, 26, 56, 0.85) 0%, rgba(5, 5, 12, 0.96) 78%);
+  background: radial-gradient(circle at 36% 26%, rgb(var(--dish-lift-rgb) / 0.85) 0%, rgb(var(--dish-well-rgb) / 0.96) 78%);
   box-shadow:
     inset 0 1px 3px rgba(0, 0, 0, 0.9),
-    inset 0 0 0 1px rgba(232, 204, 122, 0.1);
+    inset 0 0 0 1px rgb(var(--sheen-rgb) / 0.1);
   color: var(--brass);
   transition: color 240ms var(--ease);
 }
@@ -865,7 +875,7 @@ button {
   color: var(--visible);
   box-shadow:
     inset 0 1px 3px rgba(0, 0, 0, 0.9),
-    inset 0 0 0 1px rgba(79, 216, 196, 0.18),
+    inset 0 0 0 1px rgb(var(--visible-rgb) / 0.18),
     inset 0 0 16px -5px var(--visible);
 }
 
@@ -909,7 +919,7 @@ button {
   transform: translate(-50%, -50%);
   border-radius: 50%;
   border: var(--rule) solid var(--brass-engrave);
-  box-shadow: 0 0 90px -30px rgba(201, 162, 39, 0.22);
+  box-shadow: 0 0 90px -30px rgb(var(--brass-rgb) / 0.22);
 }
 /* A second, finer ring just outside it: the mount the stop is held in. */
 .optics__aperture::after {
@@ -1030,10 +1040,10 @@ button {
   border: var(--rule) solid var(--brass-hairline);
   border-radius: 10px;
   background:
-    linear-gradient(180deg, rgba(30, 22, 48, 0.55) 0%, rgba(7, 7, 16, 0.72) 100%);
+    linear-gradient(180deg, rgb(var(--glass-lift-rgb) / 0.55) 0%, rgb(var(--glass-body-rgb) / 0.72) 100%);
   box-shadow:
-    inset 0 1px 0 rgba(232, 204, 122, 0.14),
-    inset 0 -18px 34px -26px rgba(232, 204, 122, 0.28),
+    inset 0 1px 0 rgb(var(--sheen-rgb) / 0.14),
+    inset 0 -18px 34px -26px rgb(var(--sheen-rgb) / 0.28),
     0 10px 30px -14px rgba(0, 0, 0, 0.9);
   backdrop-filter: blur(14px) saturate(0.9);
 }
@@ -1052,10 +1062,10 @@ button {
   border: var(--rule) solid var(--brass-hairline);
   border-radius: 10px;
   background:
-    linear-gradient(180deg, rgba(30, 22, 48, 0.55) 0%, rgba(7, 7, 16, 0.72) 100%);
+    linear-gradient(180deg, rgb(var(--glass-lift-rgb) / 0.55) 0%, rgb(var(--glass-body-rgb) / 0.72) 100%);
   box-shadow:
-    inset 0 1px 0 rgba(232, 204, 122, 0.14),
-    inset 0 -18px 34px -26px rgba(232, 204, 122, 0.28),
+    inset 0 1px 0 rgb(var(--sheen-rgb) / 0.14),
+    inset 0 -18px 34px -26px rgb(var(--sheen-rgb) / 0.28),
     0 10px 30px -14px rgba(0, 0, 0, 0.9);
   backdrop-filter: blur(14px) saturate(0.9);
   transition: box-shadow 260ms var(--ease), border-color 260ms var(--ease);
@@ -1063,8 +1073,8 @@ button {
 .readout-panel:hover {
   border-color: var(--brass-dim);
   box-shadow:
-    inset 0 1px 0 rgba(232, 204, 122, 0.2),
-    inset 0 -18px 34px -26px rgba(232, 204, 122, 0.4),
+    inset 0 1px 0 rgb(var(--sheen-rgb) / 0.2),
+    inset 0 -18px 34px -26px rgb(var(--sheen-rgb) / 0.4),
     0 10px 30px -14px rgba(0, 0, 0, 0.9);
 }
 
@@ -1156,9 +1166,9 @@ button {
   grid-template-columns: 1fr 1fr auto;
   border: var(--rule) solid var(--brass-hairline);
   border-radius: 8px;
-  background: linear-gradient(180deg, rgba(24, 18, 40, 0.5) 0%, rgba(7, 7, 16, 0.7) 100%);
+  background: linear-gradient(180deg, rgb(var(--glass-lift-rgb) / 0.5) 0%, rgb(var(--glass-body-rgb) / 0.7) 100%);
   box-shadow:
-    inset 0 1px 0 rgba(232, 204, 122, 0.1),
+    inset 0 1px 0 rgb(var(--sheen-rgb) / 0.1),
     0 8px 22px -14px rgba(0, 0, 0, 0.9);
   backdrop-filter: blur(14px);
   overflow: hidden;
@@ -1193,7 +1203,7 @@ button {
 .segment__tab.is-on {
   color: var(--brass-bright);
   background:
-    linear-gradient(180deg, rgba(201, 162, 39, 0.16) 0%, rgba(201, 162, 39, 0.04) 100%);
+    linear-gradient(180deg, rgb(var(--brass-rgb) / 0.16) 0%, rgb(var(--brass-rgb) / 0.04) 100%);
 }
 .segment__tab.is-on::after {
   content: '';
@@ -1245,9 +1255,9 @@ button {
   text-align: left;
   border: var(--rule) solid var(--brass-hairline);
   border-radius: 10px;
-  background: linear-gradient(180deg, rgba(28, 20, 46, 0.5) 0%, rgba(7, 7, 16, 0.7) 100%);
+  background: linear-gradient(180deg, rgb(var(--glass-lift-rgb) / 0.5) 0%, rgb(var(--glass-body-rgb) / 0.7) 100%);
   box-shadow:
-    inset 0 1px 0 rgba(232, 204, 122, 0.1),
+    inset 0 1px 0 rgb(var(--sheen-rgb) / 0.1),
     0 8px 22px -16px rgba(0, 0, 0, 0.9);
   backdrop-filter: blur(14px);
   transition:
@@ -1268,14 +1278,14 @@ button {
   transform: translateX(2px);
   border-color: var(--brass-dim);
   box-shadow:
-    inset 0 1px 0 rgba(232, 204, 122, 0.18),
+    inset 0 1px 0 rgb(var(--sheen-rgb) / 0.18),
     inset 0 0 30px -14px var(--brass),
     0 8px 22px -14px rgba(0, 0, 0, 0.9);
 }
 .object-card.is-selected {
   border-color: var(--brass-dim);
   box-shadow:
-    inset 0 1px 0 rgba(232, 204, 122, 0.24),
+    inset 0 1px 0 rgb(var(--sheen-rgb) / 0.24),
     inset 0 0 34px -10px var(--brass),
     0 8px 26px -14px rgba(0, 0, 0, 0.9);
 }
@@ -1293,6 +1303,23 @@ button {
   display: block;
   /* The globes are lit from the upper left; the drop shadow agrees with them. */
   filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.75));
+}
+
+/*
+ * Under night vision the portraits collapse onto the red ramp with everything
+ * else.
+ *
+ * This one matters more than the panels do. A bright blue Neptune sitting in
+ * the corner of an otherwise red screen is precisely the thing the mode exists
+ * to prevent: it costs the dark adaptation the rest of the interface is being
+ * careful to protect. And nothing is lost by it, because under red light the
+ * eye cannot resolve hue anyway — which is the same reason the star colours
+ * already have a night ramp of their own.
+ *
+ * The matrix that does it lives in App, next to the optics layer.
+ */
+:root[data-vision='night'] .planet-mark {
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.75)) url(#night-ramp);
 }
 
 .object-card__text {
@@ -1369,7 +1396,7 @@ button {
   height: 16px;
   border-radius: 8px;
   border: var(--rule) solid var(--brass-hairline);
-  background: linear-gradient(180deg, rgba(4, 4, 10, 0.9) 0%, rgba(20, 16, 34, 0.7) 100%);
+  background: linear-gradient(180deg, rgb(var(--scrim-rgb) / 0.9) 0%, rgba(20, 16, 34, 0.7) 100%);
   box-shadow: var(--engraved);
   transition: border-color 240ms var(--ease), box-shadow 240ms var(--ease);
 }
@@ -1481,7 +1508,7 @@ button {
   letter-spacing: 0.2em;
   text-indent: 0.2em;
   color: var(--starlight);
-  text-shadow: 0 0 14px rgba(232, 204, 122, 0.5), 0 1px 3px rgba(0, 0, 0, 0.9);
+  text-shadow: 0 0 14px rgb(var(--sheen-rgb) / 0.5), 0 1px 3px rgba(0, 0, 0, 0.9);
 }
 
 /*
@@ -1498,7 +1525,7 @@ button {
   background:
     radial-gradient(circle at 50% 50%, var(--brass-bright) 0 14%, transparent 15%),
     radial-gradient(circle at 50% 50%, transparent 0 44%, var(--brass-engrave) 45% 62%, transparent 63%),
-    radial-gradient(circle at 38% 30%, rgba(36, 26, 56, 0.9) 0%, rgba(5, 5, 12, 0.96) 76%);
+    radial-gradient(circle at 38% 30%, rgb(var(--dish-lift-rgb) / 0.9) 0%, rgb(var(--dish-well-rgb) / 0.96) 76%);
   box-shadow:
     inset 0 1px 3px rgba(0, 0, 0, 0.9),
     0 0 22px -6px var(--brass),
@@ -1510,8 +1537,8 @@ button {
   border-color: var(--visible);
   background:
     radial-gradient(circle at 50% 50%, var(--visible) 0 14%, transparent 15%),
-    radial-gradient(circle at 50% 50%, transparent 0 44%, rgba(79, 216, 196, 0.18) 45% 62%, transparent 63%),
-    radial-gradient(circle at 38% 30%, rgba(36, 26, 56, 0.9) 0%, rgba(5, 5, 12, 0.96) 76%);
+    radial-gradient(circle at 50% 50%, transparent 0 44%, rgb(var(--visible-rgb) / 0.18) 45% 62%, transparent 63%),
+    radial-gradient(circle at 38% 30%, rgb(var(--dish-lift-rgb) / 0.9) 0%, rgb(var(--dish-well-rgb) / 0.96) 76%);
   box-shadow:
     inset 0 1px 3px rgba(0, 0, 0, 0.9),
     0 0 22px -6px var(--visible),
@@ -1576,10 +1603,10 @@ button {
   border: var(--rule) solid var(--brass-hairline);
   border-radius: 14px;
   background:
-    linear-gradient(180deg, rgba(26, 19, 42, 0.62) 0%, rgba(6, 6, 14, 0.78) 100%);
+    linear-gradient(180deg, rgb(var(--glass-lift-rgb) / 0.62) 0%, rgb(var(--glass-body-rgb) / 0.78) 100%);
   box-shadow:
-    inset 0 1px 0 rgba(232, 204, 122, 0.16),
-    inset 0 -30px 60px -46px rgba(232, 204, 122, 0.4),
+    inset 0 1px 0 rgb(var(--sheen-rgb) / 0.16),
+    inset 0 -30px 60px -46px rgb(var(--sheen-rgb) / 0.4),
     0 16px 44px -20px rgba(0, 0, 0, 0.95);
   backdrop-filter: blur(18px) saturate(0.9);
   overflow: hidden;
@@ -1588,8 +1615,8 @@ button {
 .guide-panel:hover {
   border-color: var(--brass-dim);
   box-shadow:
-    inset 0 1px 0 rgba(232, 204, 122, 0.24),
-    inset 0 -30px 60px -44px rgba(232, 204, 122, 0.55),
+    inset 0 1px 0 rgb(var(--sheen-rgb) / 0.24),
+    inset 0 -30px 60px -44px rgb(var(--sheen-rgb) / 0.55),
     0 16px 44px -18px rgba(0, 0, 0, 0.95);
 }
 
@@ -1874,10 +1901,10 @@ button {
   padding: 1.1rem 1.25rem 1.2rem;
   border: var(--rule) solid var(--brass-hairline);
   border-radius: 14px;
-  background: linear-gradient(180deg, rgba(26, 19, 42, 0.68) 0%, rgba(6, 6, 14, 0.82) 100%);
+  background: linear-gradient(180deg, rgb(var(--glass-lift-rgb) / 0.68) 0%, rgb(var(--glass-body-rgb) / 0.82) 100%);
   box-shadow:
-    inset 0 1px 0 rgba(232, 204, 122, 0.18),
-    inset 0 -30px 60px -46px rgba(232, 204, 122, 0.4),
+    inset 0 1px 0 rgb(var(--sheen-rgb) / 0.18),
+    inset 0 -30px 60px -46px rgb(var(--sheen-rgb) / 0.4),
     0 18px 50px -22px rgba(0, 0, 0, 0.95);
   backdrop-filter: blur(20px) saturate(0.9);
   animation: sheet-in 340ms var(--ease-settle);
@@ -1909,9 +1936,9 @@ button {
   height: 66px;
   border-radius: 50%;
   border: var(--rule) solid var(--brass-hairline);
-  background: radial-gradient(circle at 38% 30%, rgba(36, 26, 56, 0.7) 0%, rgba(5, 5, 12, 0.85) 78%);
+  background: radial-gradient(circle at 38% 30%, rgb(var(--dish-lift-rgb) / 0.7) 0%, rgb(var(--dish-well-rgb) / 0.85) 78%);
   box-shadow:
-    inset 0 1px 0 rgba(232, 204, 122, 0.14),
+    inset 0 1px 0 rgb(var(--sheen-rgb) / 0.14),
     inset 0 0 26px -10px var(--brass);
 }
 .sheet__portrait .planet-mark {
@@ -2045,8 +2072,8 @@ button {
 .notice {
   border: var(--rule) solid var(--brass-hairline);
   border-radius: 10px;
-  background: linear-gradient(180deg, rgba(28, 20, 46, 0.45) 0%, rgba(7, 7, 16, 0.6) 100%);
-  box-shadow: inset 0 1px 0 rgba(232, 204, 122, 0.1);
+  background: linear-gradient(180deg, rgb(var(--glass-lift-rgb) / 0.45) 0%, rgb(var(--glass-body-rgb) / 0.6) 100%);
+  box-shadow: inset 0 1px 0 rgb(var(--sheen-rgb) / 0.1);
   padding: 0.9rem 1rem;
   margin-bottom: 1.25rem;
   font-size: var(--t-small);
@@ -2091,8 +2118,8 @@ button {
   overflow-y: hidden;
   border: var(--rule) solid var(--brass-hairline);
   border-radius: 10px;
-  background: linear-gradient(180deg, rgba(22, 16, 36, 0.5) 0%, rgba(6, 6, 14, 0.66) 100%);
-  box-shadow: inset 0 1px 0 rgba(232, 204, 122, 0.1);
+  background: linear-gradient(180deg, rgb(var(--glass-lift-rgb) / 0.5) 0%, rgb(var(--glass-body-rgb) / 0.66) 100%);
+  box-shadow: inset 0 1px 0 rgb(var(--sheen-rgb) / 0.1);
   margin: 1.25rem var(--pad-edge);
   scrollbar-width: thin;
 }
@@ -2175,15 +2202,15 @@ button {
   border: var(--rule) solid var(--brass-hairline);
   border-left-width: 2px;
   border-radius: 5px;
-  background: linear-gradient(180deg, rgba(32, 23, 52, 0.72) 0%, rgba(10, 9, 22, 0.82) 100%);
-  box-shadow: inset 0 1px 0 rgba(232, 204, 122, 0.1);
+  background: linear-gradient(180deg, rgb(var(--glass-lift-rgb) / 0.72) 0%, rgb(var(--glass-body-rgb) / 0.82) 100%);
+  box-shadow: inset 0 1px 0 rgb(var(--sheen-rgb) / 0.1);
   overflow: hidden;
   transition: box-shadow 220ms var(--ease), border-color 220ms var(--ease);
 }
 .bar:hover {
   border-color: var(--brass-dim);
   box-shadow:
-    inset 0 1px 0 rgba(232, 204, 122, 0.2),
+    inset 0 1px 0 rgb(var(--sheen-rgb) / 0.2),
     inset 0 0 26px -10px var(--brass);
 }
 .bar__label {
@@ -2260,21 +2287,21 @@ button {
 .agenda__item {
   border: var(--rule) solid var(--brass-engrave);
   border-radius: 10px;
-  background: linear-gradient(180deg, rgba(28, 20, 46, 0.4) 0%, rgba(7, 7, 16, 0.55) 100%);
-  box-shadow: inset 0 1px 0 rgba(232, 204, 122, 0.08);
+  background: linear-gradient(180deg, rgb(var(--glass-lift-rgb) / 0.4) 0%, rgb(var(--glass-body-rgb) / 0.55) 100%);
+  box-shadow: inset 0 1px 0 rgb(var(--sheen-rgb) / 0.08);
   overflow: hidden;
   transition: box-shadow 220ms var(--ease), border-color 220ms var(--ease);
 }
 .agenda__item:hover {
   border-color: var(--brass-hairline);
   box-shadow:
-    inset 0 1px 0 rgba(232, 204, 122, 0.16),
+    inset 0 1px 0 rgb(var(--sheen-rgb) / 0.16),
     inset 0 0 34px -16px var(--brass);
 }
 .agenda__item.is-open {
   border-color: var(--brass-dim);
   box-shadow:
-    inset 0 1px 0 rgba(232, 204, 122, 0.2),
+    inset 0 1px 0 rgb(var(--sheen-rgb) / 0.2),
     inset 0 0 40px -16px var(--brass);
 }
 
