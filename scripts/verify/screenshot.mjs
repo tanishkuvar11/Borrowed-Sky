@@ -170,7 +170,7 @@ async function main() {
         hasCanvas: !!document.querySelector('canvas'),
         railButtons: [...document.querySelectorAll('.rail__item')].map(b => b.textContent.trim()),
         aim: document.querySelector('.aim-note')?.textContent ?? null,
-        plaque: document.querySelector('.plaque__text')?.textContent?.slice(0, 60) ?? null,
+        plaque: document.querySelector('.guide-panel__text')?.textContent?.slice(0, 60) ?? null,
         loading: document.querySelector('.sky-view__loading-text')?.textContent ?? null,
       })
     `);

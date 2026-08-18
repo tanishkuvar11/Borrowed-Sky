@@ -85,6 +85,41 @@ function seeingAt(ms: number): number {
   return 1 + 0.06 * Math.sin(t / 11.3) + 0.035 * Math.sin(t / 4.7 + 1.9);
 }
 
+/**
+ * Where text has already been put this frame.
+ *
+ * The sky does not space its contents out for our convenience: two satellites
+ * a degree apart will happily stack their names on top of each other, and
+ * three overlapping words are worse than one word and two dots, because the
+ * pile is unreadable *and* it hides that there are three things there. So
+ * every label asks for its box first, and a label that cannot get one is not
+ * drawn. The marker underneath it always is.
+ *
+ * Reserved in order of how much the label is worth: bodies, then the named
+ * stars, then the figure names, which are the most replaceable because the
+ * lines they sit on already say where the figure is.
+ */
+const labelSlots: { x: number; y: number; w: number; h: number }[] = [];
+
+/** Takes the box if it is free. Returns false if something is already there. */
+function claimLabel(x: number, y: number, w: number, h: number): boolean {
+  // A little slack around each box, so two labels can be adjacent without
+  // their descenders and capitals appearing to touch.
+  const pad = 3;
+  for (const slot of labelSlots) {
+    if (
+      x < slot.x + slot.w + pad &&
+      x + w + pad > slot.x &&
+      y < slot.y + slot.h + pad &&
+      y + h + pad > slot.y
+    ) {
+      return false;
+    }
+  }
+  labelSlots.push({ x, y, w, h });
+  return true;
+}
+
 /** A marker the user can tap, recorded during the draw so hit-testing is free. */
 interface HitTarget {
   id: string;
@@ -404,6 +439,7 @@ export function SkyCanvas({
       const scale = projectionScale(s.camera.fov, radius);
 
       const targets: HitTarget[] = [];
+      labelSlots.length = 0;
 
       drawBackground(ctx, width, height, s.conditions);
 
@@ -488,7 +524,12 @@ export function SkyCanvas({
         s.chrome !== false,
       );
 
-      // Heading is read off the compass strip below the canvas; what stays here
+      // Last, so they take whatever room the objects did not want.
+      if (s.chrome && s.showConstellations && s.catalog) {
+        drawFigureLabels(ctx, s.constellations, view, cx, cy, scale, s.conditions);
+      }
+
+      // Heading is read off the horizon dial below the canvas; what stays here
       // is the elevation scale, laid out linearly and calibrated against the
       // projection's exact rate at the index mark, the way a real tape is ruled.
       if (s.chrome) drawAltitudeArc(ctx, width, height, s.camera, scale * (Math.PI / 360));
@@ -1552,22 +1593,73 @@ function drawConstellations(
   }
   ctx.stroke();
 
-  if (!chrome) {
-    ctx.restore();
-    return;
-  }
+  ctx.restore();
+}
 
-  // Figure names, placed at the centroid and only when comfortably above the horizon.
-  ctx.font = "500 10px 'Unbounded', system-ui, sans-serif";
+/**
+ * The figure names.
+ *
+ * Drawn in a pass of their own, after everything else, and that ordering is
+ * the whole point. Labels queue for space in the order they are drawn, and a
+ * constellation name is the most expendable text on the chart: the lines it
+ * sits among already say where the figure is, whereas nothing else says which
+ * point of light is Saturn. So the names go last and take what is left.
+ *
+ * Set small, widely tracked and well down in contrast, for the same reason.
+ * These are annotations on a chart of the stars; the moment they are legible
+ * from across the room they are competing with what they annotate.
+ */
+function drawFigureLabels(
+  ctx: CanvasRenderingContext2D,
+  figures: ConstellationFigure[],
+  view: Float64Array,
+  cx: number,
+  cy: number,
+  scale: number,
+  conditions: SkyConditions | null,
+) {
+  const twilight = conditions ? Math.max(0, Math.min(1, (-conditions.sunAltitude - 3) / 12)) : 1;
+  if (twilight <= 0.01) return;
+
+  ctx.save();
+  ctx.globalAlpha = twilight;
+  ctx.font = "400 9.5px 'Unbounded', system-ui, sans-serif";
   ctx.fillStyle = palette.figureLabel;
   ctx.textAlign = 'center';
-  ctx.letterSpacing = '0.14em';
+  ctx.textBaseline = 'middle';
+  ctx.letterSpacing = '0.2em';
+
+  const width = cx * 2;
+  const height = cy * 2;
+
   for (const figure of figures) {
     const v = figure.labelVector;
     const point = projectEqj(v.x, v.y, v.z, view, cx, cy, scale);
     if (!point || point.altitude < 12) continue;
-    ctx.fillText(figure.name.toUpperCase(), point.x, point.y);
+
+    const text = figure.name.toUpperCase();
+    const w = ctx.measureText(text).width;
+
+    /*
+     * Nudged back inside the frame rather than allowed to run off it. A name
+     * centred on a figure whose centroid is near the edge loses half its
+     * letters, and half a word is not a shorter label, it is a mistake. Moving
+     * it a few pixels costs nothing: the figure is right there.
+     *
+     * Only a few, though. Past the nudge limit the label is dropped instead,
+     * because a figure whose centre is well off the frame has no business
+     * printing its name along the edge: it would be labelling stars that are
+     * not on screen, and it crowds out the ones that are.
+     */
+    const NUDGE = 26;
+    const x = Math.max(w / 2 + 8, Math.min(width - w / 2 - 8, point.x));
+    const y = Math.max(14, Math.min(height - 14, point.y));
+    if (Math.abs(x - point.x) > NUDGE || Math.abs(y - point.y) > NUDGE) continue;
+
+    if (!claimLabel(x - w / 2, y - 6, w, 12)) continue;
+    ctx.fillText(text, x, y);
   }
+
   ctx.letterSpacing = '0px';
   ctx.restore();
 }
@@ -1751,13 +1843,19 @@ function drawStars(
 
     const name = catalog.proper[star.index];
     if (name) {
-      ctx.fillStyle = palette.starLabel;
-      ctx.fillText(name, star.x + star.r + 7, star.y);
       // cx and cy are the frame centre, so 2cx and 2cy are its width and height.
       const onScreen =
         star.x > -24 && star.x < cx * 2 + 24 && star.y > -24 && star.y < cy * 2 + 24;
       if (onScreen) {
         targets.push({ id: `star-${star.index}`, x: star.x, y: star.y, radius: star.r });
+      }
+
+      // The star itself is already drawn; only its name has to queue for room.
+      const lx = star.x + star.r + 7;
+      const w = ctx.measureText(name).width;
+      if (claimLabel(lx, star.y - 6, w, 12)) {
+        ctx.fillStyle = palette.starLabel;
+        ctx.fillText(name, lx, star.y);
       }
     }
   }
@@ -1953,46 +2051,77 @@ function drawLeaderLabel(
   body: SkyBody,
   width: number,
 ) {
-  // Lead away from the nearer edge so the text has room to sit.
-  const dir = x > width * 0.62 ? -1 : 1;
   const ringRadius = size + 5;
-  const rise = 13;
-  const run = 26;
-
-  const startX = x + dir * ringRadius * 0.72;
-  const startY = y - ringRadius * 0.72;
-  const kneeX = startX + dir * run;
-  const kneeY = startY - rise;
-  const endX = kneeX + dir * 14;
 
   ctx.save();
 
+  // The sighting ring goes on regardless: it is part of the marker, it says
+  // "this is a tracked object", and it never collides with anything because it
+  // is centred on the object itself.
   ctx.strokeStyle = palette.labelRing;
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.arc(x, y, ringRadius, 0, TAU);
   ctx.stroke();
 
-  ctx.strokeStyle = palette.labelLeader;
-  ctx.beginPath();
-  ctx.moveTo(startX, startY);
-  ctx.lineTo(kneeX, kneeY);
-  ctx.lineTo(endX, kneeY);
-  ctx.stroke();
-
-  ctx.textAlign = dir > 0 ? 'left' : 'right';
   ctx.textBaseline = 'alphabetic';
+  const reading = readingFor(body);
 
-  const textX = endX + dir * 5;
-  ctx.font = "500 15px 'Newsreader', Georgia, serif";
-  ctx.fillStyle = body.kind === 'satellite' ? palette.satelliteLabel : palette.labelName;
-  ctx.fillText(body.name, textX, kneeY + 5);
+  /*
+   * Four places to try, in order of preference: up-and-out on the side with
+   * more room, then the other side, then down on each. A satellite pass puts
+   * several objects within a few degrees of each other, and letting each one
+   * fall back to a free corner is the difference between four readable labels
+   * and one illegible knot of them.
+   */
+  const away = x > width * 0.62 ? -1 : 1;
+  const options: [number, number][] = [
+    [away, -1],
+    [-away, -1],
+    [away, 1],
+    [-away, 1],
+  ];
 
-  ctx.font = "500 9.5px 'IBM Plex Mono', ui-monospace, monospace";
-  ctx.fillStyle = palette.labelData;
-  ctx.letterSpacing = '0.08em';
-  ctx.fillText(readingFor(body), textX, kneeY + 19);
-  ctx.letterSpacing = '0px';
+  for (const [dir, up] of options) {
+    const rise = 13 * up;
+    const run = 26;
+
+    const startX = x + dir * ringRadius * 0.72;
+    const startY = y + up * ringRadius * 0.72;
+    const kneeX = startX + dir * run;
+    const kneeY = startY + rise;
+    const endX = kneeX + dir * 14;
+    const textX = endX + dir * 5;
+
+    ctx.font = "500 15px 'Newsreader', Georgia, serif";
+    const nameWidth = ctx.measureText(body.name).width;
+    ctx.font = "400 9.5px 'Share Tech Mono', ui-monospace, monospace";
+    const readingWidth = ctx.measureText(reading).width;
+    const w = Math.max(nameWidth, readingWidth);
+
+    const boxX = dir > 0 ? textX : textX - w;
+    if (!claimLabel(boxX, kneeY - 9, w, 30)) continue;
+
+    ctx.strokeStyle = palette.labelLeader;
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(kneeX, kneeY);
+    ctx.lineTo(endX, kneeY);
+    ctx.stroke();
+
+    ctx.textAlign = dir > 0 ? 'left' : 'right';
+
+    ctx.font = "500 15px 'Newsreader', Georgia, serif";
+    ctx.fillStyle = body.kind === 'satellite' ? palette.satelliteLabel : palette.labelName;
+    ctx.fillText(body.name, textX, kneeY + 5);
+
+    ctx.font = "400 9.5px 'Share Tech Mono', ui-monospace, monospace";
+    ctx.fillStyle = palette.labelData;
+    ctx.letterSpacing = '0.08em';
+    ctx.fillText(reading, textX, kneeY + 19);
+    ctx.letterSpacing = '0px';
+    break;
+  }
 
   ctx.restore();
 }
@@ -2039,7 +2168,13 @@ function drawAltitudeArc(
   pixelsPerDegree: number,
 ) {
   // Centre of curvature well off to the left, so the limb is nearly vertical.
-  const R = Math.max(height * 1.4, 600);
+  /*
+   * Also held against the width. The arc's bow is set by how much of it the
+   * frame's height cuts across, so a radius chosen from the height alone bows
+   * by the same *number of pixels* on a phone as on a desktop — which is a
+   * fifth of a narrow screen and a twentieth of a wide one.
+   */
+  const R = Math.max(height * 1.4, width * 2.2, 600);
   const outer = width - 18;
   const cx = outer - R;
   const cy = height / 2;

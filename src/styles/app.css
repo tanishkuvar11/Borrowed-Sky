@@ -450,7 +450,13 @@ button {
    * a large one. Subtracting that constant tracks the column the title really
    * has, and was fitted by measuring the rendered width from 320px up.
    */
-  font-size: clamp(1.15rem, calc(9.2vw - 9px), 2.5rem);
+  /*
+   * Fitted to the face and the tracking actually in use, by measuring the
+   * rendered width from 320px up. Cormorant sets narrow, but 0.22em of
+   * tracking across twelve capitals gives most of that back, and this is the
+   * one string on the screen that must never be clipped.
+   */
+  font-size: clamp(0.95rem, calc(6.6vw - 6px), 2.5rem);
   font-weight: 300;
   letter-spacing: 0.22em;
   /* Tracking adds a trailing space after the last letter; this recentres it. */
@@ -821,7 +827,13 @@ button {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 104vw;
+  /*
+   * Sized off the *larger* dimension, so the stop always circumscribes the
+   * frame and only ever shows in the corners. Taken from the width instead, a
+   * tall phone gets a circle narrower than the screen is high, and its top and
+   * bottom arcs cut straight across the middle of the sky.
+   */
+  width: 116vmax;
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
   border-radius: 50%;
@@ -922,7 +934,12 @@ button {
   top: calc(var(--topbar-h) + var(--step));
   left: var(--inset);
   z-index: 6;
-  width: clamp(14rem, 21vw, 19.5rem);
+  /*
+   * Widest on a phone as a fraction, narrowest as a measurement. A floating
+   * column has to earn the sky it covers: on a desktop 20rem is a fifth of the
+   * frame, and on a 390px phone the same 20rem would be the whole screen.
+   */
+  width: clamp(10.5rem, 42vw, 19.5rem);
   display: grid;
   gap: calc(var(--step) * 1.5);
   /* The column must never grow past the deck at the bottom of the frame. */
