@@ -253,7 +253,9 @@ export async function askGuide(options: {
         ? 'The AI guide is not configured on this deployment, so this is the built-in narrator.'
         : detail.error === 'rate_limited'
           ? 'Too many questions in a row; this is the built-in narrator for now.'
-          : 'The AI guide could not be reached, so this is the built-in narrator.';
+          : detail.error === 'ai_ungrounded'
+            ? "The AI guide's answer mentioned something that isn't in tonight's computed data, so the built-in narrator answered instead."
+            : 'The AI guide could not be reached, so this is the built-in narrator.';
 
     return { text: narrateLocally(skyContext, tone, question), source: 'local', note };
   } catch (err) {

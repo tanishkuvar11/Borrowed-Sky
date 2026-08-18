@@ -12,6 +12,7 @@
  */
 
 import { readJsonBody, sendJson, type ApiRequest, type ApiResponse } from './_lib/http.js';
+import { checkGrounding } from './_lib/grounding.js';
 
 const DEFAULT_URL = 'https://us-south.ml.cloud.ibm.com';
 const API_VERSION = '2024-10-08';
@@ -227,7 +228,94 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       }
 
       preferredModel = modelId;
-      sendJson(res, 200, { text, model: modelId, grounded: true });
+
+      // --- grounding check --------------------------------------------------
+      //
+      // Compare the answer against the sky context that was handed to the
+      // model. An answer that mentions a number, name or direction the context
+      // does not support gets one retry before the endpoint refuses to send it.
+      // Two round trips is the limit before someone standing in a field gives
+      // up and moves on.
+
+      const firstReport = checkGrounding(text, skyContext);
+      if (firstReport.ok) {
+        sendJson(res, 200, { text, model: modelId, checked: true });
+        return;
+      }
+
+      // Build a retry: replay the original conversation, append the first
+      // answer as an assistant turn, then instruct the model to try again
+      // using only what the JSON contains.
+      const retryClaimsNote = firstReport.unsupported
+        .map((u) => `- ${u}`)
+        .join('\n');
+
+      const retryUpstream = await fetch(`${base}/ml/v1/text/chat?version=${API_VERSION}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          model_id: modelId,
+          project_id: projectId,
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: userPrompt },
+            { role: 'assistant', content: text },
+            {
+              role: 'user',
+              content:
+                'Your previous answer contained claims that are not supported by the sky data:\n' +
+                retryClaimsNote +
+                '\nPlease answer again using only what is in the JSON. If the data does not ' +
+                'support what was asked, say so rather than guess.',
+            },
+          ],
+          max_tokens: tone === 'simple' ? 220 : 340,
+          temperature: 0.4,
+          time_limit: 20_000,
+        }),
+        signal: AbortSignal.timeout(25_000),
+      });
+
+      if (!retryUpstream.ok) {
+        // The retry itself failed at the network level. Treat this the same as
+        // any other upstream error so the outer catch can handle it cleanly.
+        const detail = await retryUpstream.text().catch(() => '');
+        throw new Error(
+          `watsonx retry responded ${retryUpstream.status} for ${modelId}: ${detail.slice(0, 300)}`,
+        );
+      }
+
+      const retryJson = (await retryUpstream.json()) as {
+        choices?: { message?: { content?: string } }[];
+      };
+      const retryText = retryJson.choices?.[0]?.message?.content?.trim();
+
+      if (retryText) {
+        const retryReport = checkGrounding(retryText, skyContext);
+        if (retryReport.ok) {
+          sendJson(res, 200, { text: retryText, model: modelId, checked: true });
+          return;
+        }
+        // Retry also failed grounding. Do not send either answer.
+        sendJson(res, 502, {
+          error: 'ai_ungrounded',
+          unsupported: retryReport.unsupported,
+        });
+        return;
+      }
+
+      // Retry came back empty. Fall through to the next model candidate rather
+      // than silently swallowing the failure: the empty-completion branch above
+      // will handle it on the next iteration if we continue, but since we are
+      // already past the model-walk, report it directly.
+      sendJson(res, 502, {
+        error: 'ai_ungrounded',
+        unsupported: firstReport.unsupported,
+      });
       return;
     }
 
