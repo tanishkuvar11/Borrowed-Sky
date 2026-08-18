@@ -37,6 +37,59 @@ p {
   margin: 0 0 0.75rem;
 }
 
+/*
+ * The pointer is an instrument sight.
+ *
+ * Everything else in this interface is brass and engraved, and then the one
+ * thing the visitor moves across it was the operating system's white arrow.
+ * A reticle is the honest shape for it: this is an app about aiming at things
+ * in the sky, and the cursor is the thing doing the aiming. It closes and
+ * fills over anything that can actually be pressed, so the state is legible
+ * without a hover colour having to carry it alone.
+ *
+ * The dark halo under each stroke is not decoration. A thin brass line on a
+ * near black sky is fine until it crosses the Milky Way or a caption set in
+ * white, at which point it disappears; the halo keeps it readable on both.
+ *
+ * Cursor images are ignored on touch devices, so this costs phones nothing.
+ */
+:root {
+  --cursor-reticle: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cGF0aCBkPSJNOC45MCAxNmE3LjEgNy4xIDAgMSAwIDE0LjIwIDBhNy4xIDcuMSAwIDEgMCAtMTQuMjAgMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDQwMzBhIiBzdHJva2Utd2lkdGg9IjIuNiIgb3BhY2l0eT0iLjU1Ii8+PHBhdGggZD0iTTE2IDExLjdDMTYgMTQuNzUgMTcuMjUgMTYgMjAuMyAxNkMxNy4yNSAxNiAxNiAxNy4yNSAxNiAyMC4zQzE2IDE3LjI1IDE0Ljc1IDE2IDExLjcgMTZDMTQuNzUgMTYgMTYgMTQuNzUgMTYgMTEuN1oiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzA0MDMwYSIgc3Ryb2tlLXdpZHRoPSIyLjQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIG9wYWNpdHk9Ii42Ii8+PHBhdGggZD0iTTIuNjAgMTZhMTMuNCAxMy40IDAgMSAwIDI2LjgwIDBhMTMuNCAxMy40IDAgMSAwIC0yNi44MCAwIiBmaWxsPSJub25lIiBzdHJva2U9IiNjOWEyMjciIHN0cm9rZS13aWR0aD0iLjciIG9wYWNpdHk9Ii4xNiIvPjxwYXRoIGQ9Ik01LjYwIDE2YTEwLjQgMTAuNCAwIDEgMCAyMC44MCAwYTEwLjQgMTAuNCAwIDEgMCAtMjAuODAgMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlhMjI3IiBzdHJva2Utd2lkdGg9Ii44IiBvcGFjaXR5PSIuMzQiLz48cGF0aCBkPSJNOC45MCAxNmE3LjEgNy4xIDAgMSAwIDE0LjIwIDBhNy4xIDcuMSAwIDEgMCAtMTQuMjAgMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlhMjI3IiBzdHJva2Utd2lkdGg9IjEuMDUiIG9wYWNpdHk9Ii45NSIvPjxwYXRoIGQ9Ik0xNiAxMS43QzE2IDE0Ljc1IDE3LjI1IDE2IDIwLjMgMTZDMTcuMjUgMTYgMTYgMTcuMjUgMTYgMjAuM0MxNiAxNy4yNSAxNC43NSAxNiAxMS43IDE2QzE0Ljc1IDE2IDE2IDE0Ljc1IDE2IDExLjdaIiBmaWxsPSIjZThjYzdhIi8+PC9zdmc+') 16 16;
+  --cursor-locked: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cGF0aCBkPSJNOC40MCAxNmE3LjYgNy42IDAgMSAwIDE1LjIwIDBhNy42IDcuNiAwIDEgMCAtMTUuMjAgMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDQwMzBhIiBzdHJva2Utd2lkdGg9IjIuNiIgb3BhY2l0eT0iLjU1Ii8+PHBhdGggZD0iTTE2IDExQzE2IDE0LjY1IDE3LjM1IDE2IDIxIDE2QzE3LjM1IDE2IDE2IDE3LjM1IDE2IDIxQzE2IDE3LjM1IDE0LjY1IDE2IDExIDE2QzE0LjY1IDE2IDE2IDE0LjY1IDE2IDExWiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDQwMzBhIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgb3BhY2l0eT0iLjYiLz48cGF0aCBkPSJNOC40MCAxNmE3LjYgNy42IDAgMSAwIDE1LjIwIDBhNy42IDcuNiAwIDEgMCAtMTUuMjAgMCIgZmlsbD0icmdiYSgyMzIsMjA0LDEyMiwwLjE3KSIvPjxwYXRoIGQ9Ik0yLjYwIDE2YTEzLjQgMTMuNCAwIDEgMCAyNi44MCAwYTEzLjQgMTMuNCAwIDEgMCAtMjYuODAgMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZThjYzdhIiBzdHJva2Utd2lkdGg9Ii44IiBvcGFjaXR5PSIuMyIvPjxwYXRoIGQ9Ik01LjYwIDE2YTEwLjQgMTAuNCAwIDEgMCAyMC44MCAwYTEwLjQgMTAuNCAwIDEgMCAtMjAuODAgMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZThjYzdhIiBzdHJva2Utd2lkdGg9Ii45IiBvcGFjaXR5PSIuNTUiLz48cGF0aCBkPSJNOC40MCAxNmE3LjYgNy42IDAgMSAwIDE1LjIwIDBhNy42IDcuNiAwIDEgMCAtMTUuMjAgMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZThjYzdhIiBzdHJva2Utd2lkdGg9IjEuMjUiIG9wYWNpdHk9IjEiLz48cGF0aCBkPSJNMTYgMTFDMTYgMTQuNjUgMTcuMzUgMTYgMjEgMTZDMTcuMzUgMTYgMTYgMTcuMzUgMTYgMjFDMTYgMTcuMzUgMTQuNjUgMTYgMTEgMTZDMTQuNjUgMTYgMTYgMTQuNjUgMTYgMTFaIiBmaWxsPSIjZjhlY2M0Ii8+PC9zdmc+') 16 16;
+}
+
+body {
+  cursor: var(--cursor-reticle), crosshair;
+}
+
+/*
+ * Anything pressable gets the locked sight. Listed rather than applied through
+ * a wildcard so that a disabled control keeps the plain reticle: a cursor that
+ * says "press me" over a button that will not respond is worse than no cursor
+ * treatment at all.
+ */
+a,
+button:not(:disabled),
+[role='button']:not([aria-disabled='true']),
+summary,
+label,
+select,
+.pill,
+.toggle__option {
+  cursor: var(--cursor-locked), pointer;
+}
+
+/* Typing is typing. The sight would only get in the way of a caret. */
+input,
+textarea {
+  cursor: text;
+}
+
+button:disabled,
+.button:disabled {
+  cursor: var(--cursor-reticle), not-allowed;
+}
+
 button {
   font: inherit;
   color: inherit;
@@ -551,10 +604,10 @@ button {
   height: 100%;
   display: block;
   touch-action: none;
-  cursor: grab;
+  cursor: var(--cursor-reticle), grab;
 }
 .sky-canvas:active {
-  cursor: grabbing;
+  cursor: var(--cursor-locked), grabbing;
 }
 
 .sky-view__loading {

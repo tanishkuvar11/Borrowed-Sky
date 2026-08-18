@@ -44,6 +44,31 @@ export interface MilkyWayPatch {
   size: number;
   /** Relative surface brightness, 0–1. */
   intensity: number;
+  /**
+   * Colour temperature of the patch, 0 cool to 1 warm.
+   *
+   * Not decoration. Integrated starlight along the inner plane really is warm:
+   * the bulge is old and metal-rich, and everything behind the near dust is
+   * reddened on the way to us. Look away from the centre or up out of the plane
+   * and both effects weaken, leaving the bluer light of nearby young arms.
+   */
+  temperature: number;
+}
+
+/**
+ * An obscuring cloud: dust in front of the band rather than light in it.
+ *
+ * The dark lanes are the single feature that makes the Milky Way read as a
+ * structure with depth instead of a smear, and they are not gaps. They are
+ * cold molecular clouds close enough to blot out everything behind them, which
+ * is why they are drawn as their own pass, subtracting from the band after it
+ * is laid down.
+ */
+export interface DustPatch {
+  v: Vec3;
+  size: number;
+  /** How completely this patch blots out what is behind it, 0–1. */
+  opacity: number;
 }
 
 function unit(raDeg: number, decDeg: number): Vec3 {
@@ -184,7 +209,90 @@ export function buildMilkyWay(count = 900): MilkyWayPatch[] {
       v: galacticToEqj(l, b),
       size: 2.5 + rand() * 7,
       intensity,
+      temperature: temperature(l, b),
     });
+  }
+
+  return patches;
+}
+
+/**
+ * Colour temperature of the integrated light at a point on the band, 0–1.
+ *
+ * Two real effects, both pointing the same way. Looking towards the centre you
+ * are looking down the length of the disc, so the light has crossed the most
+ * dust and is the most reddened; and the inner galaxy's light is dominated by
+ * an old, metal-rich population that is intrinsically yellow. Both weaken with
+ * galactic longitude away from the centre and with height out of the plane,
+ * where the sight line leaves the dust layer early.
+ */
+function temperature(lDeg: number, bDeg: number): number {
+  const l = ((lDeg % 360) + 360) % 360;
+  const fromCentre = l > 180 ? 360 - l : l;
+
+  const inner = Math.pow(Math.cos((fromCentre / 180) * (Math.PI / 2)), 2.2);
+  const inPlane = Math.exp(-((bDeg / 9) ** 2));
+  return Math.max(0, Math.min(1, 0.12 + 0.88 * inner * inPlane));
+}
+
+/**
+ * The named dark clouds, at their real galactic coordinates.
+ *
+ * These are the ones a naked eye actually picks out of the band, which is the
+ * whole reason to draw them: someone who knows the sky should be able to find
+ * the Coalsack next to the Southern Cross in this rendering. Longitude,
+ * latitude, angular radius in degrees, and how thoroughly each blots out the
+ * light behind it.
+ */
+const DARK_CLOUDS: [number, number, number, number][] = [
+  // The Great Rift, the long split running from Cygnus down through Aquila and
+  // Ophiuchus. Drawn as a chain, because it is one.
+  [80, 0.5, 7, 0.72],
+  [70, 1.5, 6.5, 0.62],
+  [59, 1, 6, 0.66],
+  [48, 0.5, 6.5, 0.7],
+  [38, 1.5, 6, 0.68],
+  [29, 2.5, 6.5, 0.72],
+  [21, 3, 6, 0.66],
+  [13, 4, 5.5, 0.6],
+  // The Pipe Nebula and the Ophiuchus dark complex, above the bulge.
+  [357, 7, 4.5, 0.74],
+  [353, 16, 5, 0.5],
+  // The Coalsack, beside the Southern Cross.
+  [303, -1, 4.5, 0.8],
+  // The Cygnus Rift's northern extension, towards Cepheus.
+  [95, 2, 5, 0.45],
+  // The Taurus and Perseus clouds, out towards the anticentre.
+  [172, -15, 5, 0.36],
+  [158, -20, 4.5, 0.3],
+];
+
+/**
+ * A cloud of obscuring patches, scattered around the real dark nebulae.
+ *
+ * Same deal as the band itself: the positions of the clouds are real and the
+ * texture within each one is generated. Seeded separately from the band so
+ * adding or removing dust cannot reshuffle the stars' backdrop.
+ */
+export function buildDust(perCloud = 26): DustPatch[] {
+  const rand = mulberry32(0xda57);
+  const patches: DustPatch[] = [];
+
+  for (const [l, b, radius, opacity] of DARK_CLOUDS) {
+    for (let i = 0; i < perCloud; i++) {
+      // Clustered towards the centre of the cloud, so it has a dense core and
+      // ragged edges rather than a uniform disc.
+      const spread = Math.pow(rand(), 0.6);
+      const angle = rand() * Math.PI * 2;
+      const dl = (Math.cos(angle) * spread * radius) / Math.max(0.2, Math.cos(b * DEG));
+      const db = Math.sin(angle) * spread * radius * 0.75;
+
+      patches.push({
+        v: galacticToEqj(l + dl, b + db),
+        size: radius * (0.35 + 0.4 * rand()),
+        opacity: opacity * (1 - 0.55 * spread) * (0.6 + 0.4 * rand()),
+      });
+    }
   }
 
   return patches;

@@ -9,7 +9,12 @@
  *   npx tsx scripts/verify/milkyway.check.ts
  */
 
-import { buildMilkyWay, galacticBasis, galacticToEqj } from '../../src/lib/astro/milkyway.ts';
+import {
+  buildDust,
+  buildMilkyWay,
+  galacticBasis,
+  galacticToEqj,
+} from '../../src/lib/astro/milkyway.ts';
 
 const DEG = Math.PI / 180;
 const failures: string[] = [];
@@ -110,6 +115,56 @@ const basisZ = basis.z;
 const lat = patches.map((p) => Math.abs(Math.asin(p.v.x * basisZ.x + p.v.y * basisZ.y + p.v.z * basisZ.z) / DEG));
 const within20 = lat.filter((b) => b <= 20).length / lat.length;
 check('band is confined to the plane', within20 > 0.9, `${(within20 * 100).toFixed(1)}% within |b| ≤ 20°`);
+
+// Colour temperature has to follow the same physics as the brightness: the
+// inner plane is the reddened, old-population part, and it is the part the
+// renderer will paint warm.
+const warm = (v: { x: number; y: number; z: number }) => {
+  const near = patches.filter(
+    (p) => p.v.x * v.x + p.v.y * v.y + p.v.z * v.z > Math.cos(25 * DEG),
+  );
+  return near.reduce((s, p) => s + p.temperature, 0) / Math.max(1, near.length);
+};
+check(
+  'the inner plane is the warm end of the band',
+  warm(centreVec) > warm(antiVec) * 2,
+  `centre ${warm(centreVec).toFixed(3)} vs anticentre ${warm(antiVec).toFixed(3)}`,
+);
+check(
+  'temperature stays in range',
+  patches.every((p) => p.temperature >= 0 && p.temperature <= 1),
+);
+
+console.log('\ndark clouds');
+
+const dust = buildDust();
+check('produces dust patches', dust.length > 200, `${dust.length} patches`);
+check(
+  'every dust patch is a unit vector',
+  dust.every((p) => Math.abs(Math.hypot(p.v.x, p.v.y, p.v.z) - 1) < 1e-9),
+);
+
+// The Coalsack is the easiest dark nebula in the sky to point at, so it is the
+// one worth checking lands where it belongs: about 12h53m, −63°, next to the
+// Southern Cross. If the galactic-to-equatorial path were wrong this is where
+// it would show.
+const coalsack = toRaDec(galacticToEqj(303, -1));
+check(
+  'the Coalsack falls beside the Southern Cross',
+  sep(coalsack, { ra: 193.3, dec: -63.3 }) < 2 * 3600,
+  `${(sep(coalsack, { ra: 193.3, dec: -63.3 }) / 3600).toFixed(2)}° from the published centre`,
+);
+
+// Dust only means anything if it sits on the band it is obscuring.
+const dustLat = dust.map((p) =>
+  Math.abs(Math.asin(p.v.x * basisZ.x + p.v.y * basisZ.y + p.v.z * basisZ.z) / DEG),
+);
+const dustNear = dustLat.filter((b) => b <= 25).length / dustLat.length;
+check(
+  'dust lies along the band',
+  dustNear > 0.9,
+  `${(dustNear * 100).toFixed(1)}% within |b| ≤ 25°`,
+);
 
 console.log('');
 if (failures.length) {

@@ -34,7 +34,12 @@ import {
 } from '../lib/astro/starfield';
 import { toObserver } from '../lib/astro/solar';
 import { compassPoint } from '../lib/astro/satellites';
-import { buildMilkyWay, type MilkyWayPatch } from '../lib/astro/milkyway';
+import {
+  buildDust,
+  buildMilkyWay,
+  type DustPatch,
+  type MilkyWayPatch,
+} from '../lib/astro/milkyway';
 
 import type { ObserverSite, SkyBody, SkyConditions } from '../lib/astro/types';
 
@@ -43,9 +48,42 @@ import type { ObserverSite, SkyBody, SkyConditions } from '../lib/astro/types';
  * per frame; the galaxy does not move on any timescale this app cares about.
  */
 const MILKY_WAY = buildMilkyWay();
+const MILKY_WAY_DUST = buildDust();
 
 const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
+
+/**
+ * Whether the viewer has asked for less movement.
+ *
+ * Read once and then watched, because every idle animation in the renderer is
+ * a decoration and none of them is worth making somebody ill. When this is on,
+ * the scene still draws — it simply stops breathing.
+ */
+const REDUCED_MOTION =
+  typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+
+function stillPreferred(): boolean {
+  return REDUCED_MOTION?.matches ?? false;
+}
+
+/**
+ * Atmospheric transparency, as a multiplier on the faintest things drawn.
+ *
+ * Real skies are not steady. Thin high cloud and changing humidity make the
+ * limiting magnitude wander over minutes, and the band is always the first
+ * thing to go and the first to come back. Two slow incommensurate periods, so
+ * the cycle never obviously repeats.
+ *
+ * This modulates brightness only. Nothing here moves anything: an object's
+ * position is computed, and nudging it to look alive would be inventing a
+ * measurement, which is the one thing this app does not do.
+ */
+function seeingAt(ms: number): number {
+  if (stillPreferred()) return 1;
+  const t = ms / 1000;
+  return 1 + 0.06 * Math.sin(t / 11.3) + 0.035 * Math.sin(t / 4.7 + 1.9);
+}
 
 /** A marker the user can tap, recorded during the draw so hit-testing is free. */
 interface HitTarget {
@@ -115,8 +153,13 @@ interface SkyPalette {
   ground: string;
   horizonHaze: string;
   horizonLine: string;
-  /** Tint for the galactic band. Alpha is applied per patch at draw time. */
-  milkyWay: [number, number, number];
+  /**
+   * The two ends of the galactic band's colour ramp. Every patch is drawn in a
+   * mix of these set by its own temperature, so the reddened inner plane and
+   * the bluer outer arms are painted as the different things they are.
+   */
+  milkyWayWarm: [number, number, number];
+  milkyWayCool: [number, number, number];
   /** Afterglow on the Sun's real bearing: inner core, outer falloff. */
   glowCore: string;
   glowEdge: string;
@@ -163,7 +206,8 @@ const DAY_PALETTE: SkyPalette = {
   ground: 'rgb(6, 6, 14)',
   horizonHaze: 'rgba(7, 7, 15, 0.55)',
   horizonLine: 'rgba(201, 162, 39, 0.5)',
-  milkyWay: [186, 178, 214],
+  milkyWayWarm: [255, 176, 88],
+  milkyWayCool: [96, 122, 178],
   glowCore: 'rgba(224, 135, 155, ALPHA)',
   glowEdge: 'rgba(201, 162, 39, 0)',
   // Distant ridges are hazier and so lighter; the near ridge is a hard
@@ -213,7 +257,8 @@ const NIGHT_PALETTE: SkyPalette = {
   ground: 'rgb(5, 0, 0)',
   horizonHaze: 'rgba(8, 1, 1, 0.6)',
   horizonLine: 'rgba(255, 106, 77, 0.5)',
-  milkyWay: [188, 82, 62],
+  milkyWayWarm: [196, 84, 62],
+  milkyWayCool: [140, 58, 46],
   glowCore: 'rgba(194, 64, 47, ALPHA)',
   glowEdge: 'rgba(194, 64, 47, 0)',
   ridgeFar: 'rgb(48, 10, 7)',
@@ -349,6 +394,9 @@ export function SkyCanvas({
 
       palette = s.nightVision ? NIGHT_PALETTE : DAY_PALETTE;
 
+      const clock = performance.now();
+      const seeing = seeingAt(clock);
+
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       const cx = width / 2;
       const cy = height / 2;
@@ -374,7 +422,20 @@ export function SkyCanvas({
 
       // Faintest first: the band sits behind everything, and the afterglow is
       // atmosphere in front of it but still behind every object.
-      drawMilkyWay(ctx, MILKY_WAY, view, cx, cy, scale, width, height, s.conditions);
+      drawMilkyWay(
+        ctx,
+        MILKY_WAY,
+        MILKY_WAY_DUST,
+        view,
+        cx,
+        cy,
+        scale,
+        width,
+        height,
+        dpr,
+        s.conditions,
+        seeing,
+      );
       drawAfterglow(ctx, projectHor, s.conditions, width, height);
 
       if (s.showGrid) drawAltAzGrid(ctx, projectHor);
@@ -394,6 +455,8 @@ export function SkyCanvas({
           s.conditions,
           targets,
           s.chrome,
+          clock,
+          seeing,
         );
       }
       drawGround(ctx, horBasis, cx, cy, scale, width, height);
@@ -619,12 +682,12 @@ function darknessFactor(conditions: SkyConditions | null): number {
  * gradient. That difference is the whole reason the band can exist at all on the
  * hardware this is aimed at.
  */
-let blobSprite: HTMLCanvasElement | null = null;
-let blobSpriteTint = '';
+const blobSprites = new Map<string, HTMLCanvasElement>();
 
 function softBlob(tint: [number, number, number]): HTMLCanvasElement {
-  const key = tint.join(',');
-  if (blobSprite && blobSpriteTint === key) return blobSprite;
+  const key = tint.map(Math.round).join(',');
+  const cached = blobSprites.get(key);
+  if (cached) return cached;
 
   const size = 64;
   const sprite = document.createElement('canvas');
@@ -640,10 +703,52 @@ function softBlob(tint: [number, number, number]): HTMLCanvasElement {
     g.fillStyle = grad;
     g.fillRect(0, 0, size, size);
   }
-  blobSprite = sprite;
-  blobSpriteTint = key;
+  /*
+   * The cache is keyed on the rounded tint, and the band quantises its colour
+   * ramp into a handful of steps precisely so this stays a handful of entries.
+   * Anything that starts asking for arbitrary tints per frame would turn a
+   * cache into a leak, so the ramp resolution is the thing that bounds it.
+   */
+  blobSprites.set(key, sprite);
   return sprite;
 }
+
+/**
+ * How many steps the band's warm-to-cool ramp is quantised into.
+ *
+ * One sprite per step, so this is the whole cost of having the band be more
+ * than one colour. Eight is past the point where the banding is visible on a
+ * structure this diffuse.
+ */
+const BAND_STEPS = 8;
+
+function bandSprite(step: number): HTMLCanvasElement {
+  /*
+   * Biased towards the warm end rather than mixed linearly. Compositing with
+   * `lighter` already drags every overlap towards white, so a straight lerp
+   * arrives on screen as grey everywhere except the extremes; pre-warming the
+   * ramp is what buys back the colour the compositor takes out.
+   */
+  const t = Math.pow(step / (BAND_STEPS - 1), 0.6);
+  const warm = palette.milkyWayWarm;
+  const cool = palette.milkyWayCool;
+  return softBlob([
+    cool[0] + (warm[0] - cool[0]) * t,
+    cool[1] + (warm[1] - cool[1]) * t,
+    cool[2] + (warm[2] - cool[2]) * t,
+  ]);
+}
+
+/**
+ * The offscreen the band is assembled on before it reaches the sky.
+ *
+ * The dark nebulae have to remove band light and nothing else. Drawn straight
+ * onto the frame they would have to be painted *over* the sky, which means
+ * guessing the sky's colour underneath them and getting a dark smudge wherever
+ * the guess was off. Composited here, they can simply subtract, and a cloud
+ * with no band behind it correctly does nothing at all.
+ */
+let bandBuffer: HTMLCanvasElement | null = null;
 
 /**
  * The Milky Way.
@@ -656,13 +761,16 @@ function softBlob(tint: [number, number, number]): HTMLCanvasElement {
 function drawMilkyWay(
   ctx: CanvasRenderingContext2D,
   patches: MilkyWayPatch[],
+  dust: DustPatch[],
   view: Float64Array,
   cx: number,
   cy: number,
   scale: number,
   width: number,
   height: number,
+  dpr: number,
   conditions: SkyConditions | null,
+  seeing: number,
 ) {
   const darkness = darknessFactor(conditions);
   if (darkness < 0.12) return;
@@ -672,14 +780,26 @@ function drawMilkyWay(
     conditions && conditions.moonAltitude > 0
       ? 1 - 0.55 * conditions.moonIlluminatedFraction
       : 1;
-  const ceiling = darkness * moonWash;
+  const ceiling = darkness * moonWash * seeing;
   if (ceiling < 0.05) return;
 
-  const sprite = softBlob(palette.milkyWay);
-  const pixelsPerDegree = scale * (Math.PI / 360);
+  // The buffer follows the backing store, not the CSS box, so the band is
+  // assembled at the same resolution as everything else on the frame.
+  const bw = Math.round(width * dpr);
+  const bh = Math.round(height * dpr);
+  const buffer = (bandBuffer ??= document.createElement('canvas'));
+  if (buffer.width !== bw || buffer.height !== bh) {
+    buffer.width = bw;
+    buffer.height = bh;
+  }
+  const band = buffer.getContext('2d');
+  if (!band) return;
 
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
+  band.setTransform(dpr, 0, 0, dpr, 0, 0);
+  band.clearRect(0, 0, width, height);
+  band.globalCompositeOperation = 'lighter';
+
+  const pixelsPerDegree = scale * (Math.PI / 360);
 
   for (const patch of patches) {
     const point = projectEqj(patch.v.x, patch.v.y, patch.v.z, view, cx, cy, scale);
@@ -689,14 +809,119 @@ function drawMilkyWay(
     if (r < 1) continue;
     if (point.x + r < 0 || point.x - r > width || point.y + r < 0 || point.y - r > height) continue;
 
-    // Deliberately at the edge of visible. The real band is a faint glow you
-    // have to be dark-adapted to notice, and drawing it any stronger turns the
-    // sky into weather.
-    ctx.globalAlpha = Math.min(0.14, patch.intensity * ceiling * 0.085);
-    ctx.drawImage(sprite, point.x - r, point.y - r, r * 2, r * 2);
+    const sprite = bandSprite(Math.round(patch.temperature * (BAND_STEPS - 1)));
+
+    /*
+     * Contrast, applied as a gamma on the surface brightness.
+     *
+     * Drawn in proportion to intensity the band is technically right and
+     * visually wrong: the faint outskirts cover an enormous solid angle, so
+     * even at low alpha they sum into a haze that swallows the bright inner
+     * plane and leaves the whole thing looking like cloud. Steepening the
+     * response keeps the core and lets the edges fall away, which is what the
+     * dark-adapted eye does too.
+     */
+    const weight = Math.pow(patch.intensity, 1.9);
+
+    /*
+     * Two passes over the same patch. The wide one is the unresolved glow the
+     * band actually is to the naked eye; the tight one is the clumping inside
+     * it. Drawn alone, the tight pass reads as a field of separate smudges and
+     * the wide pass reads as fog, and what makes it look like the Milky Way is
+     * having both at once.
+     */
+    band.globalAlpha = Math.min(0.012, weight * ceiling * 0.011);
+    band.drawImage(sprite, point.x - r * 2.2, point.y - r * 2.2, r * 4.4, r * 4.4);
+
+    /*
+     * The band proper, and deliberately at the edge of visible: this is a
+     * faint glow you have to be dark-adapted to notice, and drawn any stronger
+     * it turns the sky into weather.
+     *
+     * The alpha is also held low so the colour survives. All of this is
+     * composited with `lighter`, which climbs towards white wherever patches
+     * overlap, and the band overlaps itself constantly; push it up and the
+     * warm inner plane bleaches to the same grey as the outer arms, which is
+     * the whole thing the colour ramp exists to avoid.
+     */
+    band.globalAlpha = Math.min(0.1, weight * ceiling * 0.12);
+    band.drawImage(sprite, point.x - r, point.y - r, r * 2, r * 2);
+
+    /*
+     * A tight core on the densest patches only: the great star clouds, the
+     * Sagittarius one above all. These are what make the band look like it is
+     * made of stars rather than lit from behind, and they are genuinely small
+     * and bright against the surrounding glow, so they get a pass of their own
+     * instead of being averaged into it.
+     */
+    if (weight > 0.45) {
+      const knot = r * 0.42;
+      band.globalAlpha = Math.min(0.12, (weight - 0.45) * ceiling * 0.3);
+      band.drawImage(sprite, point.x - knot, point.y - knot, knot * 2, knot * 2);
+    }
   }
 
+  /*
+   * Now take the dust back out. destination-out removes what the cloud covers
+   * rather than painting darkness over it, so a cloud sitting on the bright
+   * inner plane carves a lane and the same cloud over empty sky is invisible,
+   * which is exactly how a dark nebula behaves.
+   */
+  band.globalCompositeOperation = 'destination-out';
+  const eraser = dustSprite();
+  for (const patch of dust) {
+    const point = projectEqj(patch.v.x, patch.v.y, patch.v.z, view, cx, cy, scale);
+    if (!point) continue;
+
+    const r = patch.size * pixelsPerDegree;
+    if (r < 1) continue;
+    if (point.x + r < 0 || point.x - r > width || point.y + r < 0 || point.y - r > height) continue;
+
+    /*
+     * Held well below full. Subtracting a cloud outright is physically what a
+     * dense core does, but the result on screen is an inkblot: a hard-edged
+     * absence surrounded by glow, which reads as a rendering fault rather than
+     * as dust. Leaving a little light through keeps it a lane.
+     */
+    band.globalAlpha = Math.min(0.34, patch.opacity * 0.42);
+    band.drawImage(eraser, point.x - r, point.y - r, r * 2, r * 2);
+  }
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(buffer, 0, 0);
   ctx.restore();
+}
+
+/**
+ * The eraser the dark clouds are stamped with.
+ *
+ * Only its alpha matters, since destination-out reads nothing else, but it is
+ * shaped harder than the band's own blob: a molecular cloud has a genuinely
+ * opaque core and a ragged edge, not a smooth falloff from the middle.
+ */
+let DUST_SPRITE: HTMLCanvasElement | null = null;
+
+function dustSprite(): HTMLCanvasElement {
+  if (DUST_SPRITE) return DUST_SPRITE;
+  const size = 64;
+  const sprite = document.createElement('canvas');
+  sprite.width = size;
+  sprite.height = size;
+  const g = sprite.getContext('2d');
+  if (g) {
+    const half = size / 2;
+    const grad = g.createRadialGradient(half, half, 0, half, half, half);
+    grad.addColorStop(0, 'rgba(0, 0, 0, 1)');
+    grad.addColorStop(0.45, 'rgba(0, 0, 0, 0.86)');
+    grad.addColorStop(0.75, 'rgba(0, 0, 0, 0.32)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, size, size);
+  }
+  DUST_SPRITE = sprite;
+  return sprite;
 }
 
 /**
@@ -1377,17 +1602,23 @@ function drawStars(
   conditions: SkyConditions | null,
   targets: HitTarget[],
   chrome: boolean,
+  clock: number,
+  seeing: number,
 ) {
   /*
    * Zooming in reveals fainter stars, the way more magnification would.
    *
-   * The cap is there so the interactive view stays a chart you can read and a
-   * tap can hit what you aimed at. With the furniture off nothing is being
-   * aimed at, and the point is the sky being full, so the whole catalogue is
-   * drawn: 5,070 stars sorted into twelve colour buckets is twelve fills, which
-   * costs about as much as the few hundred did.
+   * Two limits, not one. The *chart* limit governs which stars are drawn at
+   * chart weight and can be aimed at; the whole catalogue is drawn regardless,
+   * because a sky with five hundred stars in it looks like a diagram and a sky
+   * with five thousand looks like a sky. The faint majority are painted as a
+   * depth layer underneath: too small and too dim to read as plotted points,
+   * present enough that the field has a floor rather than an edge.
+   *
+   * 5,070 stars sorted into twelve colour buckets is twelve fills, which costs
+   * about as much as the few hundred did.
    */
-  const magLimit = chrome
+  const chartLimit = chrome
     ? Math.min(catalog.magLimit, 4.2 + Math.max(0, (70 - fov) / 70) * 2.3)
     : catalog.magLimit;
   const pixelScale = Math.max(0.75, Math.min(1.6, radius / 320));
@@ -1398,13 +1629,14 @@ function drawStars(
   const visibility = Math.max(0.16, Math.min(1, (-sunAltitude + 4) / 14));
 
   const buckets: number[][] = palette.starColors.map(() => []);
-  const bright: { x: number; y: number; r: number; index: number }[] = [];
+  const deep: number[][] = palette.starColors.map(() => []);
+  const bright: { x: number; y: number; r: number; index: number; airmass: number }[] = [];
 
   const vectors = catalog.vectors;
   for (let i = 0; i < catalog.count; i++) {
     const mag = catalog.magnitude[i];
     // The catalogue is sorted brightest-first, so this exits early.
-    if (mag > magLimit) break;
+    if (mag > catalog.magLimit) break;
 
     const o = i * 3;
     const x = vectors[o];
@@ -1420,41 +1652,101 @@ function drawStars(
     const px = cx + (view[0] * x + view[1] * y + view[2] * z) * k;
     const py = cy - (view[3] * x + view[4] * y + view[5] * z) * k;
 
-    const r = starRadius(mag, magLimit, pixelScale);
+    if (mag > chartLimit) {
+      // The depth layer. Sized off the catalogue's own limit so these keep
+      // shrinking as they get fainter instead of all landing on the same dot.
+      /*
+       * Floored at half a pixel. Below that a circle covers so little of the
+       * pixel it lands on that antialiasing takes it to nothing, and the whole
+       * layer silently disappears; the faintest stars need to be small *and*
+       * dim rather than small enough to vanish.
+       */
+      deep[catalog.colorBucket[i]].push(
+        px,
+        py,
+        Math.max(0.5, starRadius(mag, catalog.magLimit, pixelScale) * 0.8),
+      );
+      continue;
+    }
+
+    const r = starRadius(mag, chartLimit, pixelScale);
     buckets[catalog.colorBucket[i]].push(px, py, r);
 
-    if (mag < 1.6) bright.push({ x: px, y: py, r, index: i });
+    // U is the sine of the star's altitude, so 1/U is its airmass: how much
+    // atmosphere the light crossed. Scintillation scales with it, which is why
+    // stars low down visibly twinkle and stars overhead sit still.
+    if (mag < 1.6) bright.push({ x: px, y: py, r, index: i, airmass: 1 / Math.max(0.09, U) });
   }
 
-  ctx.save();
-  ctx.globalAlpha = visibility;
-  for (let b = 0; b < buckets.length; b++) {
-    const list = buckets[b];
-    if (!list.length) continue;
-    ctx.fillStyle = palette.starColors[b];
-    ctx.beginPath();
-    for (let i = 0; i < list.length; i += 3) {
-      const px = list[i];
-      const py = list[i + 1];
-      const r = list[i + 2];
-      ctx.moveTo(px + r, py);
-      ctx.arc(px, py, r, 0, TAU);
+  const fill = (lists: number[][], alpha: number) => {
+    ctx.globalAlpha = alpha;
+    for (let b = 0; b < lists.length; b++) {
+      const list = lists[b];
+      if (!list.length) continue;
+      ctx.fillStyle = palette.starColors[b];
+      ctx.beginPath();
+      for (let i = 0; i < list.length; i += 3) {
+        const px = list[i];
+        const py = list[i + 1];
+        const r = list[i + 2];
+        ctx.moveTo(px + r, py);
+        ctx.arc(px, py, r, 0, TAU);
+      }
+      ctx.fill();
     }
-    ctx.fill();
-  }
+  };
+
+  ctx.save();
+  // Faintest first, so the depth layer sits behind the chart rather than
+  // speckling over it.
+  fill(deep, visibility * 0.72 * seeing);
+  fill(buckets, visibility);
+  ctx.globalAlpha = visibility;
 
   // The brightest stars get a halo and a name: the ones people actually use to
   // find their way around the sky.
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   ctx.font = "500 11px 'Cabinet Grotesk', system-ui, sans-serif";
+  const t = clock / 1000;
+  const still = stillPreferred();
   for (const star of bright) {
-    const glow = ctx.createRadialGradient(star.x, star.y, 0, star.x, star.y, star.r * 5);
-    glow.addColorStop(0, palette.starGlow.replace('ALPHA', '0.5'));
+    /*
+     * Scintillation. The amplitude comes from the airmass, so it is a property
+     * of where the star actually is rather than an effect applied evenly; the
+     * phase is derived from the catalogue index so every star has its own and
+     * they do not pulse in chorus. Two incommensurate rates, because real
+     * twinkling is not periodic.
+     */
+    const phase = star.index * 2.399963;
+    const shimmer = still
+      ? 1
+      : 1 +
+        Math.min(0.4, (star.airmass - 1) * 0.16) *
+          (Math.sin(t * 2.7 + phase) * 0.6 + Math.sin(t * 4.3 + phase * 1.7) * 0.4);
+
+    const halo = star.r * 5 * shimmer;
+    const glow = ctx.createRadialGradient(star.x, star.y, 0, star.x, star.y, halo);
+    glow.addColorStop(0, palette.starGlow.replace('ALPHA', (0.5 * shimmer).toFixed(3)));
     glow.addColorStop(1, palette.starGlow.replace('ALPHA', '0'));
     ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.arc(star.x, star.y, star.r * 5, 0, TAU);
+    ctx.arc(star.x, star.y, halo, 0, TAU);
+    ctx.fill();
+
+    /*
+     * A second, much wider and far fainter skirt. This is the bloom a bright
+     * point picks up in the eye and in any lens, and it is what separates the
+     * first magnitude stars from the rest at a glance, without resorting to
+     * drawing them bigger than they are.
+     */
+    const bloom = star.r * 13;
+    const spread = ctx.createRadialGradient(star.x, star.y, star.r, star.x, star.y, bloom);
+    spread.addColorStop(0, palette.starGlow.replace('ALPHA', '0.09'));
+    spread.addColorStop(1, palette.starGlow.replace('ALPHA', '0'));
+    ctx.fillStyle = spread;
+    ctx.beginPath();
+    ctx.arc(star.x, star.y, bloom, 0, TAU);
     ctx.fill();
 
     const name = catalog.proper[star.index];
