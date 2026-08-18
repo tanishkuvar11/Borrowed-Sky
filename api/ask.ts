@@ -14,8 +14,47 @@
 import { readJsonBody, sendJson, type ApiRequest, type ApiResponse } from './_lib/http.js';
 
 const DEFAULT_URL = 'https://us-south.ml.cloud.ibm.com';
-const DEFAULT_MODEL = 'ibm/granite-3-3-8b-instruct';
 const API_VERSION = '2024-10-08';
+
+/**
+ * Granite models to try, in order.
+ *
+ * Which foundation models a watsonx project can actually call depends on its
+ * region and plan, and a model that is present in one is simply absent in
+ * another. Rather than let a demo die on a 404 for a model ID that was correct
+ * when it was written, the endpoint walks this list and remembers the first one
+ * that answers. `WATSONX_MODEL_ID` jumps the queue when it is set.
+ */
+const GRANITE_MODELS = [
+  'ibm/granite-3-3-8b-instruct',
+  'ibm/granite-4-h-small',
+  'ibm/granite-3-2-8b-instruct',
+  'ibm/granite-3-8b-instruct',
+];
+
+/** The model that last answered, so the walk happens once per cold start. */
+let preferredModel: string | null = null;
+
+function modelCandidates(): string[] {
+  const configured = process.env.WATSONX_MODEL_ID?.trim();
+  if (configured) return [configured];
+  const rest = GRANITE_MODELS.filter((m) => m !== preferredModel);
+  return preferredModel ? [preferredModel, ...rest] : rest;
+}
+
+/**
+ * True when the failure is "this project cannot call that model" rather than
+ * something that would fail identically for every other model. Only the former
+ * is worth retrying down the list.
+ */
+function isModelUnavailable(status: number, detail: string): boolean {
+  if (status !== 400 && status !== 404) return false;
+  // A missing project is also a 404 whose body says "not_found", and walking
+  // the whole model list against a project that does not exist just turns one
+  // clear error into four slow ones.
+  if (/container_not_found/i.test(detail)) return false;
+  return /model_not|model_no_access|not supported|not_supported|invalid.*model/i.test(detail);
+}
 
 const SYSTEM_PROMPT = `You are the sky guide inside "Borrowed Sky", an app for people who have never used an astronomy tool and may have no telescope and no prior knowledge.
 
@@ -145,44 +184,54 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   try {
     const token = await getIamToken(apiKey);
     const base = (process.env.WATSONX_URL || DEFAULT_URL).replace(/\/+$/, '');
+    const candidates = modelCandidates();
 
-    const upstream = await fetch(`${base}/ml/v1/text/chat?version=${API_VERSION}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        model_id: process.env.WATSONX_MODEL_ID || DEFAULT_MODEL,
-        project_id: projectId,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: userPrompt },
-        ],
-        max_tokens: tone === 'simple' ? 220 : 340,
-        temperature: 0.4,
-        time_limit: 20_000,
-      }),
-      signal: AbortSignal.timeout(25_000),
-    });
+    let lastError = 'watsonx request failed';
 
-    if (!upstream.ok) {
-      const detail = await upstream.text().catch(() => '');
-      throw new Error(`watsonx responded ${upstream.status}: ${detail.slice(0, 300)}`);
+    for (const modelId of candidates) {
+      const upstream = await fetch(`${base}/ml/v1/text/chat?version=${API_VERSION}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          model_id: modelId,
+          project_id: projectId,
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: userPrompt },
+          ],
+          max_tokens: tone === 'simple' ? 220 : 340,
+          temperature: 0.4,
+          time_limit: 20_000,
+        }),
+        signal: AbortSignal.timeout(25_000),
+      });
+
+      if (!upstream.ok) {
+        const detail = await upstream.text().catch(() => '');
+        lastError = `watsonx responded ${upstream.status} for ${modelId}: ${detail.slice(0, 300)}`;
+        if (isModelUnavailable(upstream.status, detail)) continue;
+        throw new Error(lastError);
+      }
+
+      const json = (await upstream.json()) as {
+        choices?: { message?: { content?: string } }[];
+      };
+      const text = json.choices?.[0]?.message?.content?.trim();
+      if (!text) {
+        lastError = `${modelId} returned an empty completion`;
+        continue;
+      }
+
+      preferredModel = modelId;
+      sendJson(res, 200, { text, model: modelId, grounded: true });
+      return;
     }
 
-    const json = (await upstream.json()) as {
-      choices?: { message?: { content?: string } }[];
-    };
-    const text = json.choices?.[0]?.message?.content?.trim();
-    if (!text) throw new Error('watsonx returned an empty completion');
-
-    sendJson(res, 200, {
-      text,
-      model: process.env.WATSONX_MODEL_ID || DEFAULT_MODEL,
-      grounded: true,
-    });
+    throw new Error(lastError);
   } catch (err) {
     sendJson(res, 502, {
       error: 'ai_unavailable',

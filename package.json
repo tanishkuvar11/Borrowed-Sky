@@ -14,6 +14,7 @@
     "catalog": "node scripts/build-catalog.mjs",
     "verify": "npm run typecheck && npm run verify:astro",
     "verify:astro": "tsx scripts/verify/frames.check.ts && tsx scripts/verify/satellites.check.ts && tsx scripts/verify/events.check.ts && tsx scripts/verify/milkyway.check.ts",
+    "verify:granite": "tsx scripts/verify/granite.check.ts",
     "verify:ui": "node scripts/verify/screenshot.mjs && node scripts/verify/interact.mjs && node scripts/verify/compass.mjs && node scripts/verify/overture.mjs"
   },
   "dependencies": {

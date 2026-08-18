@@ -437,6 +437,9 @@ export function Overture({
                 Satellites propagated with SGP4 from Celestrak orbital elements.
               </span>
               <span className="overture__sentence">
+                Explained by IBM Granite on watsonx.ai, from those numbers and nothing else.
+              </span>
+              <span className="overture__sentence">
                 Nothing in this app is simulated or placeholder data, including the sky you just
                 scrolled through.
               </span>

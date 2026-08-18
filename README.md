@@ -114,17 +114,48 @@ The horizon is not traced point by point either. Stereographic projection maps e
 
 ---
 
-## The AI layer
+## The AI layer: IBM Granite on watsonx.ai
 
-The narration runs on **IBM watsonx.ai** with **Granite** (`ibm/granite-3-3-8b-instruct` by default).
+The narration runs on **IBM watsonx.ai** with **IBM Granite**. `api/ask.ts` tries `ibm/granite-3-3-8b-instruct` first and walks a short list of Granite models if a project's region or plan does not offer it, then remembers which one answered. `WATSONX_MODEL_ID` pins a specific one.
 
-The system prompt's job is to stop the model from doing astronomy:
+### What Granite is asked to do, and what it is forbidden from doing
+
+Every position, time, magnitude, phase and distance is computed in the browser by astronomy-engine and SGP4 first. Only then is a finished JSON description of that sky handed to Granite. The division is absolute, and the system prompt exists to enforce it:
 
 > The JSON block you are given is the ONLY authoritative description of this observer's sky. Never state a position, altitude, direction, time, distance or brightness that is not present in that JSON. If you are asked something the JSON does not answer, say plainly that you cannot see it in tonight's data. Never guess.
 
-Two tones are offered: *Explain like I'm 10* and *Standard*. They change vocabulary and sentence length, never the underlying numbers.
+So Granite is doing language work, not astronomy. Concretely, it is doing the part of the job that no amount of template writing can cover:
 
-**If watsonx is not configured or is unreachable, the app does not go quiet and does not start guessing.** It falls back to a deterministic narrator that assembles sentences from the very same computed values, and the interface states which of the two is speaking. That is why the app is fully functional with no credentials at all: the AI improves the prose, it does not carry the correctness for correctness.
+- **Understanding an untrained question.** "What's that bright one?", "is the space station coming over?", "why does the Moon look like that tonight?" are all answered against the same JSON, and the model has to work out which of the objects in it the person means.
+- **Choosing what is worth mentioning.** A clear night hands the model a dozen objects. Which two matter to someone standing outside with no telescope is a judgement, not a sort.
+- **Saying "I can't see that in tonight's data"** when the question is about something the JSON does not contain, instead of reaching into training data for a plausible-sounding answer.
+- **Two registers.** *Explain like I'm 10* and *Standard* change vocabulary and sentence length, never the underlying numbers.
+
+### What happens when Granite is unavailable
+
+**The app does not go quiet and does not start guessing.** It falls back to a deterministic narrator (`narrateLocally` in `src/lib/ai.ts`) that assembles sentences from the very same computed values, and the interface states which of the two is speaking on every answer. That is why the app is fully functional with no credentials at all: Granite carries the language, never the correctness.
+
+The fallback is deliberately plainer than Granite, and it is honest about the difference. Ask the local narrator a free-form question and it answers with the sky summary plus a note that the AI guide was not reached, because a template cannot parse the question and pretending otherwise would be the fabrication this project is built to avoid.
+
+### Checking it actually works
+
+```
+npm run verify:granite
+```
+
+This is a real call, not a mock. It exchanges the API key for an IAM token, lists the Granite models the project is genuinely offered, computes a live sky context for Greenwich with the same code the browser runs, sends one grounded request, and prints what Granite says. Each of the three stages fails with its own message, because a bad key, a wrong region and an unavailable model look identical from the app and need different fixes.
+
+---
+
+## Built with IBM Bob
+
+One piece of this project is owned end to end by [IBM Bob](https://bob.ibm.com/): **the grounding guard**, the check that compares each of Granite's answers against the JSON it was given and refuses to show one that makes a claim the computed sky does not support.
+
+It was chosen deliberately. Every other data path here is verified by something that shares no code with the thing it verifies, which is why the coordinate transforms and the orbital propagation can be trusted rather than merely believed. The narration path is the exception: the model is told not to invent, and nothing checks that it obeyed. Closing that gap is the most valuable single piece of work left in the repository, and it is also cleanly separable, which is what makes it a fair test of a coding agent rather than a demonstration arranged to succeed.
+
+The brief handed to Bob is [`BOB-TASK.md`](BOB-TASK.md), written before any of the work started: the module signature, the three classes of claim to check, the tolerance rule, the retry behaviour, eight test cases, and the constraint that its tests compute a real sky rather than fabricating one.
+
+*This section will be completed with an account of how that went: what Bob planned, what it wrote, what it got wrong on the first pass, and where a human had to decide. That account is worth writing honestly or not at all.*
 
 ---
 
@@ -164,9 +195,20 @@ The generated catalogues are committed, so `npm run catalog` is only needed to r
 
 **Optional: enable Granite narration**
 
+Two values are needed, from two different consoles. The free watsonx.ai plan covers this.
+
+1. **A project ID.** Go to [dataplatform.cloud.ibm.com](https://dataplatform.cloud.ibm.com/wx/home?context=wx) and sign in with the IBM Cloud account. If watsonx.ai has never been provisioned it offers to do so; take the free plan and note **which region you pick**, because it has to match `WATSONX_URL` later. Then **Projects → New project → Create an empty project**, name it, and once it exists open its **Manage** tab. The **Project ID** is under **General → Details**; copy it.
+
+   A new project has no runtime attached to it. Open **Manage → Services & integrations → Associate service** and associate the **watsonx.ai Runtime** (previously called Machine Learning) instance. Without this the credentials are valid and every request still fails, which is the confusing one.
+
+2. **An API key.** Go to [cloud.ibm.com/iam/apikeys](https://cloud.ibm.com/iam/apikeys) → **Create**, name it, and copy the key. It is shown once and cannot be read back; if it is lost, delete it and make another.
+
 ```bash
-cp .env.example .env   # then fill in WATSONX_API_KEY and WATSONX_PROJECT_ID
+cp .env.example .env      # then paste both values in
+npm run verify:granite    # real call, tells you exactly what is wrong if anything is
 ```
+
+If the project was created outside Dallas, set `WATSONX_URL` to that region's endpoint too; the list is in `.env.example`. A region mismatch reports the project as missing rather than as misplaced.
 
 **Deploy:** the repo is configured for Vercel (`vercel.json`); `api/*.ts` become serverless functions automatically. On a host with no serverless support the app still works; it will report that satellite passes and AI narration are unavailable rather than faking either.
 
@@ -201,4 +243,6 @@ The translation is the product. And it is aimed at people who are currently on t
 - [astronomy-engine](https://github.com/cosinekitty/astronomy), ephemeris, MIT
 - [satellite.js](https://github.com/shashwatak/satellite-js), SGP4, MIT
 - [Celestrak](https://celestrak.org/), orbital elements, free and keyless
-- Typefaces: Cabinet Grotesk (Fontshare), Newsreader and IBM Plex Mono (Google Fonts)
+- [IBM Granite](https://www.ibm.com/granite) on [watsonx.ai](https://www.ibm.com/products/watsonx-ai), narration, Apache 2.0 model family
+- The Royal Observatory silhouette on the landing page is traced from [*Flamsteed House, Royal Observatory, Greenwich, London*](https://commons.wikimedia.org/wiki/File:Flamsteed_House,_Royal_Observatory,_Greenwich,_London,_20260719_0921_4494.jpg) by Jakub Hałun, CC BY 4.0, via Wikimedia Commons
+- Typefaces: Cormorant Garamond, Unbounded and Share Tech Mono (Google Fonts)
