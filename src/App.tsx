@@ -18,6 +18,7 @@ import {
 } from './components/icons';
 
 import { timezoneMismatch, useObserverSite } from './hooks/useObserverSite';
+import { useEyePosition } from './hooks/useEyePosition';
 import { useSmoothScroll } from './hooks/useSmoothScroll';
 import { useOrientation } from './hooks/useOrientation';
 import { useSkyData } from './hooks/useSkyData';
@@ -59,6 +60,10 @@ export default function App() {
   // panel, and reinterpreting scroll inside it would fight the sky view's own
   // drag handling for the same gestures.
   useSmoothScroll(!site);
+
+  // The optics drift a little against the sky as the pointer crosses the
+  // glass. Only on the sky screen: on a page of text it would be fidgeting.
+  useEyePosition(!!site);
 
   const [view, setView] = useState<View>('sky');
   const [tone, setTone] = useState<Tone>('standard');

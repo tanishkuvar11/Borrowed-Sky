@@ -896,6 +896,28 @@ button {
   z-index: 8;
   pointer-events: none;
   overflow: hidden;
+
+  /*
+   * Where the eye is on the glass, −1…1 in each axis, written by the pointer.
+   * Zero until something sets it, so a touch device and a viewer who has asked
+   * for less motion simply get a centred, still optic.
+   */
+  --eye-x: 0;
+  --eye-y: 0;
+  /* A few pixels. Any more and it stops reading as depth and starts reading
+     as the interface sliding about. */
+  --eye-throw: 10px;
+}
+
+/*
+ * The field stop and the falloff shift against the sky as the eye moves across
+ * the eyepiece, which is what genuinely happens when you do that. Transform
+ * and nothing else, so both stay on the compositor.
+ */
+.optics__aperture,
+.optics__vignette {
+  transition: transform 420ms var(--ease);
+  will-change: transform;
 }
 
 /*
@@ -916,7 +938,9 @@ button {
    */
   width: 116vmax;
   aspect-ratio: 1;
-  transform: translate(-50%, -50%);
+  transform:
+    translate(-50%, -50%)
+    translate(calc(var(--eye-x) * var(--eye-throw)), calc(var(--eye-y) * var(--eye-throw)));
   border-radius: 50%;
   border: var(--rule) solid var(--brass-engrave);
   box-shadow: 0 0 90px -30px rgb(var(--brass-rgb) / 0.22);
@@ -939,6 +963,11 @@ button {
 .optics__vignette {
   position: absolute;
   inset: -10%;
+  /* Half the throw, so the two elements separate rather than move as one. */
+  transform: translate(
+    calc(var(--eye-x) * var(--eye-throw) * 0.5),
+    calc(var(--eye-y) * var(--eye-throw) * 0.5)
+  );
   background: radial-gradient(
     ellipse at 50% 46%,
     rgba(0, 0, 0, 0) 34%,
