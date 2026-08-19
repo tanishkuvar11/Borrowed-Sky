@@ -1212,6 +1212,36 @@ button {
   min-height: 0;
 }
 
+/* The half the disclosure opens and closes. Bounded for the same reason. */
+.object-rail__body {
+  display: grid;
+  min-height: 0;
+}
+
+/*
+ * The disclosure lives in the strip but not on every screen.
+ *
+ * Hidden by default and shown only where the column can actually close.
+ * A control that opens something already open is worse than no control: it
+ * invites a press and then does nothing with it.
+ */
+.segment__disclosure {
+  display: none;
+  place-items: center;
+  width: 30px;
+  border: 0;
+  background: none;
+  color: var(--brass);
+  /* The same engraved divider the reading beside it uses. */
+  box-shadow: inset 1px 0 0 var(--brass-engrave);
+  transition: transform 240ms var(--ease), color 240ms var(--ease);
+}
+.segment__disclosure[aria-expanded='true'] {
+  /* Pointing at what it did, not at what it will do. */
+  transform: rotate(180deg);
+  color: var(--brass-bright);
+}
+
 .segment {
   display: grid;
   grid-template-columns: 1fr 1fr auto;
@@ -2853,9 +2883,7 @@ button {
    * the same kind of standing reference the list is -- if the list has to earn
    * its place over the sky, so does it.
    */
-  .sky-view__aside:not(.is-open) .object-list,
-  .sky-view__aside:not(.is-open) .object-list__empty,
-  .sky-view__aside:not(.is-open) .view-options,
+  .sky-view__aside:not(.is-open) .object-rail__body,
   .sky-view__aside:not(.is-open) .readout-panel {
     display: none;
   }
@@ -2867,6 +2895,40 @@ button {
    */
   .sky-view__aside:not(.is-open) {
     width: auto;
+  }
+
+  /*
+   * The strip gains its disclosure, and room to keep it.
+   *
+   * Not a fourth equal column: two 1fr tabs take the width of the longer
+   * label, twice, which on a phone-width strip left nothing for the chevron
+   * and the strip's own overflow rule quietly cut it in half. The tabs take
+   * what they need and the reading absorbs the slack instead.
+   */
+  .segment {
+    grid-template-columns: auto auto 1fr auto;
+  }
+  .segment__reading {
+    text-align: right;
+  }
+  .segment__tab {
+    padding-inline: 0.32rem;
+  }
+
+  /*
+   * Wider than it was, because it is no longer always there.
+   *
+   * At 42vw the strip could not fit its own four items and the chevron was
+   * being cut in half by the segment's overflow rule. That width was chosen
+   * when this column was permanently on screen and every point of it was sky
+   * taken away; now that it is opened deliberately and shuts again, it can
+   * afford the room to be legible while it is up.
+   */
+  .sky-view__aside {
+    width: clamp(12rem, 56vw, 19.5rem);
+  }
+  .segment__disclosure {
+    display: grid;
   }
 }
 

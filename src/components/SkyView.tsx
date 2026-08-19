@@ -103,10 +103,15 @@ export function SkyView({
    */
   const [columnOpen, setColumnOpen] = useState(false);
 
+  // Picking a tab always opens onto it. Closing is the disclosure's job,
+  // so that there is exactly one control that shuts the column and it is the
+  // one pointing at it.
   const openColumn = useCallback((next: RailTab) => {
-    setColumnOpen((wasOpen) => !(wasOpen && next === railTab));
     setRailTab(next);
-  }, [railTab]);
+    setColumnOpen(true);
+  }, []);
+
+  const toggleColumn = useCallback(() => setColumnOpen((on) => !on), []);
 
   // The chart's labels cannot see the panels floating over it, so it is told.
   const asideRef = useRef<HTMLDivElement>(null);
@@ -350,7 +355,9 @@ export function SkyView({
         <ObjectRail
           bodies={bodies}
           tab={railTab}
+          open={columnOpen}
           onOpen={openColumn}
+          onToggle={toggleColumn}
           fov={fov}
           selectedId={selectedId}
           onSelect={selectFromList}

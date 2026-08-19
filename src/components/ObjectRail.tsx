@@ -71,7 +71,9 @@ function reading(body: SkyBody): string {
 export function ObjectRail({
   bodies,
   tab,
+  open,
   onOpen,
+  onToggle,
   fov,
   selectedId,
   onSelect,
@@ -90,10 +92,17 @@ export function ObjectRail({
   showGrid: boolean;
   onShowGrid: (on: boolean) => void;
   /**
-   * Opens the column onto a tab, or shuts it if that tab is already showing.
-   * Only the small-screen layout is ever shut; see SkyView.
+   * Whether the column below the strip is showing.
+   *
+   * Only the small-screen layout is ever shut — above the breakpoint the
+   * stylesheet ignores this and the column is permanently open — but the
+   * disclosure still needs to know, because it is the thing that says so.
    */
+  open: boolean;
+  /** Picks a tab, and opens the column if it was shut. */
   onOpen: (tab: RailTab) => void;
+  /** The disclosure: open when shut, shut when open. */
+  onToggle: () => void;
 }) {
   const rows = visible(bodies);
 
@@ -119,9 +128,38 @@ export function ObjectRail({
         <span className="segment__reading readout" title="Field of view">
           {Math.round(fov)}°
         </span>
+
+        {/*
+          The disclosure.
+
+          On a phone this strip is all you land on, and a strip of tabs does not
+          announce that there is anything underneath it to pull down — you have
+          to already know. This says so. It is hidden above the breakpoint,
+          where the column never closes and a control for opening it would be a
+          control that does nothing.
+        */}
+        <button
+          className="segment__disclosure"
+          onClick={onToggle}
+          aria-expanded={open}
+          aria-controls="sky-column"
+          aria-label={open ? 'Hide what is up' : 'Show what is up'}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden focusable="false">
+            <path
+              d="M3 5l4 4 4-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
       </div>
 
-      {tab === 'objects' ? (
+      <div id="sky-column" className="object-rail__body">
+        {tab === 'objects' ? (
         rows.length ? (
           <ul className="object-list">
             {rows.map((body) => (
@@ -196,6 +234,7 @@ export function ObjectRail({
           </p>
         </div>
       )}
+      </div>
     </div>
   );
 }
