@@ -1190,6 +1190,28 @@ button {
  * Three cells in one frame rather than three loose chips. Divided by hairlines
  * on the inside, so it reads as a switch milled from one piece.
  */
+/*
+ * The column, and its right to run out of room.
+ *
+ * This had no rules at all, which meant the tab strip and the list simply
+ * stacked to whatever height they wanted. The column above them carries a
+ * max-height so it can never reach the deck, but a block child does not
+ * negotiate: the list grew straight through it and out the bottom of the
+ * frame, under the navigation. It showed up first on a phone held sideways,
+ * where there is least room, but nothing about it was specific to that -- a
+ * short window and a busy sky would have done it anywhere.
+ *
+ * A grid with a bounded second row is what lets the list scroll instead of
+ * grow. minmax(0, 1fr) rather than 1fr because a grid row's automatic minimum
+ * size is its content, which is exactly the thing being refused here.
+ */
+.object-rail {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: calc(var(--step) * 1.2);
+  min-height: 0;
+}
+
 .segment {
   display: grid;
   grid-template-columns: 1fr 1fr auto;
@@ -2695,7 +2717,15 @@ button {
  * trimmed the way you would trim an instrument panel — tighter padding, smaller
  * portraits, a shorter horizon — rather than by dropping readings.
  */
-@media (max-width: 700px) {
+/*
+ * Height counts as well as width.
+ *
+ * Keyed on width alone, this switched itself off on the one phone shape with
+ * the least room to spare: turned sideways a phone is around 932 by 430, so
+ * the compact layout stopped applying exactly where vertical space ran out
+ * and the full desktop composition was handed 430 pixels to fit into.
+ */
+@media (max-width: 700px), (max-height: 620px) {
   /*
    * The briefing: an opening line, not the whole page.
    *
@@ -2806,5 +2836,55 @@ button {
       rgb(var(--glass-lift-rgb) / 0.4) 0%,
       rgb(var(--glass-body-rgb) / 0.58) 100%
     );
+  }
+}
+
+/* --- the sky screen turned sideways --------------------------------------- */
+
+/*
+ * Landscape is not portrait with the numbers swapped.
+ *
+ * Two things change at once and they pull against each other. Height becomes
+ * the scarce dimension -- around 430 pixels, less than half what the portrait
+ * layout is composed for -- while width becomes plentiful, which is what breaks
+ * the arrangement: the column is placed against the left edge and the deck runs
+ * the full width beneath it, so on a wide short frame the briefing slides
+ * straight under the object cards. Two sheets of translucent glass overlapping
+ * is the one arrangement that makes neither of them readable.
+ *
+ * So the deck gives up the column's width rather than sharing it, the same way
+ * it already yields to the docked dossier, and everything that can be shorter
+ * is. The tagline goes: it is the one piece of text on this screen that tells
+ * you nothing you cannot see, and here it costs a line of sky.
+ */
+@media (max-height: 620px) and (orientation: landscape) {
+  .sky-view__aside {
+    width: clamp(9rem, 27vw, 15rem);
+    gap: var(--step);
+  }
+  /* Roughly two rows, with the rest on the scroll the column can now do. */
+  .object-list {
+    max-height: 78px;
+  }
+
+  /* The deck clears the column instead of sliding under it. */
+  .sky-view__deck {
+    padding-left: calc(clamp(9rem, 27vw, 15rem) + var(--inset) * 2);
+  }
+
+  .wordmark__tag {
+    display: none;
+  }
+
+  .horizon {
+    height: 62px;
+  }
+
+  /*
+   * The briefing keeps its one line but loses the portrait, which needs a
+   * panel taller than this one now is to sit in without being cropped.
+   */
+  .guide-panel__subject {
+    display: none;
   }
 }
