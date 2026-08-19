@@ -720,6 +720,7 @@ export function SkyCanvas({
         targets,
         s.chrome !== false,
         clock,
+        s.nightVision,
       );
 
       // Last, so they take whatever room the objects did not want.
@@ -1415,8 +1416,25 @@ function drawObservatory(
   const horizon = projectVector(horVector(0, azimuth), basis, cx, cy, scale);
   if (!horizon) return;
 
-  const w = width * 0.52;
-  const h = w * (img.naturalHeight / img.naturalWidth);
+  /*
+   * Sized against both dimensions, not just the width.
+   *
+   * Half the frame width is a building about three fifths of the frame tall on
+   * a landscape screen, and a model on a shelf on a portrait phone -- the same
+   * fraction of a much shorter measurement. That would merely have looked
+   * mean, except that the vertical placement below is anchored to the *height*
+   * while this is anchored to the width, so on a tall narrow frame the roofline
+   * fell below the horizon, `standing` went negative, and the building was not
+   * drawn at all. It was missing from every phone.
+   *
+   * So the width is also allowed to grow until the building has a comparable
+   * presence against the frame's height. On a landscape screen the first term
+   * wins and nothing changes; on a phone the second does, and the observatory
+   * is there.
+   */
+  const aspect = img.naturalWidth / img.naturalHeight;
+  const w = Math.min(width * 0.92, Math.max(width * 0.52, height * 0.42 * aspect));
+  const h = w / aspect;
 
   /*
    * Only the part that rises above the horizon is drawn.
@@ -1443,7 +1461,30 @@ function drawObservatory(
    * building, so it stays where it is, and the rising horizon simply closes
    * over it as you scroll. The clip above does all the work.
    */
-  const top = height * 0.77 - h * 0.74;
+  /*
+   * Where it stands, and why there are two terms.
+   *
+   * The first is the original: a base a little over three quarters of the way
+   * down, with the building rising from it. That constant was chosen against a
+   * landscape frame, where the horizon happens to fall just above it. On a tall
+   * frame the same fraction is a long way *below* the horizon, so the roof
+   * never reached the sky and the whole building was culled -- which is why it
+   * was missing from every phone.
+   *
+   * The second term says the same thing in the sky's terms instead of the
+   * frame's: sit the base just under the horizon, so a consistent amount of the
+   * building shows above it whatever shape the frame is. The smaller of the two
+   * wins, which on a landscape screen is always the first, so that framing is
+   * untouched and stays as still as it ever was.
+   *
+   * On a portrait frame the second term wins and the building does then shift a
+   * little as the camera tilts, which is the thing the fixed placement existed
+   * to avoid. It is the lesser fault by a distance: the movement happens almost
+   * entirely inside the window where the ground is already closing over it and
+   * the fade is taking it away, and the alternative on those screens is not a
+   * steadier building but no building.
+   */
+  const top = Math.min(height * 0.77, horizon.y + h * 0.15) - h * 0.74;
 
   // Flush with the right edge, so the building holds the corner rather than
   // floating in the middle of it.
@@ -2259,6 +2300,103 @@ function drawStarHighlights(
  * These arrive already reduced to alt/az by the ephemeris, so unlike the star
  * catalogue they project through the horizontal basis directly.
  */
+/**
+ * Photographs of the bodies, for the markers on the chart.
+ *
+ * The same spacecraft images the object column uses, so a planet looks like
+ * itself in both places instead of being a labelled bead in one and a portrait
+ * in the other.
+ *
+ * One thing this deliberately gets wrong, and it is worth being plain about.
+ * Venus is about a sixtieth of a degree across at its best; at any field of
+ * view this app offers, an honest disc would be a fraction of a pixel, which
+ * is why it was a point of light before. So the photograph is a symbol drawn
+ * at symbol size, in the way a chart draws a city as a dot far larger than the
+ * city. Everything that is a measurement here -- where it is, how bright it
+ * is, which way the Moon is lit -- stays exactly as computed; only how big the
+ * mark is drawn is a choice, and it was already a choice when it was a dot.
+ *
+ * The Sun keeps its drawn disc. It is the light in the scene rather than a
+ * target in it, and there is no photograph of it in the set. Satellites keep
+ * their points, for the reason they always did: from a garden that is what one
+ * is.
+ */
+const PHOTOGRAPHED_BODIES = new Set([
+  'mercury',
+  'venus',
+  'mars',
+  'jupiter',
+  'saturn',
+  'uranus',
+  'neptune',
+  'moon',
+]);
+
+interface BodyPhoto {
+  day: HTMLImageElement;
+  /** The same image on the red ramp, for night vision. Built once, on load. */
+  night: HTMLCanvasElement | null;
+}
+
+const bodyPhotos = new Map<string, BodyPhoto>();
+
+/**
+ * The photograph rendered onto the night-vision ramp.
+ *
+ * The same matrix the stylesheet applies to the portraits in the column: Rec.
+ * 709 luminance, then split back out into a warm red. Done once per image when
+ * it loads rather than per frame, because it is a per-pixel pass and there is
+ * no reason for it to happen sixty times a second on an image that will never
+ * change.
+ *
+ * Half the source resolution is still several times the size these are ever
+ * drawn at, and it makes the one-off pass four times cheaper.
+ */
+function nightCopy(img: HTMLImageElement): HTMLCanvasElement | null {
+  const side = Math.max(1, Math.min(256, img.naturalWidth >> 1));
+  const off = document.createElement('canvas');
+  off.width = side;
+  off.height = side;
+  const g = off.getContext('2d', { willReadFrequently: true });
+  if (!g) return null;
+  g.drawImage(img, 0, 0, side, side);
+
+  const data = g.getImageData(0, 0, side, side);
+  const px = data.data;
+  for (let i = 0; i < px.length; i += 4) {
+    const luma = px[i] * 0.2126 + px[i + 1] * 0.7152 + px[i + 2] * 0.0722;
+    px[i] = luma;
+    px[i + 1] = luma * 0.38;
+    px[i + 2] = luma * 0.28;
+  }
+  g.putImageData(data, 0, 0);
+  return off;
+}
+
+/**
+ * The photograph for a body, once it has arrived.
+ *
+ * Returns null until the file has loaded, and the caller falls back to the
+ * drawn marker for those frames. Nothing waits and nothing re-renders: the
+ * next frame simply finds it there.
+ */
+function bodyPhoto(name: string): BodyPhoto | null {
+  const key = name.toLowerCase();
+  if (!PHOTOGRAPHED_BODIES.has(key)) return null;
+
+  const held = bodyPhotos.get(key);
+  if (held) return held.day.complete && held.day.naturalWidth > 0 ? held : null;
+
+  const img = new Image();
+  const record: BodyPhoto = { day: img, night: null };
+  bodyPhotos.set(key, record);
+  img.onload = () => {
+    record.night = nightCopy(img);
+  };
+  img.src = `bodies/${key}.png`;
+  return null;
+}
+
 function drawBodies(
   ctx: CanvasRenderingContext2D,
   bodies: SkyBody[],
@@ -2273,6 +2411,7 @@ function drawBodies(
   /** False on the overture, where these are scenery rather than readings. */
   chrome: boolean,
   clock: number,
+  nightVision: boolean,
 ) {
   ctx.save();
   ctx.textAlign = 'left';
@@ -2309,17 +2448,29 @@ function drawBodies(
                 // on the sky rather than something in it.
                 Math.max(1.6, 3.4 - body.magnitude * 0.35);
 
+    /*
+     * The photograph, where the chart is the subject and there is one to use.
+     *
+     * Held between a floor and a ceiling rather than tracking brightness the
+     * way the drawn marker does. A photograph needs a certain number of pixels
+     * before it is a planet rather than a smudge, and past a certain size it
+     * stops reading as something far away; the drawn dot had neither problem
+     * and so needed neither limit.
+     */
+    const photo = chrome ? bodyPhoto(body.name) : null;
+    const markSize = photo ? Math.max(9, Math.min(22, size * 1.2)) : size;
+
     // A low sun lights a quarter of the sky, not a circle three times its own
     // width. The wide falloff is what stops it reading as a sticker on a
     // gradient, and it only applies where the scene is the subject.
     const bloom = !chrome && body.kind === 'sun' ? 11 : 3.4;
-    const glow = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, size * bloom);
+    const glow = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, markSize * bloom);
     glow.addColorStop(0, style.glow);
     if (!chrome && body.kind === 'sun') glow.addColorStop(0.28, 'rgba(255, 186, 92, 0.28)');
     glow.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.arc(point.x, point.y, size * bloom, 0, TAU);
+    ctx.arc(point.x, point.y, markSize * bloom, 0, TAU);
     ctx.fill();
 
     /*
@@ -2329,23 +2480,41 @@ function drawBodies(
      * edge falling away instead of stopping, which is the difference between a
      * sun and a sticker of one.
      */
-    if (chrome) {
-      ctx.fillStyle = style.fill;
+    /*
+     * Not clipped to a circle, because Saturn's rings reach well outside its
+     * globe and a circular clip would trim them. The images carry their own
+     * cut-out alpha, which is the whole reason they were fetched that way.
+     */
+    if (photo) {
+      const source = (nightVision && photo.night) || photo.day;
+      ctx.drawImage(source, point.x - markSize, point.y - markSize, markSize * 2, markSize * 2);
     } else {
-      const core = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, size);
-      core.addColorStop(0, '#FFFDF4');
-      core.addColorStop(0.55, style.fill);
-      core.addColorStop(0.88, style.fill);
-      core.addColorStop(1, 'rgba(255, 233, 168, 0)');
-      ctx.fillStyle = core;
+      if (chrome) {
+        ctx.fillStyle = style.fill;
+      } else {
+        const core = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, size);
+        core.addColorStop(0, '#FFFDF4');
+        core.addColorStop(0.55, style.fill);
+        core.addColorStop(0.88, style.fill);
+        core.addColorStop(1, 'rgba(255, 233, 168, 0)');
+        ctx.fillStyle = core;
+      }
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, size, 0, TAU);
+      ctx.fill();
     }
-    ctx.beginPath();
-    ctx.arc(point.x, point.y, size, 0, TAU);
-    ctx.fill();
 
-    // The Moon is drawn as an actual crescent, matching the computed phase.
+    /*
+     * The Moon's phase, over whichever of the two was drawn.
+     *
+     * This one is not a stylistic choice and cannot be dropped with the disc.
+     * The photograph is of a full Moon, because that is the one that shows the
+     * whole nearside; which part of it is lit tonight is a computed fact, and
+     * a full Moon drawn on a night with a crescent up would be the app stating
+     * something untrue.
+     */
     if (body.kind === 'moon' && body.illuminatedFraction !== undefined) {
-      drawMoonPhase(ctx, point.x, point.y, size, body.illuminatedFraction);
+      drawMoonPhase(ctx, point.x, point.y, markSize, body.illuminatedFraction);
     }
 
     // A satellite in Earth's shadow cannot be seen; say so rather than drawing
@@ -2358,19 +2527,19 @@ function drawBodies(
       ctx.stroke();
     }
 
-    if (body.id === selectedId) drawTracking(ctx, point.x, point.y, size, clock);
+    if (body.id === selectedId) drawTracking(ctx, point.x, point.y, markSize, clock);
 
     // Only register something as tappable if it is actually on screen. A marker
     // projected off the edge is still drawn (harmlessly clipped) but must not
     // sit in the hit list, where it could win a tap near the border.
-    const margin = size + 24;
+    const margin = markSize + 24;
     const onScreen =
       point.x > -margin &&
       point.x < width + margin &&
       point.y > -margin &&
       point.y < height + margin;
 
-    if (onScreen) targets.push({ id: body.id, x: point.x, y: point.y, radius: size });
+    if (onScreen) targets.push({ id: body.id, x: point.x, y: point.y, radius: markSize });
 
     // The label needs more room than the marker does: a leader and two lines of
     // text hanging off a marker that is itself past the edge leaves orphaned
@@ -2385,7 +2554,7 @@ function drawBodies(
       point.y > 12 &&
       point.y < height - 8
     ) {
-      drawLeaderLabel(ctx, point.x, point.y, size, body, width);
+      drawLeaderLabel(ctx, point.x, point.y, markSize, body, width);
     }
   }
   ctx.restore();
@@ -2586,15 +2755,39 @@ function drawMoonPhase(
   size: number,
   illuminated: number,
 ) {
+  const lit = Math.max(0, Math.min(1, illuminated));
+
+  /*
+   * The terminator is a circle seen at an angle, so it projects to an ellipse
+   * sharing the disc's vertical axis, with a half-width running from the full
+   * radius at new, through nothing at half, to the radius again at full. The
+   * unlit region is then the far limb plus that ellipse.
+   *
+   * This used to be drawn as a second disc of the same size slid sideways,
+   * which is a common shortcut and was wired up backwards besides: the offset
+   * it computed went to zero at half phase, where a same-size disc covers the
+   * original exactly, so a half-lit Moon rendered as a black circle and a new
+   * Moon rendered as a crescent. Both of those are the opposite of the fact
+   * being reported an inch away in the label.
+   *
+   * Which limb is lit is a convention here rather than a measurement -- it
+   * follows the portrait in the object column, lit from the right -- but the
+   * fraction is the computed one, and that is the part that says what you will
+   * see tonight.
+   */
+  const half = Math.abs(1 - 2 * lit) * size;
+  // Past half, the unlit sliver is on the near side of centre and the ellipse
+  // bulges the other way.
+  const bulgeRight = lit < 0.5;
+
   ctx.save();
-  ctx.beginPath();
-  ctx.arc(x, y, size, 0, TAU);
-  ctx.clip();
   ctx.fillStyle = palette.moonShadow;
-  // The terminator is an ellipse whose width tracks the illuminated fraction.
-  const offset = (1 - 2 * illuminated) * size;
   ctx.beginPath();
-  ctx.ellipse(x + offset, y, size, size, 0, 0, TAU);
+  // The far limb: top, round the left, to the bottom.
+  ctx.arc(x, y, size, -Math.PI / 2, Math.PI / 2, true);
+  // The terminator, back up to where it started.
+  ctx.ellipse(x, y, half, size, 0, Math.PI / 2, -Math.PI / 2, bulgeRight);
+  ctx.closePath();
   ctx.fill();
   ctx.restore();
 }
