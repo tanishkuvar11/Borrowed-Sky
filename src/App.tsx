@@ -7,6 +7,7 @@ import { GuideView } from './components/GuideView';
 import { JournalView } from './components/JournalView';
 import { OrientationSheet, orientationState } from './components/OrientationSheet';
 import { SettingsSheet } from './components/SettingsSheet';
+import { Diagnostics, diagnosticsRequested } from './components/Diagnostics';
 import {
   IconCompassRose,
   IconEmblem,
@@ -110,6 +111,9 @@ export default function App() {
 
   return (
     <div className="app">
+      {/* Only when the URL asks for it. See Diagnostics for why it exists. */}
+      {diagnosticsRequested() && <Diagnostics />}
+
       <header className="topbar">
         <button
           className="rose rose--plain"
