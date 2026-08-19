@@ -127,7 +127,64 @@ function screenUpInDeviceFrame(): [number, number, number] {
   return [Math.sin(angle), Math.cos(angle), 0];
 }
 
+/**
+ * Turns a look and up direction into the aim the renderer wants.
+ *
+ * Module scope because two callers need it and they must not disagree: the
+ * renderer samples this from filtered vectors once a frame, and the throttled
+ * readout takes it from the raw ones when nothing is sampling. Two copies of
+ * this arithmetic would be two chances for the heading on screen to stop
+ * matching the sky.
+ */
+function aimFrom(look: number[], up: number[]): { azimuth: number; altitude: number; roll: number } {
+  const nLook = Math.hypot(look[0], look[1], look[2]) || 1;
+  const lx = look[0] / nLook;
+  const ly = look[1] / nLook;
+  const lz = look[2] / nLook;
+
+  const altitude = Math.asin(Math.max(-1, Math.min(1, lz))) * RAD;
+  let azimuth = Math.atan2(lx, ly) * RAD;
+  if (azimuth < 0) azimuth += 360;
+
+  // Roll: how far the screen's up axis is rotated from the sky's "up".
+  // Work in the horizontal frame the renderer uses (x north, y west, z zenith).
+  const fx = ly;
+  const fy = -lx;
+  const fz = lz;
+  let brx = fy * 1 - 0; // cross(forward, zenith) with zenith = (0,0,1)
+  let bry = -fx;
+  let brz = 0;
+  const brLen = Math.hypot(brx, bry, brz);
+  if (brLen < 1e-6) {
+    // Aimed at the zenith: roll is undefined against the horizon, so hold it.
+    brx = 1;
+    bry = 0;
+    brz = 0;
+  } else {
+    brx /= brLen;
+    bry /= brLen;
+    brz /= brLen;
+  }
+  const bux = bry * fz - brz * fy;
+  const buy = brz * fx - brx * fz;
+  const buz = brx * fy - bry * fx;
+
+  const upHor = [up[1], -up[0], up[2]];
+  const sR = upHor[0] * brx + upHor[1] * bry + upHor[2] * brz;
+  const sU = upHor[0] * bux + upHor[1] * buy + upHor[2] * buz;
+  const roll = Math.atan2(sR, sU) * RAD;
+
+  return { azimuth, altitude, roll };
+}
+
 export function useOrientation(): OrientationReading & {
+  /**
+   * Where to aim right now, advanced to the given timestamp.
+   *
+   * The renderer's frame clock drives this. Everything else on the reading is
+   * a throttled copy for the DOM; this is the live one.
+   */
+  sample: (nowMs: number) => { azimuth: number; altitude: number; roll: number };
   enable: () => Promise<void>;
   disable: () => void;
   nudgeCalibration: (delta: number) => void;
@@ -150,18 +207,38 @@ export function useOrientation(): OrientationReading & {
     return Number.isFinite(stored) ? stored : 0;
   });
 
-  // Smoothed look and up vectors. Filtering direction vectors rather than
-  // angles avoids the discontinuity where a heading wraps past north.
+  /*
+   * The sensor's latest word, and the filtered aim the view is actually using.
+   *
+   * These are refs rather than state on purpose, and it is the difference
+   * between smooth panning and the judder that made this feel broken. A sensor
+   * event is not a frame: readings arrive between thirty and sixty times a
+   * second at intervals the platform chooses and does not keep to, while the
+   * canvas draws on the display's clock. Setting React state per reading meant
+   * the view moved in the sensor's irregular steps and sat perfectly still in
+   * between, which is exactly what a stutter is.
+   *
+   * So nothing here re-renders. The events write where the phone is pointing,
+   * the render loop calls sample() once a frame to ask where to aim, and the
+   * two run at their own rates without either waiting on the other.
+   */
+  const targetRef = useRef<{ look: number[]; up: number[] } | null>(null);
+  // Filtering direction vectors rather than angles avoids the discontinuity
+  // where a heading wraps past north.
   const smoothRef = useRef<{ look: number[]; up: number[] } | null>(null);
+  const aimRef = useRef({ azimuth: 0, altitude: 45, roll: 0 });
+  const sampledAtRef = useRef(0);
+  const sourceRef = useRef({ absolute: false, accuracyDegrees: null as number | null });
+  const publishedAtRef = useRef(0);
 
   /**
-   * Turns a device-to-world rotation into an aim.
+   * Turns a device-to-world rotation into a direction, and records it.
    *
    * Shared by both sources, because the two of them disagree about how to
    * describe an orientation (Euler angles from the events, a quaternion from
    * the sensor) but agree completely about the frame it is expressed in. Doing
-   * the conversion once means the filtering, the roll solution and the
-   * screen-rotation handling cannot drift apart between them.
+   * the conversion once means the roll solution and the screen-rotation
+   * handling cannot drift apart between them.
    */
   const applyRotation = useCallback(
     (r: number[][], absolute: boolean, accuracyDegrees: number | null) => {
@@ -175,58 +252,83 @@ export function useOrientation(): OrientationReading & {
         r[2][0] * ux + r[2][1] * uy + r[2][2] * uz,
       ];
 
-      // Low-pass filter. Phone gyros are noisy enough that unfiltered stars visibly
-      // shimmer; this is gentle enough to stay responsive when you actually turn.
-      const alphaFilter = 0.25;
-      const prev = smoothRef.current;
-      const blend = (a: number[], b: number[]) =>
-        a.map((v, i) => v * (1 - alphaFilter) + b[i] * alphaFilter);
-      const look = prev ? blend(prev.look, lookWorld) : lookWorld;
-      const up = prev ? blend(prev.up, upWorld) : upWorld;
-      smoothRef.current = { look, up };
-
-      const nLook = Math.hypot(look[0], look[1], look[2]) || 1;
-      const lx = look[0] / nLook;
-      const ly = look[1] / nLook;
-      const lz = look[2] / nLook;
-
-      const altitude = Math.asin(Math.max(-1, Math.min(1, lz))) * RAD;
-      let azimuth = Math.atan2(lx, ly) * RAD;
-      if (azimuth < 0) azimuth += 360;
-
-      // Roll: how far the screen's up axis is rotated from the sky's "up".
-      // Work in the horizontal frame the renderer uses (x north, y west, z zenith).
-      const fx = ly;
-      const fy = -lx;
-      const fz = lz;
-      let brx = fy * 1 - 0; // cross(forward, zenith) with zenith = (0,0,1)
-      let bry = -fx;
-      let brz = 0;
-      const brLen = Math.hypot(brx, bry, brz);
-      if (brLen < 1e-6) {
-        // Aimed at the zenith: roll is undefined against the horizon, so hold it.
-        brx = 1;
-        bry = 0;
-        brz = 0;
-      } else {
-        brx /= brLen;
-        bry /= brLen;
-        brz /= brLen;
-      }
-      const bux = bry * fz - brz * fy;
-      const buy = brz * fx - brx * fz;
-      const buz = brx * fy - bry * fx;
-
-      const upHor = [up[1], -up[0], up[2]];
-      const sR = upHor[0] * brx + upHor[1] * bry + upHor[2] * brz;
-      const sU = upHor[0] * bux + upHor[1] * buy + upHor[2] * buz;
-      const roll = Math.atan2(sR, sU) * RAD;
-
-      setReading({ azimuth, altitude, roll, absolute, accuracyDegrees });
+      targetRef.current = { look: lookWorld, up: upWorld };
+      sourceRef.current = { absolute, accuracyDegrees };
       setStatus('active');
+
+      /*
+       * Keep the written-down heading alive when nothing is drawing with it.
+       *
+       * sample() publishes that copy, and sample() only runs while the compass
+       * is actually aiming the view. Drag the sky and then open the compass
+       * sheet to calibrate it and the heading there would sit frozen at
+       * whatever it read when you stopped following — which is precisely the
+       * screen you need a live number on. So when no frame has asked for an
+       * aim recently, the reading is published from here instead. Unfiltered,
+       * because this path feeds text rather than motion.
+       */
+      const now = performance.now();
+      if (now - sampledAtRef.current > 250 && now - publishedAtRef.current > 100) {
+        publishedAtRef.current = now;
+        setReading({ ...aimFrom(lookWorld, upWorld), absolute, accuracyDegrees });
+      }
     },
     [],
   );
+
+  /**
+   * Where to aim this frame.
+   *
+   * Called by the renderer once per frame, which is what makes the motion
+   * smooth: the filter advances by the time that actually elapsed rather than
+   * by one fixed step per sensor event, so a reading arriving late, early or
+   * not at all changes nothing about how fast the view catches up. The old
+   * fixed-alpha filter silently changed its own time constant whenever the
+   * sensor rate moved, which is why panning felt uneven rather than merely
+   * laggy.
+   *
+   * TAU is the time to close about two thirds of the remaining gap. Long
+   * enough to swallow the noise that makes unfiltered stars shimmer, short
+   * enough that the sky still feels attached to the phone.
+   */
+  const sample = useCallback((nowMs: number) => {
+    const target = targetRef.current;
+    if (!target) return aimRef.current;
+
+    const TAU = 0.085;
+    const last = sampledAtRef.current;
+    // Clamped: a backgrounded tab resumes with a huge gap, and without this the
+    // first frame back would snap rather than settle.
+    const dt = last ? Math.min(0.25, Math.max(0, (nowMs - last) / 1000)) : 1;
+    sampledAtRef.current = nowMs;
+
+    const k = last ? 1 - Math.exp(-dt / TAU) : 1;
+    const prev = smoothRef.current;
+    const blend = (a: number[], b: number[]) => a.map((v, i) => v + (b[i] - v) * k);
+    const look = prev ? blend(prev.look, target.look) : target.look;
+    const up = prev ? blend(prev.up, target.up) : target.up;
+    smoothRef.current = { look, up };
+
+    const aim = aimFrom(look, up);
+
+    aimRef.current = aim;
+
+    /*
+     * The written-down copy, for the parts of the interface made of DOM.
+     *
+     * The heading readout and the horizon card do not need sixty updates a
+     * second — the card runs its own eased follow and would ignore them — and
+     * re-rendering the object list at frame rate to move a compass letter is
+     * exactly the sort of cost this app has spent a while removing. Ten a
+     * second is past the point anyone can see the difference in text.
+     */
+    if (nowMs - publishedAtRef.current > 100) {
+      publishedAtRef.current = nowMs;
+      setReading({ ...aim, ...sourceRef.current });
+    }
+
+    return aimRef.current;
+  }, []);
 
   const handleEvent = useCallback(
     (event: DeviceOrientationEvent) => {
@@ -272,6 +374,8 @@ export function useOrientation(): OrientationReading & {
 
   const disable = useCallback(() => {
     smoothRef.current = null;
+    targetRef.current = null;
+    sampledAtRef.current = 0;
     setStatus(initialStatus);
   }, []);
 
@@ -426,8 +530,25 @@ export function useOrientation(): OrientationReading & {
     localStorage.setItem('borrowed-sky:compass-offset', '0');
   }, []);
 
+  /*
+   * The live aim, with the user's compass correction applied.
+   *
+   * Wrapped rather than folded into sample() itself so the filter keeps
+   * working on raw sensor directions: nudging the calibration while the view
+   * is live should turn the sky immediately, not send the filter chasing a
+   * target that moved for reasons the phone never saw.
+   */
+  const sampleAimed = useCallback(
+    (nowMs: number) => {
+      const aim = sample(nowMs);
+      return { ...aim, azimuth: (aim.azimuth + calibration) % 360 };
+    },
+    [sample, calibration],
+  );
+
   return {
     status,
+    sample: sampleAimed,
     azimuth: (reading.azimuth + calibration) % 360,
     altitude: reading.altitude,
     roll: reading.roll,

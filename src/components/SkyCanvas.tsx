@@ -158,6 +158,19 @@ export interface SkyCanvasProps {
   site: ObserverSite;
   now: Date;
   camera: Camera;
+  /**
+   * Where to point, asked at the moment of drawing.
+   *
+   * Present only while the compass is driving the view. A sensor reading is
+   * not a frame — they arrive irregularly, and at a rate the platform picks —
+   * so taking the aim from a prop meant the sky moved in the sensor's steps
+   * and held still between them. Given this, the loop asks for an aim once per
+   * frame instead, and the filter behind it advances by real elapsed time.
+   *
+   * When it is absent the `camera` prop is the aim, which is the case for
+   * dragging, slewing and every desktop view.
+   */
+  sampleCamera?: (nowMs: number) => Camera;
   conditions: SkyConditions | null;
   selectedId: string | null;
   showConstellations: boolean;
@@ -381,6 +394,7 @@ export function SkyCanvas({
   site,
   now,
   camera,
+  sampleCamera,
   conditions,
   selectedId,
   showConstellations,
@@ -406,6 +420,7 @@ export function SkyCanvas({
     site,
     now,
     camera,
+    sampleCamera,
     conditions,
     selectedId,
     showConstellations,
@@ -423,6 +438,7 @@ export function SkyCanvas({
     site,
     now,
     camera,
+    sampleCamera,
     conditions,
     selectedId,
     showConstellations,
@@ -545,11 +561,20 @@ export function SkyCanvas({
       const clock = performance.now();
       const seeing = seeingAt(clock);
 
+      /*
+       * Where the view points this frame.
+       *
+       * While the compass is live this is asked for rather than handed down,
+       * so the aim advances on the display's clock instead of the sensor's.
+       * Everything downstream reads `camera` and does not care which it got.
+       */
+      const camera = s.sampleCamera ? s.sampleCamera(clock) : s.camera;
+
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       const cx = width / 2;
       const cy = height / 2;
       const radius = Math.min(width, height) / 2;
-      const scale = projectionScale(s.camera.fov, radius);
+      const scale = projectionScale(camera.fov, radius);
 
       const targets: HitTarget[] = [];
       labelSlots.length = 0;
@@ -574,8 +599,8 @@ export function SkyCanvas({
       const observerObj = toObserver(s.site);
       const time = MakeTime(s.now);
       const eqjToHor = eqjToHorMatrix(time, observerObj);
-      const view = buildViewMatrix(s.camera, eqjToHor);
-      const horBasis = buildHorizonBasis(s.camera);
+      const view = buildViewMatrix(camera, eqjToHor);
+      const horBasis = buildHorizonBasis(camera);
 
       // Project a horizontal-frame direction. Returns null when it falls behind
       // the viewer, where the stereographic projection is unbounded.
@@ -637,7 +662,7 @@ export function SkyCanvas({
             drawConstellations(g, s.constellations, view, cx, cy, scale, s.conditions, s.chrome);
           }
           if (s.catalog) {
-            drawStarField(g, s.catalog, view, cx, cy, scale, radius, s.camera.fov, s.conditions, s.chrome, dpr);
+            drawStarField(g, s.catalog, view, cx, cy, scale, radius, camera.fov, s.conditions, s.chrome, dpr);
           }
           drawGround(g, horBasis, cx, cy, scale, width, height);
           drawScenery(
@@ -674,7 +699,7 @@ export function SkyCanvas({
           cy,
           scale,
           radius,
-          s.camera.fov,
+          camera.fov,
           s.conditions,
           targets,
           s.chrome,
@@ -705,7 +730,7 @@ export function SkyCanvas({
       // Heading is read off the horizon dial below the canvas; what stays here
       // is the elevation scale, laid out linearly and calibrated against the
       // projection's exact rate at the index mark, the way a real tape is ruled.
-      if (s.chrome) drawAltitudeArc(ctx, width, height, s.camera, scale * (Math.PI / 360));
+      if (s.chrome) drawAltitudeArc(ctx, width, height, camera, scale * (Math.PI / 360));
 
       targetsRef.current = targets;
 

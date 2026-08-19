@@ -2676,3 +2676,108 @@ button {
     height: 240px;
   }
 }
+
+/* --- the sky screen on a phone ------------------------------------------- */
+
+/*
+ * Give the sky back.
+ *
+ * Every panel here is the right size on a laptop and, at the same size on a
+ * 430px phone, they collectively left about a quarter of the frame showing any
+ * sky at all: a plate, a tab strip and three cards down the left, a horizon, an
+ * aim note and five lines of briefing across the bottom. Each one defensible,
+ * all of them together covering the thing they are describing.
+ *
+ * Nothing is removed and nothing moves. What changes is how much room each
+ * fitting is allowed to take when the frame is small, and the answer for prose
+ * in particular is much less: the briefing already opens into the full guide on
+ * a tap, so two lines here is a way in rather than a truncation. The rest is
+ * trimmed the way you would trim an instrument panel — tighter padding, smaller
+ * portraits, a shorter horizon — rather than by dropping readings.
+ */
+@media (max-width: 700px) {
+  /*
+   * The briefing: an opening line, not the whole page.
+   *
+   * This is the single biggest reclaim on the screen. Five lines of 17px serif
+   * is around 190px, a fifth of a phone, spent on text whose own panel is a
+   * button that opens the unabridged version.
+   */
+  .guide-panel {
+    padding: 0.7rem 0.85rem 0.75rem;
+    gap: 0.7rem;
+    border-radius: 12px;
+  }
+  .guide-panel__text {
+    font-size: 0.9375rem;
+    line-height: 1.42;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+
+  /* The plate: the same four readings, in less air. */
+  .readout-panel {
+    padding: 0.5rem 0.55rem 0.55rem;
+  }
+  .readout-panel__line {
+    font-size: 0.625rem;
+    line-height: 1.32;
+  }
+  /*
+   * The analogue dial goes. It is the one thing in this corner that repeats a
+   * number already printed beside it, so on the screen with no room to spare it
+   * is the first thing that should give up its space.
+   */
+  .readout-panel__clock {
+    display: none;
+  }
+
+  /* The object list: shorter rows and smaller portraits, same rows. */
+  .object-card {
+    padding: 0.38rem 0.5rem;
+    gap: 0.5rem;
+    border-radius: 9px;
+  }
+  .object-card__mark .planet-mark {
+    width: 26px;
+    height: 26px;
+  }
+  .object-card__chevron {
+    width: 18px;
+    height: 18px;
+  }
+
+  /*
+   * The horizon keeps its curve; it just needs less of the frame to show it.
+   *
+   * The arc sits at a fixed fraction of the card's height, so this raises it
+   * rather than cropping it. What is below the card is the sky canvas's own
+   * ground, which is drawn whatever this is set to.
+   */
+  .horizon {
+    height: 92px;
+  }
+
+  .aim-note {
+    font-size: 0.5625rem;
+    padding: 0.28rem 0.6rem;
+  }
+
+  /*
+   * Thinner glass.
+   *
+   * At full strength these panels are opaque enough to read as cards stacked on
+   * a picture. Letting more of the sky through is what makes them read as part
+   * of it instead, and on a phone, where they cover so much more of the frame,
+   * it is the difference between an instrument and a form.
+   */
+  .readout-panel,
+  .object-card,
+  .guide-panel {
+    background: linear-gradient(
+      180deg,
+      rgb(var(--glass-lift-rgb) / 0.4) 0%,
+      rgb(var(--glass-body-rgb) / 0.58) 100%
+    );
+  }
+}

@@ -120,6 +120,21 @@ export function SkyView({
     [compassLive, orientation.azimuth, orientation.altitude, orientation.roll, manualAim, fov],
   );
 
+  /*
+   * The compass aim, read at frame time rather than at render time.
+   *
+   * `camera` above still exists and is still correct, but it only changes when
+   * something re-renders this component, and while the compass is driving that
+   * happens on the sensor's schedule rather than the display's. Handing the
+   * canvas a function instead lets it ask where to point at the moment it is
+   * about to draw, which is the only moment the answer matters.
+   */
+  const sampleOrientation = orientation.sample;
+  const sampleCamera = useCallback(
+    (nowMs: number): Camera => ({ ...sampleOrientation(nowMs), fov }),
+    [sampleOrientation, fov],
+  );
+
   // Dragging takes over from the compass, but remembers where it was aimed so
   // the view does not jump when control changes hands.
   const cameraRef = useRef(camera);
@@ -275,6 +290,7 @@ export function SkyView({
           site={site}
           now={now}
           camera={camera}
+          sampleCamera={compassLive ? sampleCamera : undefined}
           conditions={conditions}
           selectedId={selectedId}
           showConstellations={showConstellations}

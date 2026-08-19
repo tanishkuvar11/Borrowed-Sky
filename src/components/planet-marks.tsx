@@ -20,8 +20,6 @@
  * from a garden is likewise a moving point, not a spacecraft you can make out.
  */
 
-import type { CSSProperties } from 'react';
-
 /** Bodies there is a photograph for. Anything else falls back to a point. */
 const PHOTOGRAPHED = new Set([
   'Mercury',
@@ -128,16 +126,16 @@ export function PlanetMark({
   if (!PHOTOGRAPHED.has(name)) return <PointMark size={size} />;
 
   /*
-   * Sized in the style rather than the attributes so the element occupies its
-   * box before the photograph has loaded. Otherwise every row in the object
-   * column jumps sideways as the images arrive.
+   * Sized by the attributes rather than inline style, so the element occupies
+   * its box before the photograph has loaded — otherwise every row in the
+   * object column jumps sideways as the images arrive — and so a stylesheet
+   * can still overrule it. The phone layout does exactly that: the same
+   * portrait is drawn smaller there, and an inline width would have won.
    */
-  const style: CSSProperties = { width: size, height: size };
 
   return (
     <img
       className="planet-mark"
-      style={style}
       src={`bodies/${name.toLowerCase()}.png`}
       width={size}
       height={size}
