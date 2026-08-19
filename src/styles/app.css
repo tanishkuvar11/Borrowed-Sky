@@ -2837,6 +2837,37 @@ button {
       rgb(var(--glass-body-rgb) / 0.58) 100%
     );
   }
+
+  /*
+   * Shut until asked.
+   *
+   * The sky is the product, and the first thing a phone showed was six panels
+   * lying on top of it. So on a small screen the column is just its strip --
+   * OBJECTS, VIEW, and the field of view -- and the plate and the list arrive
+   * when you tap one. Nothing is gone: the strip is the way in and the way
+   * out, the tab you are already on closes it again, and the desktop layout
+   * never sees any of this because the rule lives in here.
+   *
+   * The plate goes with the list rather than staying put. It is the second
+   * largest thing in the corner and it says where and when you are, which is
+   * the same kind of standing reference the list is -- if the list has to earn
+   * its place over the sky, so does it.
+   */
+  .sky-view__aside:not(.is-open) .object-list,
+  .sky-view__aside:not(.is-open) .object-list__empty,
+  .sky-view__aside:not(.is-open) .view-options,
+  .sky-view__aside:not(.is-open) .readout-panel {
+    display: none;
+  }
+
+  /*
+   * A closed column is a strip, and a strip should not be as wide as a panel.
+   * Held to its own content so it reads as a control rather than an empty
+   * shelf, and the sky behind it is not being covered for nothing.
+   */
+  .sky-view__aside:not(.is-open) {
+    width: auto;
+  }
 }
 
 /* --- the sky screen turned sideways --------------------------------------- */

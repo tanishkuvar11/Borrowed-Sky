@@ -91,6 +91,23 @@ export function SkyView({
   const [showGrid, setShowGrid] = useState(false);
   const [railTab, setRailTab] = useState<RailTab>('objects');
 
+  /*
+   * The column starts shut.
+   *
+   * Only the phone layout honours this; the stylesheet ignores it on anything
+   * with room, so the desktop column is permanently open and this costs it
+   * nothing. On a phone the first thing you should meet is the sky, not a list
+   * of panels sitting on top of it, and the list is one tap away rather than
+   * gone. Tapping the tab you are already on shuts it again, so the way out is
+   * the way in.
+   */
+  const [columnOpen, setColumnOpen] = useState(false);
+
+  const openColumn = useCallback((next: RailTab) => {
+    setColumnOpen((wasOpen) => !(wasOpen && next === railTab));
+    setRailTab(next);
+  }, [railTab]);
+
   // The chart's labels cannot see the panels floating over it, so it is told.
   const asideRef = useRef<HTMLDivElement>(null);
   const deckRef = useRef<HTMLDivElement>(null);
@@ -328,12 +345,12 @@ export function SkyView({
         own; three separately positioned panels down one side is what made this
         corner read as assembled.
       */}
-      <div className="sky-view__aside" ref={asideRef}>
+      <div className={columnOpen ? 'sky-view__aside is-open' : 'sky-view__aside'} ref={asideRef}>
         <ReadoutPanel site={site} now={now} onChangeSite={onChangeSite} />
         <ObjectRail
           bodies={bodies}
           tab={railTab}
-          onTab={setRailTab}
+          onOpen={openColumn}
           fov={fov}
           selectedId={selectedId}
           onSelect={selectFromList}

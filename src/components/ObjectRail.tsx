@@ -71,7 +71,7 @@ function reading(body: SkyBody): string {
 export function ObjectRail({
   bodies,
   tab,
-  onTab,
+  onOpen,
   fov,
   selectedId,
   onSelect,
@@ -82,7 +82,6 @@ export function ObjectRail({
 }: {
   bodies: SkyBody[];
   tab: RailTab;
-  onTab: (tab: RailTab) => void;
   fov: number;
   selectedId: string | null;
   onSelect: (id: string) => void;
@@ -90,6 +89,11 @@ export function ObjectRail({
   onShowConstellations: (on: boolean) => void;
   showGrid: boolean;
   onShowGrid: (on: boolean) => void;
+  /**
+   * Opens the column onto a tab, or shuts it if that tab is already showing.
+   * Only the small-screen layout is ever shut; see SkyView.
+   */
+  onOpen: (tab: RailTab) => void;
 }) {
   const rows = visible(bodies);
 
@@ -100,7 +104,7 @@ export function ObjectRail({
           className={tab === 'objects' ? 'segment__tab is-on' : 'segment__tab'}
           role="tab"
           aria-selected={tab === 'objects'}
-          onClick={() => onTab('objects')}
+          onClick={() => onOpen('objects')}
         >
           Objects
         </button>
@@ -108,7 +112,7 @@ export function ObjectRail({
           className={tab === 'view' ? 'segment__tab is-on' : 'segment__tab'}
           role="tab"
           aria-selected={tab === 'view'}
-          onClick={() => onTab('view')}
+          onClick={() => onOpen('view')}
         >
           View
         </button>
