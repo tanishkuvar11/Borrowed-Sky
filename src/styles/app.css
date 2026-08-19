@@ -2711,8 +2711,8 @@ button {
   .guide-panel__text {
     font-size: 0.9375rem;
     line-height: 1.42;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
   }
 
   /* The plate: the same four readings, in less air. */
@@ -2732,19 +2732,46 @@ button {
     display: none;
   }
 
-  /* The object list: shorter rows and smaller portraits, same rows. */
+  /*
+   * The object list: one line per object, and a column that scrolls rather
+   * than grows.
+   *
+   * Six is the most this list will show, and six stacked two-line cards is
+   * about a third of a phone — which is what was still burying the sky after
+   * the first pass, measured against a test sky that happened to have only
+   * three objects up in it. The name and the reading go on one line together,
+   * and the column is held to roughly three rows with the rest behind a
+   * scroll. Every object is still listed and still reachable; the column just
+   * stops being allowed to take the whole side of the screen to say so.
+   */
   .object-card {
-    padding: 0.38rem 0.5rem;
-    gap: 0.5rem;
+    padding: 0.34rem 0.45rem;
+    gap: 0.45rem;
     border-radius: 9px;
   }
   .object-card__mark .planet-mark {
-    width: 26px;
-    height: 26px;
+    width: 22px;
+    height: 22px;
+  }
+  .object-card__text {
+    display: flex;
+    align-items: baseline;
+    gap: 0.45rem;
+    width: 100%;
+  }
+  .object-card__reading {
+    flex: none;
+    margin-left: auto;
   }
   .object-card__chevron {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
+  }
+  .object-list {
+    max-height: 122px;
+    /* The fade is the only thing saying there is more below. */
+    -webkit-mask-image: linear-gradient(180deg, #000 78%, transparent 100%);
+    mask-image: linear-gradient(180deg, #000 78%, transparent 100%);
   }
 
   /*

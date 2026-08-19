@@ -128,6 +128,57 @@ function screenUpInDeviceFrame(): [number, number, number] {
 }
 
 /**
+ * How hard to smooth, given how fast the phone is turning.
+ *
+ * A single fixed amount of smoothing cannot win here, and the first attempt at
+ * this proved it. Enough filtering to kill the jitter when the phone is held
+ * still makes the sky lag behind when you sweep it; enough to keep up with a
+ * sweep lets every wobble through when you stop. The compass signal is worse
+ * than noisy, too: iOS reports its heading in whole degrees, and at a seventy
+ * degree field of view one degree is about six pixels, so even a perfectly
+ * steady hand produces a target that arrives in visible steps.
+ *
+ * So the cutoff moves with the speed of the motion — the one-euro filter
+ * (Casiez, Roussel and Vogel, 2012), which exists for precisely this trade.
+ * Held still, the cutoff drops to MIN_CUTOFF and the jitter is smoothed away.
+ * Turning, it rises with BETA times the speed and the filter gets out of the
+ * way. The lag you would notice and the jitter you would notice never happen
+ * at the same time, so neither has to be paid for.
+ */
+const MIN_CUTOFF = 0.8; // Hz, when the phone is still
+const BETA = 4.0; // how fast the cutoff opens up with motion
+const D_CUTOFF = 1.0; // Hz, smoothing applied to the speed estimate itself
+
+function lowpassAlpha(cutoff: number, dt: number): number {
+  const tau = 1 / (2 * Math.PI * cutoff);
+  return 1 / (1 + tau / dt);
+}
+
+/**
+ * One filtering step for a direction.
+ *
+ * The cutoff comes from the speed of the whole vector rather than from each
+ * component separately, so all three are smoothed by the same amount and the
+ * direction cannot be bent by the filter — only delayed.
+ */
+function filterVector(
+  raw: number[],
+  state: { value: number[]; speed: number[]; previous: number[] } | null,
+  dt: number,
+): { value: number[]; speed: number[]; previous: number[] } {
+  if (!state) return { value: raw.slice(), speed: [0, 0, 0], previous: raw.slice() };
+
+  const aD = lowpassAlpha(D_CUTOFF, dt);
+  const speed = state.speed.map((prev, i) => prev + aD * ((raw[i] - state.previous[i]) / dt - prev));
+  const rate = Math.hypot(speed[0], speed[1], speed[2]);
+
+  const a = lowpassAlpha(MIN_CUTOFF + BETA * rate, dt);
+  const value = state.value.map((prev, i) => prev + a * (raw[i] - prev));
+
+  return { value, speed, previous: raw.slice() };
+}
+
+/**
  * Turns a look and up direction into the aim the renderer wants.
  *
  * Module scope because two callers need it and they must not disagree: the
@@ -225,7 +276,8 @@ export function useOrientation(): OrientationReading & {
   const targetRef = useRef<{ look: number[]; up: number[] } | null>(null);
   // Filtering direction vectors rather than angles avoids the discontinuity
   // where a heading wraps past north.
-  const smoothRef = useRef<{ look: number[]; up: number[] } | null>(null);
+  type Filtered = { value: number[]; speed: number[]; previous: number[] };
+  const smoothRef = useRef<{ look: Filtered; up: Filtered } | null>(null);
   const aimRef = useRef({ azimuth: 0, altitude: 45, roll: 0 });
   const sampledAtRef = useRef(0);
   const sourceRef = useRef({ absolute: false, accuracyDegrees: null as number | null });
@@ -295,19 +347,19 @@ export function useOrientation(): OrientationReading & {
     const target = targetRef.current;
     if (!target) return aimRef.current;
 
-    const TAU = 0.085;
     const last = sampledAtRef.current;
-    // Clamped: a backgrounded tab resumes with a huge gap, and without this the
-    // first frame back would snap rather than settle.
-    const dt = last ? Math.min(0.25, Math.max(0, (nowMs - last) / 1000)) : 1;
+    // Clamped: a backgrounded tab resumes with a huge gap, and an unclamped dt
+    // would make the filter either snap or stall on the first frame back.
+    const dt = last ? Math.min(0.25, Math.max(0.001, (nowMs - last) / 1000)) : 0;
     sampledAtRef.current = nowMs;
 
-    const k = last ? 1 - Math.exp(-dt / TAU) : 1;
     const prev = smoothRef.current;
-    const blend = (a: number[], b: number[]) => a.map((v, i) => v + (b[i] - v) * k);
-    const look = prev ? blend(prev.look, target.look) : target.look;
-    const up = prev ? blend(prev.up, target.up) : target.up;
-    smoothRef.current = { look, up };
+    const lookState = filterVector(target.look, dt ? prev?.look ?? null : null, dt || 1);
+    const upState = filterVector(target.up, dt ? prev?.up ?? null : null, dt || 1);
+    smoothRef.current = { look: lookState, up: upState };
+
+    const look = lookState.value;
+    const up = upState.value;
 
     const aim = aimFrom(look, up);
 
