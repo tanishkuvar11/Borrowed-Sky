@@ -2440,9 +2440,21 @@ button {
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
+/*
+ * The body face, like the row it sits in.
+ *
+ * This was the last of the mono on the page, which made it the odd one out
+ * rather than the emphatic one: a countdown beside a name set in a serif, in a
+ * list under a strip whose ticks are also a serif now. It is a caption on the
+ * row, not a reading anybody watches tick, and "in 4.3 h" is rounded to a tenth
+ * of an hour precisely because nothing here needs to be watched that closely.
+ */
 .agenda__when {
   margin-left: auto;
-  font-size: var(--t-micro);
+  font-family: var(--font-body);
+  font-size: var(--t-small);
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: 'lnum' 1, 'tnum' 1;
   color: var(--brass);
   white-space: nowrap;
 }

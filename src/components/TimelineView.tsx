@@ -291,7 +291,7 @@ export function TimelineView({
               <button className="agenda__head" onClick={() => setExpanded(expanded === span.id ? null : span.id)}>
                 <span className={`agenda__dot agenda__dot--${span.kind}`} aria-hidden="true" />
                 <span className="agenda__name">{span.name}</span>
-                <span className="agenda__when readout">
+                <span className="agenda__when">
                   {span.start > now ? relative(span.start, now) : `until ${clock(span.end)}`}
                 </span>
               </button>
