@@ -2316,12 +2316,20 @@ function drawStarHighlights(
  * is, which way the Moon is lit -- stays exactly as computed; only how big the
  * mark is drawn is a choice, and it was already a choice when it was a dot.
  *
- * The Sun keeps its drawn disc. It is the light in the scene rather than a
- * target in it, and there is no photograph of it in the set. Satellites keep
- * their points, for the reason they always did: from a garden that is what one
- * is.
+ * The Sun is photographed here and drawn on the overture, which is not an
+ * inconsistency but the same rule applied twice. On the chart it is an object
+ * being pointed at, alongside the planets, and it should look like the thing
+ * the arrow is aimed at. On the overture there is no furniture and nothing is
+ * being aimed at anything: the Sun there is the light the scene is lit by, and
+ * a photograph of a disc pasted into a gradient reads as a sticker rather than
+ * as a source. That branch is `chrome`, a few lines down, and it is why the
+ * soft-edged disc below has not gone anywhere.
+ *
+ * Satellites keep their points, for the reason they always did: from a garden
+ * that is what one is.
  */
 const PHOTOGRAPHED_BODIES = new Set([
+  'sun',
   'mercury',
   'venus',
   'mars',

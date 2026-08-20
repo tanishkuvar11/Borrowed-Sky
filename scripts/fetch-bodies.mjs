@@ -42,6 +42,15 @@ const UA = 'BorrowedSky/1.0 (https://github.com/tanishkuvar11/Borrowed-Sky; buil
  * needs it.
  */
 const BODIES = [
+  /*
+   * The Sun, in white light rather than in one of the extreme ultraviolet
+   * channels SDO is better known for. Those are beautiful and they are false
+   * colour by necessity, because the wavelength they record is one the eye
+   * cannot see; on a page whose promise is that nothing here is invented, that
+   * would have been exactly the wrong picture. HMI's coloured intensitygram is
+   * the photosphere itself, sunspots and all.
+   */
+  { name: 'sun', file: 'SDO 20240810 000000 4096 HMIIC (HMI).jpg', cut: 'disc' },
   { name: 'mercury', file: 'Mercury in color - Prockter07-edit1.jpg', cut: 'disc' },
   { name: 'venus', file: 'Venus globe.jpg', cut: 'disc' },
   { name: 'moon', file: 'Moon nearside LRO.jpg', cut: 'disc' },
@@ -141,19 +150,59 @@ function maskScript(dataUrl, cut, size) {
       // Where the subject actually is: the extremes of everything above the
       // background. Taken from all four sides so an off-centre crop is found
       // rather than assumed.
-      let minX = W, maxX = -1, minY = H, maxY = -1;
+      // Where the subject is, in two passes.
+      //
+      // The extremes of everything bright would be enough if the frame held
+      // nothing but a planet on black, and for seven of these it does. SDO's
+      // continuum plates carry a caption burned along the bottom, "SDO/HMI
+      // Quick-Look Continuum" and the timestamp, and text is bright: taking
+      // the extremes dragged the box out to the corner of the frame, which
+      // moved the centre off the Sun and grew the radius until the mask cut a
+      // black crescent out of the opposite limb.
+      //
+      // So the centre comes from the centroid, where a caption of a few
+      // thousand pixels against a disc of a million is worth about a pixel,
+      // and then everything further out than the disc could plausibly reach is
+      // dropped and the centroid taken again. That second pass sees the disc
+      // alone. The radius is still the furthest bright pixel from the centre,
+      // The radius comes from the area of the disc rather than from the
+      // furthest bright pixel, for the same reason. These are JPEGs, and JPEG
+      // ringing puts a scatter of just-bright-enough pixels in the black a few
+      // pixels outside a hard limb; taking the furthest of them let the Sun's
+      // mask out to a fifth wider than the Sun. Counting is not fooled by a
+      // speck, because one pixel moves a radius drawn from a million of them
+      // by nothing at all.
+      let sumX = 0, sumY = 0, lit = 0;
       for (let y = 0; y < H; y++) {
         for (let x = 0; x < W; x++) {
           if (lum((y * W + x) * 4) > 0.08) {
-            if (x < minX) minX = x;
-            if (x > maxX) maxX = x;
-            if (y < minY) minY = y;
-            if (y > maxY) maxY = y;
+            sumX += x;
+            sumY += y;
+            lit++;
           }
         }
       }
-      const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
-      const r = Math.max(maxX - minX, maxY - minY) / 2;
+      if (!lit) throw new Error('nothing bright enough to cut out');
+
+      // A first radius from the area, only to draw the circle that decides what
+      // counts on the second pass. Generous, so a real limb is never excluded.
+      const reach = Math.sqrt(lit / Math.PI) * 1.2;
+      let cx = sumX / lit, cy = sumY / lit;
+
+      sumX = 0; sumY = 0; lit = 0;
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          if (lum((y * W + x) * 4) > 0.08 && Math.hypot(x - cx, y - cy) <= reach) {
+            sumX += x;
+            sumY += y;
+            lit++;
+          }
+        }
+      }
+      cx = sumX / lit;
+      cy = sumY / lit;
+
+      const r = Math.sqrt(lit / Math.PI);
       box = { cx, cy, r };
 
       for (let y = 0; y < H; y++) {

@@ -258,12 +258,13 @@ The translation is the product. And it is aimed at people who are currently on t
 - [satellite.js](https://github.com/shashwatak/satellite-js), SGP4, MIT
 - [Celestrak](https://celestrak.org/), orbital elements, free and keyless
 - [IBM Granite](https://www.ibm.com/granite) on [watsonx.ai](https://www.ibm.com/products/watsonx-ai), narration, Apache 2.0 model family
-- The planets and the Moon are photographs, not drawings. Every portrait in the
+- The Sun, the planets and the Moon are photographs, not drawings. Every portrait in the
   object column, the dossier and the guide panel is a spacecraft image, cut out
   of its frame by `scripts/fetch-bodies.mjs` and stored with its provenance in
   `public/bodies/credits.json`. All are public domain; the script refuses to
   ship anything that is not, because cropping a share-alike image would put a
   licence condition on this repository that nobody reading the code would find.
+  - Sun — [SDO 20240810 000000 4096 HMIIC (HMI).jpg](https://commons.wikimedia.org/wiki/File:SDO_20240810_000000_4096_HMIIC_(HMI).jpg), NASA/SDO and the AIA, EVE and HMI science teams. Public domain. HMI's continuum intensitygram, which is the photosphere in visible light; the extreme ultraviolet channels SDO is better known for are false colour by necessity, and on a page that promises nothing is invented those would have been the wrong picture.
   - Mercury — [Mercury in color - Prockter07-edit1.jpg](https://commons.wikimedia.org/wiki/File:Mercury_in_color_-_Prockter07-edit1.jpg), National Aeronautics and Space Administration / Johns Hopkins University Applied Physics Laboratory / Carnegie Institution of Washington. Public domain.
   - Venus — [Venus globe.jpg](https://commons.wikimedia.org/wiki/File:Venus_globe.jpg), NASA/JPL. Public domain.
   - Moon — [Moon nearside LRO.jpg](https://commons.wikimedia.org/wiki/File:Moon_nearside_LRO.jpg), NASA/GSFC/Arizona State University. Public domain.
@@ -276,6 +277,12 @@ The translation is the product. And it is aimed at people who are currently on t
   Stars and satellites are deliberately *not* photographed. A star has no disc
   you could resolve from the ground, and a satellite overhead is a moving point
   of light; both get a drawn point in a sighting ring, which is what they are.
+
+  The Sun is photographed on the sky chart and drawn on the landing page. On the
+  chart it is an object being pointed at, like the planets beside it. On the
+  landing page nothing is being pointed at anything and the Sun is the light the
+  scene is lit by, where a photograph of a disc pasted into a gradient reads as a
+  sticker rather than as a source.
 
 - The Royal Observatory on the landing page is derived from [*Flamsteed House, Royal Observatory, Greenwich, London*](https://commons.wikimedia.org/wiki/File:Flamsteed_House,_Royal_Observatory,_Greenwich,_London,_20260719_0921_4494.jpg) by Jakub Hałun, CC BY 4.0, via Wikimedia Commons. The sky is cut out of it column by column and the remainder pushed towards a silhouette, so the photograph contributes a building and never a sky
 - Typefaces: Cormorant Garamond, Unbounded and Share Tech Mono (Google Fonts)

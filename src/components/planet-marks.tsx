@@ -9,7 +9,8 @@
  * up sitting inside a page whose entire argument is that nothing here is.
  *
  * So they are spacecraft photographs now: MESSENGER, Magellan, Viking, Hubble,
- * Voyager 2, the Lunar Reconnaissance Orbiter. All public domain, fetched and
+ * Voyager 2, the Lunar Reconnaissance Orbiter, and for the Sun the Solar
+ * Dynamics Observatory's white-light continuum. All public domain, fetched and
  * cut out by scripts/fetch-bodies.mjs, with each one's source and author
  * recorded in public/bodies/credits.json beside the files.
  *
@@ -22,6 +23,7 @@
 
 /** Bodies there is a photograph for. Anything else falls back to a point. */
 const PHOTOGRAPHED = new Set([
+  'Sun',
   'Mercury',
   'Venus',
   'Mars',
