@@ -113,18 +113,25 @@
   margin-bottom: 0.15rem;
 }
 
-.overture__slate .readout {
-  font-size: var(--t-micro);
-  color: var(--starlight-soft);
-  letter-spacing: 0.04em;
-}
-
-/* Each reading is a mark and a number, aligned on a single column of icons. */
+/*
+ * Each reading is a mark and a number, aligned on a single column of icons.
+ *
+ * In the body face, like every other coordinate in the app. The slate is a
+ * caption saying whose sky is being drawn behind it, which is a thing to be
+ * read once on the way past rather than a gauge; the mono here made the way in
+ * look like a different product from the one it leads to.
+ */
 .overture__reading {
   display: grid;
   grid-template-columns: 14px 1fr;
   align-items: center;
   gap: 0.6rem;
+  font-family: var(--font-body);
+  font-size: var(--t-small);
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: 'lnum' 1, 'tnum' 1;
+  letter-spacing: 0.01em;
+  color: var(--starlight-soft);
 }
 
 .overture__mark-icon {

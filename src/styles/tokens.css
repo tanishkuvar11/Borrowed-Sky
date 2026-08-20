@@ -143,6 +143,13 @@
   --font-body: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
   --font-display: 'Unbounded', 'Segoe UI', system-ui, sans-serif;
   --font-data: 'Share Tech Mono', ui-monospace, 'Cascadia Mono', monospace;
+  /*
+   * The plain one, and the only face here that is nobody's idea of anything.
+   * Loaded from the system, so it costs no download and looks native wherever
+   * it lands. It exists for the small print: text that has to be readable and
+   * has no business having a voice of its own.
+   */
+  --font-plain: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
   /* A modest scale: this is an instrument panel, not a poster. */
   --t-display: clamp(1.75rem, 6vw, 2.6rem);
@@ -289,14 +296,23 @@
  */
 .provenance {
   /*
-   * Set in the label face rather than the mono, so a credit reads as part of
-   * the instrument's engraving alongside the field names. Unbounded is wide,
-   * so the tracking that suits an uppercase label is taken back out here,
-   * where these are running sentences.
+   * The plain face, at the smallest size in the app.
+   *
+   * This was set in the label face on the theory that a credit reads as part of
+   * the instrument's engraving. That works for two or three words under a
+   * panel and falls apart at the bottom of the landing page, where it is five
+   * full sentences: Unbounded is a geometric display face drawn for stamping
+   * short strings, and a paragraph of it sits on the page looking like a
+   * headline that has been shrunk rather than like small print.
+   *
+   * Small print is what this is. It should be legible, it should be quiet, and
+   * it should not have a voice of its own, because the sentences are doing that
+   * work and the type getting involved only makes them harder to believe.
    */
-  font-family: var(--font-display);
+  font-family: var(--font-plain);
   font-size: var(--t-micro);
-  font-weight: 300;
+  font-weight: 400;
+  line-height: 1.55;
   color: var(--starlight-mute);
   letter-spacing: 0;
 }

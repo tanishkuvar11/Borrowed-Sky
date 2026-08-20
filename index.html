@@ -24,6 +24,46 @@
       href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Unbounded:wght@300..800&family=Share+Tech+Mono&display=swap"
       rel="stylesheet"
     />
+    <!--
+      The ground colour, painted before anything else can be.
+
+      This is inline and not in the stylesheet on purpose. The stylesheet is a
+      module the bundle imports, so on a cold load it arrives with the
+      JavaScript, and until then the page is whatever white the browser starts
+      with. One frame of white in front of a page about the night sky is the
+      single worst frame the app can show, and it is the one it used to open on.
+
+      The curtain over #root is the other half of boot(): the app is not shown
+      while it is still assembling itself out of missing pieces, and `is-ready`
+      is set on the root element once there is a finished page underneath. The
+      fade is short and only exists so the reveal does not read as a jump cut.
+    -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #0a0a18;
+      }
+
+      #root {
+        opacity: 0;
+      }
+
+      html.is-ready #root {
+        opacity: 1;
+        transition: opacity 260ms ease-out;
+      }
+
+      /*
+        If the script never runs there is nothing to wait for, and a permanently
+        invisible page is worse than an unstyled one.
+      */
+      @media (scripting: none) {
+        #root {
+          opacity: 1;
+        }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

@@ -144,7 +144,34 @@ function bucketFor(bv: number): number {
 // loading
 // ---------------------------------------------------------------------------
 
-export async function loadStarCatalog(signal?: AbortSignal): Promise<StarCatalog> {
+/*
+ * Both catalogues are held once, as promises, for the life of the page.
+ *
+ * Three things want them: the landing page, the sky view behind it, and the
+ * boot gate that gets to decide when either of those is allowed to appear.
+ * Without this they each fetch and parse independently, and while the browser
+ * serves the second and third from its own cache, the parse is not free:
+ * thirteen thousand stars get walked into typed arrays every time. Caching the
+ * promise rather than the result also means two callers arriving together share
+ * one request instead of racing.
+ *
+ * A rejection clears the slot, so a failure is retryable rather than
+ * remembered forever.
+ */
+let starsPromise: Promise<StarCatalog> | null = null;
+let figuresPromise: Promise<ConstellationFigure[]> | null = null;
+
+export function loadStarCatalog(signal?: AbortSignal): Promise<StarCatalog> {
+  if (!starsPromise) {
+    starsPromise = readStarCatalog(signal).catch((err) => {
+      starsPromise = null;
+      throw err;
+    });
+  }
+  return starsPromise;
+}
+
+async function readStarCatalog(signal?: AbortSignal): Promise<StarCatalog> {
   const res = await fetch('data/stars.json', { signal });
   if (!res.ok) throw new Error(`star catalogue unavailable (${res.status})`);
   const file = (await res.json()) as StarsFile;
@@ -228,7 +255,17 @@ export function starToBody(
   };
 }
 
-export async function loadConstellations(signal?: AbortSignal): Promise<ConstellationFigure[]> {
+export function loadConstellations(signal?: AbortSignal): Promise<ConstellationFigure[]> {
+  if (!figuresPromise) {
+    figuresPromise = readConstellations(signal).catch((err) => {
+      figuresPromise = null;
+      throw err;
+    });
+  }
+  return figuresPromise;
+}
+
+async function readConstellations(signal?: AbortSignal): Promise<ConstellationFigure[]> {
   const res = await fetch('data/constellations.json', { signal });
   if (!res.ok) throw new Error(`constellation figures unavailable (${res.status})`);
   const file = (await res.json()) as ConstellationsFile;

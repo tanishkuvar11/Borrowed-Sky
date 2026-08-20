@@ -326,11 +326,11 @@ export function Overture({
         */}
         <div className="overture__slate">
           <span className="engrave overture__slate-title">Royal Observatory, Greenwich</span>
-          <span className="readout overture__reading">
+          <span className="overture__reading">
             <IconPin />
             51.4779°N 0.0015°W
           </span>
-          <span className="readout overture__reading overture__clock">
+          <span className="overture__reading overture__clock">
             <IconClock />
             {clock} UTC
           </span>
@@ -341,7 +341,7 @@ export function Overture({
             with the scroll, so the number the sky is being drawn from is
             visible the whole way rather than being something to take on trust.
           */}
-          <span className="readout overture__reading overture__depth">
+          <span className="overture__reading overture__depth">
             <IconSunHorizon />
             Sun {Math.abs(conditions.sunAltitude).toFixed(1)}° below horizon
           </span>
