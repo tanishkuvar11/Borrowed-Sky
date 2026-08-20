@@ -2157,8 +2157,18 @@ button {
   display: grid;
   gap: 0.15rem;
 }
-.conditions__item .readout {
-  font-size: var(--t-small);
+/*
+ * The phase name and the darkness window are a caption on the lede above them,
+ * not instrument readings, so they are set in the body face rather than the
+ * mono. The mono is reserved for numbers that are being read off something:
+ * an altitude, a magnitude, a tick on the strip. "First Quarter" is prose, and
+ * in a monospace it read as a machine field rather than a sentence.
+ */
+.conditions__value {
+  font-family: var(--font-body);
+  font-size: var(--t-body);
+  color: var(--starlight);
+  font-variant-numeric: tabular-nums;
 }
 
 /* --- timeline strip ------------------------------------------------------ */

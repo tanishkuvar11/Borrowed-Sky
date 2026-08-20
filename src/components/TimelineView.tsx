@@ -104,6 +104,44 @@ export function TimelineView({
     else lanes.push([span]);
   }
 
+  /*
+   * Stack the moment labels that would otherwise be printed through each other.
+   *
+   * The dashed line stays on the moment's real time; only the name moves down.
+   * Events landing minutes apart is the ordinary case rather than the edge one:
+   * the sky starts to brighten about twenty minutes before the Sun clears the
+   * horizon, and at 88 pixels to the hour that is thirty pixels between two
+   * labels that need two hundred, so "Sky starts to brighten" and "Sunrise"
+   * were drawn on top of one another every single night.
+   *
+   * Label width is estimated from the character count rather than measured.
+   * Measuring would mean laying the strip out, reading the boxes back and
+   * laying it out again, which is a lot of machinery for a nudge of a few
+   * pixels. The estimate is deliberately generous, because the two failures
+   * are not equal: a label given more room than it needs drops to the next row
+   * slightly earlier than it had to, which nobody can see, while one given too
+   * little goes straight back to overlapping.
+   */
+  const MOMENT_CHAR_WIDTH = 8;
+  const MOMENT_ROW_HEIGHT = 13;
+  const rowEnds: number[] = [];
+  const momentPlacements = timeline.moments.map((moment) => {
+    const left = xFor(moment.time);
+    const end = left + 5 + moment.label.length * MOMENT_CHAR_WIDTH;
+    let row = rowEnds.findIndex((taken) => taken <= left);
+    if (row === -1) row = rowEnds.push(0) - 1;
+    rowEnds[row] = end + 6;
+    return { moment, left, row };
+  });
+
+  /*
+   * Give the rows somewhere to go. Two rows fit in the gap the bars already
+   * left above them, so an ordinary night is laid out exactly as it was and
+   * only a crowded one grows.
+   */
+  const lanesTop = Math.max(62, 44 + (rowEnds.length - 1) * MOMENT_ROW_HEIGHT);
+  const stripHeight = 210 + (lanesTop - 62);
+
   const gradient = timeline.sunTrack.length
     ? `linear-gradient(90deg, ${timeline.sunTrack
         .map(
@@ -144,13 +182,13 @@ export function TimelineView({
         <div className="conditions">
           <div className="conditions__item">
             <span className="engrave">Moon</span>
-            <span className="readout">
+            <span className="conditions__value">
               {timeline.moonPhase.name} · {Math.round(timeline.moonPhase.illuminatedFraction * 100)}%
             </span>
           </div>
           <div className="conditions__item">
             <span className="engrave">Darkness</span>
-            <span className="readout">
+            <span className="conditions__value">
               {timeline.darkness
                 ? `${clock(timeline.darkness.start)} – ${clock(timeline.darkness.end)}`
                 : 'None tonight'}
@@ -160,7 +198,7 @@ export function TimelineView({
       </div>
 
       <div className="strip" ref={scrollRef}>
-        <div className="strip__inner" style={{ width }}>
+        <div className="strip__inner" style={{ width, height: stripHeight }}>
           <div className="strip__band" style={{ background: gradient }} />
 
           {Array.from({ length: Math.ceil(totalHours) + 1 }, (_, i) => {
@@ -177,13 +215,15 @@ export function TimelineView({
             );
           })}
 
-          {timeline.moments.map((moment) => (
-            <div key={moment.id} className="strip__moment" style={{ left: xFor(moment.time) }}>
-              <span className="strip__moment-label">{moment.label}</span>
+          {momentPlacements.map(({ moment, left, row }) => (
+            <div key={moment.id} className="strip__moment" style={{ left }}>
+              <span className="strip__moment-label" style={{ top: row * MOMENT_ROW_HEIGHT }}>
+                {moment.label}
+              </span>
             </div>
           ))}
 
-          <div className="strip__lanes">
+          <div className="strip__lanes" style={{ top: lanesTop }}>
             {lanes.map((lane, laneIndex) => (
               <div className="strip__lane" key={laneIndex}>
                 {lane.map((span) => {

@@ -252,6 +252,53 @@ async function main() {
     for (const b of bubbles) console.log(`  · ${b}`);
     await shot('08-guide-answer');
 
+    console.log("\nread tonight's strip:");
+    await evalPage(
+      `[...document.querySelectorAll('.rail__item')].find(b => b.textContent.trim().startsWith('Tonight'))?.click()`,
+    );
+    await sleep(900);
+    /*
+     * Every moment label, with the row it was placed on and the box it ended up
+     * occupying. Measured off the page rather than recomputed here, so this is
+     * checking what was laid out instead of running a second copy of the same
+     * arithmetic and agreeing with itself.
+     */
+    const strip = await evalPage(`
+      JSON.stringify([...document.querySelectorAll('.strip__moment')].map((m) => {
+        const label = m.querySelector('.strip__moment-label');
+        const box = label.getBoundingClientRect();
+        return {
+          name: label.textContent.trim(),
+          row: parseInt(label.style.top, 10) || 0,
+          left: box.left,
+          right: box.right,
+        };
+      }))
+    `);
+    const marks = JSON.parse(strip);
+    check("the strip named tonight's moments", marks.length > 0, `${marks.length} moments`);
+
+    // Two labels are allowed to sit at the same time, and two are allowed to
+    // share a row. What they are not allowed to do is both, which is what the
+    // strip did every night: sunrise follows the sky brightening by about
+    // twenty minutes, and twenty minutes is thirty pixels here.
+    const collisions = [];
+    for (let i = 0; i < marks.length; i++) {
+      for (let j = i + 1; j < marks.length; j++) {
+        const a = marks[i];
+        const b = marks[j];
+        if (a.row !== b.row) continue;
+        if (a.left < b.right && b.left < a.right) collisions.push(`${a.name} / ${b.name}`);
+      }
+    }
+    check(
+      'no two moment labels are printed over each other',
+      collisions.length === 0,
+      collisions.join(', '),
+    );
+    for (const m of marks) console.log(`  row ${m.row / 13}  ${m.name}`);
+    await shot('10-tonight-strip');
+
     const errors = await evalPage(`JSON.stringify(window.__pageErrors || [])`);
     console.log(`\npage errors: ${errors}`);
 
