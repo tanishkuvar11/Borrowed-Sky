@@ -210,7 +210,7 @@ export function TimelineView({
                 className={major ? 'strip__tick strip__tick--major' : 'strip__tick'}
                 style={{ left: i * PIXELS_PER_HOUR }}
               >
-                {major && <span className="strip__tick-label readout">{clock(at)}</span>}
+                {major && <span className="strip__tick-label">{clock(at)}</span>}
               </div>
             );
           })}
@@ -259,7 +259,7 @@ export function TimelineView({
           </div>
 
           <div className="strip__now" style={{ left: xFor(now) }}>
-            <span className="strip__now-label readout">now</span>
+            <span className="strip__now-label">now</span>
           </div>
         </div>
       </div>

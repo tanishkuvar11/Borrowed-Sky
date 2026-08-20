@@ -161,18 +161,18 @@ export function GuideView({
               <dl className="context-note">
                 <div>
                   <dt className="engrave">In view</dt>
-                  <dd className="readout">
+                  <dd>
                     {bodies.filter((b) => b.altitude > 0).length} of {bodies.length} objects above
                     your horizon
                   </dd>
                 </div>
                 <div>
                   <dt className="engrave">Conditions</dt>
-                  <dd className="readout">{conditions.summary}</dd>
+                  <dd>{conditions.summary}</dd>
                 </div>
                 <div>
                   <dt className="engrave">Moon</dt>
-                  <dd className="readout">
+                  <dd>
                     {conditions.moonPhaseName} ·{' '}
                     {Math.round(conditions.moonIlluminatedFraction * 100)}% lit ·{' '}
                     {conditions.moonAltitude > 0

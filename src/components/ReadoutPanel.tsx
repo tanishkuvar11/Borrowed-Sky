@@ -51,16 +51,16 @@ export function ReadoutPanel({
   return (
     <button className="readout-panel" onClick={onChangeSite} title="Change location">
       <div className="readout-panel__rows">
-        <span className="readout-panel__line readout">{stamp}</span>
-        <span className="readout-panel__line readout">
+        <span className="readout-panel__line">{stamp}</span>
+        <span className="readout-panel__line">
           <span className="readout-panel__key">LAT</span>
           {sexagesimal(site.latitude, 'N', 'S')}
         </span>
-        <span className="readout-panel__line readout">
+        <span className="readout-panel__line">
           <span className="readout-panel__key">LON</span>
           {sexagesimal(site.longitude, 'E', 'W')}
         </span>
-        <span className="readout-panel__line readout">
+        <span className="readout-panel__line">
           <span className="readout-panel__key">ELEV</span>
           {Math.round(site.elevation)} m
           {site.source === 'manual' && <em className="readout-panel__flag">set by hand</em>}

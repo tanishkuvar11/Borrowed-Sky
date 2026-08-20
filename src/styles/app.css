@@ -1138,10 +1138,26 @@ button {
   min-width: 0;
 }
 
+/*
+ * Set in the body face, not the mono.
+ *
+ * The plate is read once, to confirm the app is standing where you are, and
+ * then ignored; it is not a gauge being watched. The serif is a little larger
+ * here than the mono was, because Cormorant has a small x-height and matching
+ * the old pixel size would have made the same words quieter rather than the
+ * same weight.
+ *
+ * Tabular figures stay. The top line is a clock ticking once a second, and
+ * proportional digits make it twitch sideways on every tick.
+ */
 .readout-panel__line {
   display: flex;
   gap: 0.45rem;
-  font-size: 0.6875rem;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: 'lnum' 1, 'tnum' 1;
+  font-feature-settings: 'tnum' 1;
   line-height: 1.45;
   color: var(--brass-bright);
   white-space: nowrap;
@@ -1421,10 +1437,19 @@ button {
   text-overflow: ellipsis;
 }
 
+/*
+ * Not uppercased any more, along with the change of face. Small caps at this
+ * size worked because a monospace is even and unmodulated; a serif tracked out
+ * into capitals at ten pixels is a row of thin strokes with gaps in it. The
+ * name above it is already the loud half of the pair, so this reads as the
+ * quiet line under it without being shouted.
+ */
 .object-card__reading {
-  font-size: 0.625rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  letter-spacing: 0.01em;
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: 'lnum' 1, 'tnum' 1;
   color: var(--brass);
 }
 
@@ -2164,11 +2189,22 @@ button {
  * an altitude, a magnitude, a tick on the strip. "First Quarter" is prose, and
  * in a monospace it read as a machine field rather than a sentence.
  */
+/*
+ * Figures for the body face.
+ *
+ * Cormorant sets old-style numerals by default, which is right in a sentence
+ * and wrong the moment a number is being read as a number: the zero is drawn
+ * at x-height and is very nearly a lowercase o, so a latitude of 30°00'00"
+ * came out as 30°oo'oo". Lining figures put them all back on the cap line.
+ * Tabular with them, so a clock ticking once a second does not shuffle
+ * sideways on every tick.
+ */
 .conditions__value {
   font-family: var(--font-body);
   font-size: var(--t-body);
   color: var(--starlight);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: 'lnum' 1, 'tnum' 1;
 }
 
 /* --- timeline strip ------------------------------------------------------ */
@@ -2214,7 +2250,10 @@ button {
   position: absolute;
   top: 4px;
   left: 5px;
-  font-size: var(--t-micro);
+  font-family: var(--font-body);
+  font-size: var(--t-small);
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: 'lnum' 1, 'tnum' 1;
   color: var(--starlight-soft);
   white-space: nowrap;
 }
@@ -2473,6 +2512,8 @@ button {
 .context-note dd {
   margin: 0;
   font-size: var(--t-small);
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: 'lnum' 1, 'tnum' 1;
   color: var(--starlight-soft);
 }
 .chat__suggestions {

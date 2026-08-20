@@ -180,7 +180,7 @@ export function ObjectRail({
                   </span>
                   <span className="object-card__text">
                     <span className="object-card__name">{body.name}</span>
-                    <span className="object-card__reading readout">{reading(body)}</span>
+                    <span className="object-card__reading">{reading(body)}</span>
                   </span>
                   <span className="object-card__chevron" aria-hidden>
                     <svg width="14" height="14" viewBox="0 0 14 14">
