@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { Overture } from './components/Overture';
 import { SkyView } from './components/SkyView';
@@ -49,9 +49,29 @@ const COMPASS_HINT: Record<string, string> = {
 };
 
 export default function App() {
-  const { site, status, error, permission, requestGps, setManual, clear } = useObserverSite();
+  const { site: coordinates, status, error, permission, requestGps, setManual, clear } =
+    useObserverSite();
+  const place = usePlace(coordinates);
+
+  /*
+   * The site, with the zone its clocks belong in.
+   *
+   * Kept out of the stored site and folded in here instead, because the
+   * coordinates are something the observer told us and the zone is something
+   * looked up about them; only the first is worth writing to disk, and only the
+   * first should survive the lookup being wrong or unavailable. Everything
+   * downstream takes a site and now gets the zone with it, so nothing else has
+   * to be told twice.
+   */
+  const site = useMemo(
+    () =>
+      coordinates && place?.timezone
+        ? { ...coordinates, timezone: place.timezone, label: place.name ?? undefined }
+        : coordinates,
+    [coordinates, place],
+  );
+
   const sky = useSkyData(site);
-  const place = usePlace(site);
   const journal = useJournal();
 
   /*
@@ -160,9 +180,20 @@ export default function App() {
           </span>
         </button>
 
-        <div className="wordmark">
+        {/*
+          The name is the way back, which is where every site on the web has
+          put it for thirty years.
+
+          There was no way back at all before this: the landing page was the
+          door in, and once through it the only route to it again was clearing
+          the stored location, which is a destructive act dressed up as
+          navigation. The rail is for the four views of your own sky and the
+          emblem in the middle of it means "put me back where I am standing",
+          so neither of those was the place for this.
+        */}
+        <button className="wordmark" onClick={() => setEntered(false)} aria-label="Back to the start">
           <h1 className="wordmark__name">Borrowed Sky</h1>
-        </div>
+        </button>
 
         <button
           className={`rose rose--${compassState}`}

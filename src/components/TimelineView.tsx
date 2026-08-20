@@ -27,8 +27,22 @@ export interface TimelineViewProps {
   onRetrySatellites: () => void;
 }
 
-function clock(date: Date): string {
-  return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+/**
+ * A wall-clock time where the observer is standing, not where their device is.
+ *
+ * Every time on this page is a statement about the sky over one place: the hour
+ * the Sun clears that horizon, the minute a station crosses it. Printing those
+ * off the watch of somebody four thousand miles away gives a number that is not
+ * wrong by a rounding error but wrong by hours, and reads as authoritative
+ * either way. Falls back to the device's zone while the lookup is still out, or
+ * for good if it never answers.
+ */
+function clock(date: Date, timeZone: string | undefined): string {
+  return date.toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone,
+  });
 }
 
 function relative(target: Date, now: Date): string {
@@ -91,6 +105,7 @@ export function TimelineView({
     );
   }
 
+  const zone = site.timezone;
   const totalHours = (timeline.to.getTime() - timeline.from.getTime()) / 3_600_000;
   const width = totalHours * PIXELS_PER_HOUR;
   const xFor = (date: Date) =>
@@ -190,7 +205,7 @@ export function TimelineView({
             <span className="engrave">Darkness</span>
             <span className="conditions__value">
               {timeline.darkness
-                ? `${clock(timeline.darkness.start)} – ${clock(timeline.darkness.end)}`
+                ? `${clock(timeline.darkness.start, zone)} – ${clock(timeline.darkness.end, zone)}`
                 : 'None tonight'}
             </span>
           </div>
@@ -210,7 +225,7 @@ export function TimelineView({
                 className={major ? 'strip__tick strip__tick--major' : 'strip__tick'}
                 style={{ left: i * PIXELS_PER_HOUR }}
               >
-                {major && <span className="strip__tick-label">{clock(at)}</span>}
+                {major && <span className="strip__tick-label">{clock(at, zone)}</span>}
               </div>
             );
           })}
@@ -248,7 +263,7 @@ export function TimelineView({
                       style={{ left, width: barWidth }}
                       onClick={() => setExpanded(expanded === span.id ? null : span.id)}
                       aria-expanded={expanded === span.id}
-                      title={`${span.name} · ${clock(span.start)}–${clock(span.end)}`}
+                      title={`${span.name} · ${clock(span.start, zone)}–${clock(span.end, zone)}`}
                     >
                       <span className="bar__label">{span.name}</span>
                     </button>
@@ -292,7 +307,7 @@ export function TimelineView({
                 <span className={`agenda__dot agenda__dot--${span.kind}`} aria-hidden="true" />
                 <span className="agenda__name">{span.name}</span>
                 <span className="agenda__when">
-                  {span.start > now ? relative(span.start, now) : `until ${clock(span.end)}`}
+                  {span.start > now ? relative(span.start, now) : `until ${clock(span.end, zone)}`}
                 </span>
               </button>
               {expanded === span.id && (
@@ -303,7 +318,7 @@ export function TimelineView({
                     <div className="reading">
                       <dt className="engrave">Window</dt>
                       <dd className="readout">
-                        {clock(span.start)} – {clock(span.end)}
+                        {clock(span.start, zone)} – {clock(span.end, zone)}
                       </dd>
                     </div>
                     {span.peakAltitude !== undefined && (

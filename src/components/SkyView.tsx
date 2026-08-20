@@ -362,10 +362,18 @@ export function SkyView({
         />
       </div>
 
-      <div className="sky-view__deck" ref={deckRef}>
-        <HorizonDial heading={camera.azimuth} live={compassLive} />
+      {/*
+        The briefing, opposite the objects rather than under them.
 
-        {conditions && (
+        It was full width across the bottom of the frame, which is fine on a
+        phone and wrong on anything wider: the object column is pinned to the
+        left, the briefing ran underneath it, and on a laptop the column simply
+        sat on top of the first third of every sentence. Two floating columns
+        facing each other across the sky is the arrangement the frame was
+        already half using; this is the other half of it.
+      */}
+      {conditions && (
+        <div className="sky-view__brief" ref={deckRef}>
           <GuidePlaque
             site={site}
             now={now}
@@ -375,7 +383,15 @@ export function SkyView({
             tone={tone}
             onOpenGuide={onOpenGuide}
           />
-        )}
+        </div>
+      )}
+
+      {/*
+        The horizon is the lowest thing the sky has, so it sits lowest, on the
+        rail. Nothing floats under it.
+      */}
+      <div className="sky-view__deck">
+        <HorizonDial heading={camera.azimuth} live={compassLive} />
       </div>
 
       {selectedBody && conditions && (

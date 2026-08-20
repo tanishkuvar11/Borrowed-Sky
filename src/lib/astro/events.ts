@@ -265,11 +265,29 @@ function findDarkness(samples: Sample[]): { start: Date; end: Date } | undefined
 // phrasing
 // ---------------------------------------------------------------------------
 
-function formatClock(date: Date): string {
-  return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+/**
+ * A wall-clock time where the observer is standing.
+ *
+ * `timeZone: undefined` is not the same as omitting the option in spirit, but
+ * it is in effect: Intl falls back to the device's zone, which is right when
+ * the lookup has not answered yet and right again when the observer really is
+ * where their device thinks they are.
+ */
+function formatClock(date: Date, timeZone: string | undefined): string {
+  return date.toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone,
+  });
 }
 
-function describeBodySpan(name: string, run: Run, azimuth: number, magnitude: number): string {
+function describeBodySpan(
+  name: string,
+  run: Run,
+  azimuth: number,
+  magnitude: number,
+  timeZone: string | undefined,
+): string {
   const hours = (run.endMs - run.startMs) / 3_600_000;
   const duration =
     hours >= 1.5 ? `${hours.toFixed(1)} hours` : `${Math.round(hours * 60)} minutes`;
@@ -283,16 +301,16 @@ function describeBodySpan(name: string, run: Run, azimuth: number, magnitude: nu
           : 'It is faint; you need a properly dark sky';
 
   return (
-    `${name} is well placed from ${formatClock(new Date(run.startMs))} for about ${duration}, ` +
+    `${name} is well placed from ${formatClock(new Date(run.startMs), timeZone)} for about ${duration}, ` +
     `reaching ${heightInWords(run.peakAltitude)} toward the ${compassPoint(azimuth)} ` +
-    `around ${formatClock(new Date(run.peakMs))}. ${brightness}.`
+    `around ${formatClock(new Date(run.peakMs), timeZone)}. ${brightness}.`
   );
 }
 
-export function describePass(pass: SatellitePass): string {
+export function describePass(pass: SatellitePass, timeZone?: string): string {
   if (!pass.visible || !pass.visibleFrom || !pass.visibleTo) {
     return (
-      `${pass.name} crosses the sky from ${formatClock(pass.start)}, but it is either in Earth's ` +
+      `${pass.name} crosses the sky from ${formatClock(pass.start, timeZone)}, but it is either in Earth's ` +
       `shadow or the sky is too bright; nothing to see on this one.`
     );
   }
@@ -305,7 +323,7 @@ export function describePass(pass: SatellitePass): string {
       : `climbs ${heightInWords(pass.peakAltitude)} toward the ${compassPoint(pass.peakAzimuth)}`;
 
   return (
-    `${pass.name} appears at ${formatClock(pass.visibleFrom)} in the ${compassPoint(pass.startAzimuth)}, ` +
+    `${pass.name} appears at ${formatClock(pass.visibleFrom, timeZone)} in the ${compassPoint(pass.startAzimuth)}, ` +
     `${arc}, and is visible for about ${minutes} minute${minutes === 1 ? '' : 's'}. ` +
     `It looks like a steady white point sliding across the sky, no flashing lights.`
   );
@@ -355,7 +373,7 @@ export function buildTimeline(
         peakAltitude: run.peakAltitude,
         peakAzimuth: azimuth,
         magnitude,
-        detail: describeBodySpan(label, run, azimuth, magnitude),
+        detail: describeBodySpan(label, run, azimuth, magnitude, site.timezone),
         fact: BODY_FACTS[properName],
         quality: magnitude < 0.5 ? 'headline' : magnitude < 4 ? 'good' : 'faint',
       });
@@ -379,7 +397,7 @@ export function buildTimeline(
           peak: pass.peak,
           peakAltitude: pass.peakAltitude,
           peakAzimuth: pass.peakAzimuth,
-          detail: describePass(pass),
+          detail: describePass(pass, site.timezone),
           quality: pass.peakAltitude > 40 ? 'headline' : 'good',
         });
       }

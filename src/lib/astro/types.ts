@@ -10,6 +10,16 @@ export interface ObserverSite {
   /** Where the coordinates came from, so the UI can be honest about precision. */
   source: 'gps' | 'manual';
   label?: string;
+  /**
+   * The IANA zone at these coordinates, once it has been looked up.
+   *
+   * Every wall-clock time the app prints is drawn in this, because a sunset
+   * time is a statement about the sky over a place and reading it off the
+   * watch of somebody four thousand miles away is simply the wrong number.
+   * Undefined until the lookup answers, and undefined for good if it never
+   * does, in which case the device's own zone is used and the plate says so.
+   */
+  timezone?: string;
 }
 
 export interface Distance {

@@ -179,6 +179,8 @@
    */
   --topbar-h: 68px;
   --rail-h: 66px;
+  /* The dial's band. Read by anything that has to sit clear of it. */
+  --horizon-h: 124px;
 
   /*
    * The instrument's own spacing step. Everything that floats over the sky is

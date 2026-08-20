@@ -173,15 +173,6 @@ button {
     inset 0 1px 0 rgb(var(--sheen-rgb) / 0.22),
     inset 0 0 30px -8px var(--brass);
 }
-.button--primary::after {
-  content: '';
-  position: absolute;
-  inset: auto 22% 0 22%;
-  height: 1px;
-  background: var(--brass-bright);
-  box-shadow: 0 0 10px 0 var(--brass);
-  opacity: 0.8;
-}
 .button--primary:hover:not(:disabled) {
   border-color: var(--brass);
   box-shadow:
@@ -508,11 +499,28 @@ button {
   pointer-events: auto;
 }
 
+/*
+ * The name, and the way back to the start.
+ *
+ * It used to be inert and deliberately transparent to a drag, on the grounds
+ * that there was nothing to press. There is now, so it takes pointer events
+ * again; it sits between the two roses in the header and well clear of the sky
+ * the drag gesture belongs to.
+ */
 .wordmark {
+  display: block;
   text-align: center;
   min-width: 0;
-  /* Nothing to press here, so the title should not intercept a drag either. */
-  pointer-events: none;
+  padding: 0.2rem 0.4rem;
+  border: 0;
+  background: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 200ms var(--ease);
+}
+.wordmark:hover .wordmark__name,
+.wordmark:focus-visible .wordmark__name {
+  opacity: 0.78;
 }
 
 .wordmark__name {
@@ -714,8 +722,19 @@ button {
   background: none;
   border: 0;
   padding: 0.7rem 0.15rem 0.6rem;
-  color: var(--starlight-mute);
-  transition: color 220ms var(--ease);
+  /*
+   * The engraved-label brass, the same one every field name in the app is cut
+   * in, and the same one for every cell in the row.
+   *
+   * The row used to be three colours at once: teal for whichever view was open,
+   * a muted grey for the rest, and a brass count over the logbook. Three
+   * colours across five items reads as a row of unrelated things rather than as
+   * one control, and the odd one out was carrying meaning the marker above it
+   * was already carrying on its own.
+   */
+  color: var(--brass);
+  transition: color 220ms var(--ease), opacity 220ms var(--ease);
+  opacity: 0.62;
 }
 
 /*
@@ -746,13 +765,19 @@ button {
   transition: transform 260ms var(--ease);
 }
 .rail__item:hover {
-  color: var(--starlight-soft);
+  opacity: 0.85;
 }
 .rail__item:hover svg {
   transform: translateY(-1px);
 }
+/*
+ * The open one is the same brass, brought up to full. Which view you are on is
+ * said by the lit marker above the cell, which is what that marker is for; a
+ * second signal in a different colour was the row saying it twice.
+ */
 .rail__item.is-on {
-  color: var(--visible);
+  color: var(--brass-bright);
+  opacity: 1;
 }
 .rail__item.is-on::after {
   opacity: 0.85;
@@ -1026,6 +1051,30 @@ button {
   display: grid;
   gap: calc(var(--step) * 1.5);
   /* The column must never grow past the deck at the bottom of the frame. */
+  max-height: calc(100% - var(--topbar-h) - var(--rail-h) - var(--step) * 6);
+}
+
+/*
+ * The briefing column, facing the objects across the sky.
+ *
+ * Mirrors the aside opposite it: same top, same measurements, same ceiling, so
+ * the two read as a matched pair of instruments bracketing the view rather than
+ * as one panel that happens to be over there. It is the right-hand side because
+ * the objects were already on the left and because the elevation scale down the
+ * right edge is scenery a panel can sit in front of, while the object column is
+ * a list that has to stay reachable.
+ *
+ * On a phone there is no room for two columns, so this goes back to the bottom
+ * of the frame where it was, above the horizon. See the narrow rules further
+ * down.
+ */
+.sky-view__brief {
+  position: absolute;
+  top: calc(var(--topbar-h) + var(--step));
+  right: var(--inset);
+  z-index: 6;
+  width: clamp(10.5rem, 42vw, 22rem);
+  display: grid;
   max-height: calc(100% - var(--topbar-h) - var(--rail-h) - var(--step) * 6);
 }
 
@@ -1556,8 +1605,14 @@ button {
  */
 .horizon {
   position: relative;
-  height: 124px;
-  margin: 0 calc(var(--inset) * -1);
+  height: var(--horizon-h);
+  /*
+   * Full bleed on three sides. The deck keeps its padding for the panel above,
+   * and the horizon reaches past it: the edge of the world does not stop short
+   * of the frame with a margin around it, and least of all at the bottom, where
+   * the gap left it floating a few pixels clear of the rail like a card.
+   */
+  margin: 0 calc(var(--inset) * -1) calc(var(--step) * -1);
   /* Only the dial in the middle is interactive; the arc is scenery. */
   pointer-events: none;
 }
@@ -1657,8 +1712,13 @@ button {
    * reliable way to make something look like a web page, and it is unreadable
    * besides: the eye loses the start of the next line.
    */
-  max-width: 60rem;
-  justify-self: center;
+  /*
+   * The measure is the column's now. This used to be held to 60rem and centred,
+   * which is what a line of prose running the width of a desktop frame needs;
+   * in a column of its own it is already narrower than that and the cap only
+   * fought the layout.
+   */
+  max-width: 100%;
   padding: 1.1rem 1.25rem 1.15rem;
   text-align: left;
   border: var(--rule) solid var(--brass-hairline);
@@ -1813,11 +1873,16 @@ button {
   pointer-events: none;
   opacity: 0.9;
 }
-/* Narrow frames have no room beside the text for a portrait as well. */
-@media (max-width: 900px) {
-  .guide-panel__subject {
-    display: none;
-  }
+/*
+ * No room beside the text for a portrait as well.
+ *
+ * This used to be a question about the viewport, because the panel was a band
+ * running the width of it. In a column of its own the panel is narrow at every
+ * size, and the portrait, which hangs off the right edge and is drawn over
+ * whatever is behind it, was taking the last third of every line with it.
+ */
+.guide-panel__subject {
+  display: none;
 }
 .guide-panel__subject .planet-mark {
   position: relative;
@@ -2730,13 +2795,14 @@ button {
     max-height: calc(100% - var(--topbar-h) - var(--rail-h) - var(--step) * 3);
   }
   /*
-   * With the dossier docked, the deck gives up the column it occupies rather
-   * than letting the guide slide underneath it. Both are translucent, and two
-   * sheets of glass overlapping is the one arrangement that makes neither
-   * readable.
+   * The dossier docks where the briefing lives, and when it is open it is the
+   * briefing: a panel about the one thing you just pointed at beats a summary
+   * of everything up. Two sheets of glass overlapping is the one arrangement
+   * that makes neither readable, so the general one stands down rather than
+   * being shuffled sideways into the last of the sky.
    */
-  .sky-view--tracking .sky-view__deck {
-    padding-right: calc(25rem + var(--inset) * 2);
+  .sky-view--tracking .sky-view__brief {
+    display: none;
   }
   .compass-bar {
     right: auto;
@@ -2859,8 +2925,22 @@ button {
    * rather than cropping it. What is below the card is the sky canvas's own
    * ground, which is drawn whatever this is set to.
    */
-  .horizon {
-    height: 92px;
+  .sky-view {
+    --horizon-h: 92px;
+  }
+
+  /*
+   * No room for two columns facing each other, so the briefing lies across the
+   * bottom again, above the dial. It is the only thing down here now, and the
+   * object column is shut by default at this size, so nothing sits on anything.
+   */
+  .sky-view__brief {
+    top: auto;
+    bottom: calc(var(--rail-h) + var(--horizon-h) - var(--step) * 2);
+    left: var(--inset);
+    right: var(--inset);
+    width: auto;
+    max-height: none;
   }
 
 
@@ -2974,13 +3054,24 @@ button {
     max-height: 78px;
   }
 
-  /* The deck clears the column instead of sliding under it. */
-  .sky-view__deck {
-    padding-left: calc(clamp(9rem, 27vw, 15rem) + var(--inset) * 2);
+  /*
+   * No room for two columns facing each other, so the briefing goes back to
+   * lying across the bottom, above the dial. It is the only thing down here
+   * now, and the object column is shut by default on a phone, so nothing is
+   * sitting on top of anything.
+   */
+  .sky-view__brief {
+    top: auto;
+    bottom: calc(var(--rail-h) + var(--horizon-h) - var(--step));
+    left: var(--inset);
+    right: var(--inset);
+    width: auto;
+    max-height: none;
   }
 
-  .horizon {
-    height: 62px;
+  /* A short frame cannot spare 124px of it. The band shrinks; the curve stays. */
+  .sky-view {
+    --horizon-h: 62px;
   }
 
   /*

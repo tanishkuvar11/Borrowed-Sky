@@ -150,7 +150,10 @@ export function useSkyData(site: ObserverSite | null): SkyData {
 
   useEffect(() => {
     if (!site) return;
-    const key = `${site.latitude.toFixed(3)},${site.longitude.toFixed(3)},${tleSet?.fetchedAt ?? 0}`;
+    // The zone is in the key because the timeline bakes formatted times into its
+    // own prose: "appears at 12:29 AM" is part of a sentence, not a Date the view
+    // can reformat later. When the lookup answers, those sentences are rebuilt.
+    const key = `${site.latitude.toFixed(3)},${site.longitude.toFixed(3)},${site.timezone ?? ''},${tleSet?.fetchedAt ?? 0}`;
     if (timelineKeyRef.current !== key) {
       timelineKeyRef.current = key;
       rebuildTimeline();

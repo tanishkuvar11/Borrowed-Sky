@@ -48,9 +48,28 @@ export function ReadoutPanel({
   place: Place | null;
   onChangeSite: () => void;
 }) {
-  const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
-    now.getDate(),
-  ).padStart(2, '0')}  ${now.toLocaleTimeString(undefined, { hour12: false })}`;
+  /*
+   * Built through one formatter rather than from the Date's own getters.
+   *
+   * getFullYear and friends answer in the device's zone and there is no way to
+   * ask them for another one, so a stamp assembled from them was the date here
+   * with the time there bolted on: at the wrong end of the world that is a
+   * clock reading half past six on a day that has not started yet. Intl formats
+   * the whole thing in one zone, which is the only way the two halves are
+   * guaranteed to agree.
+   */
+  const stamp = new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    timeZone: site.timezone,
+  })
+    .format(now)
+    .replace(',', ' ');
 
   return (
     <button className="readout-panel" onClick={onChangeSite} title="Change location">
@@ -105,7 +124,7 @@ export function ReadoutPanel({
           On its own line because the plate's rows do not wrap, and this one ran
           out past the edge of the brass when it sat beside the zone.
         */}
-        {clockDiffersFrom(place?.timezone ?? null, now) && (
+        {!site.timezone && clockDiffersFrom(place?.timezone ?? null, now) && (
           <span className="readout-panel__line readout-panel__note">
             <span className="readout-panel__key" />
             clocks shown in {deviceTimezone()}

@@ -103,12 +103,49 @@ async function main() {
     clockDiffersFrom('UTC', winter) === false,
   );
 
+  /*
+   * And the zone actually reaches the prose.
+   *
+   * The timeline does not hand the view a Date to format later; it writes
+   * finished sentences, "appears at 12:29 AM in the west-south-west", with the
+   * time already in them. So the zone has to be threaded all the way down to
+   * where those are built, and the failure mode of forgetting is silent: every
+   * sentence still reads perfectly and every time in it is wrong by hours.
+   *
+   * Two timelines for the same place at the same instant, differing only in the
+   * zone their clocks are printed in, must not come out saying the same thing.
+   */
+  console.log('');
+  console.log('the zone reaches the sentences the timeline writes');
+  const { buildTimeline } = await import('../../src/lib/astro/events.ts');
+  const at = new Date('2026-08-20T12:00:00Z');
+  const base = { latitude: 10, longitude: 10, elevation: 0, source: 'manual' as const };
+
+  const inLagos = buildTimeline(at, { ...base, timezone: 'Africa/Lagos' }, null);
+  const inKolkata = buildTimeline(at, { ...base, timezone: 'Asia/Kolkata' }, null);
+
+  const spoken = (t: typeof inLagos) => t.spans.map((span) => span.detail).join(' | ');
+  const lagos = spoken(inLagos);
+  const kolkata = spoken(inKolkata);
+
+  check('there is something to compare', lagos.length > 0, `${inLagos.spans.length} spans`);
+  check(
+    'the same night reads differently in two zones',
+    lagos !== kolkata,
+    lagos.slice(0, 90),
+  );
+  check(
+    'and the spans themselves are identical, so only the wording moved',
+    inLagos.spans.length === inKolkata.spans.length &&
+      inLagos.spans.every((span, i) => span.start.getTime() === inKolkata.spans[i].start.getTime()),
+  );
+
   console.log('');
   if (failures.length) {
     console.error(`FAIL  ${failures.length} case(s): ${failures.join(', ')}`);
     process.exit(1);
   }
-  console.log('PASS  the clock note fires on real differences and not on aliases');
+  console.log('PASS  clocks are drawn where the observer is, and the note fires only when they are not');
 }
 
 main().catch((err) => {
