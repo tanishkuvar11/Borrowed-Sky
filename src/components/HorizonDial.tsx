@@ -137,10 +137,27 @@ export function HorizonDial({ heading, live }: { heading: number; live: boolean 
       ctx.closePath();
       ctx.clip();
 
+      /*
+       * Opaque under the rim and then given back to the sky before the strip
+       * runs out.
+       *
+       * This used to reach full black at the bottom edge and stop there, which
+       * on a phone nobody saw: the plaque and the rail cover everything below
+       * it. On a wide window they do not. The panels stop growing, open sky is
+       * left to either side of them, and the band ended in a hard rule straight
+       * across the screen with lit sky on the far side of it. Ground with a
+       * horizon at the top and a horizon at the bottom is not ground.
+       *
+       * So the fill is heaviest just under the rim, where it has to be, and
+       * then falls away. What is left is a weight low in the frame rather than
+       * a slab lying on it, and there is no edge anywhere for the eye to catch.
+       */
       const fill = ctx.createLinearGradient(0, crest, 0, height);
       fill.addColorStop(0, ground(0.82));
-      fill.addColorStop(0.28, ground(0.97));
-      fill.addColorStop(1, ground(1));
+      fill.addColorStop(0.22, ground(0.97));
+      fill.addColorStop(0.46, ground(0.94));
+      fill.addColorStop(0.72, ground(0.6));
+      fill.addColorStop(1, ground(0));
       ctx.fillStyle = fill;
       ctx.fillRect(0, 0, width, height);
       ctx.restore();

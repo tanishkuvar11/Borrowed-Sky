@@ -35,6 +35,22 @@ const SITE = (() => {
   return { latitude, longitude, elevation, source: 'gps' };
 })();
 
+/**
+ * The viewport to shoot in.
+ *
+ * A phone by default, because that is where this app is used: someone standing
+ * outside holding it up. The desktop layout is a real layout all the same, and
+ * it is not the phone one stretched: the deck's panels stop growing and leave
+ * open sky around them, which is where the two horizons, the instrument's and
+ * the scene's, are both visible at once.
+ *
+ *   VIEWPORT=desktop node scripts/verify/screenshot.mjs shots/desktop
+ */
+const VIEWPORT =
+  process.env.VIEWPORT === 'desktop'
+    ? { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false }
+    : { width: 430, height: 932, deviceScaleFactor: 2, mobile: true };
+
 const profile = join(tmpdir(), `bs-chrome-${Date.now()}`);
 let nextId = 1;
 
@@ -127,12 +143,7 @@ async function main() {
 
     await call('Page.enable');
     await call('Runtime.enable');
-    await call('Emulation.setDeviceMetricsOverride', {
-      width: 430,
-      height: 932,
-      deviceScaleFactor: 2,
-      mobile: true,
-    });
+    await call('Emulation.setDeviceMetricsOverride', VIEWPORT);
 
     // Land on the origin so localStorage is writable, seed the site, reload.
     await call('Page.navigate', { url: APP });
