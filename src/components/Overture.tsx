@@ -76,23 +76,14 @@ export interface OvertureProps {
   onManual: (latitude: number, longitude: number, label?: string) => void;
   /**
    * Where the visitor already said they were, on an earlier visit, or null the
-   * first time. The page is shown either way; this only changes what the
-   * closing plate offers, because a question already answered is not a question.
+   * first time. The page is shown either way, and the closing plate reads the
+   * same either way; this only decides whether its first button goes straight
+   * in or asks the browser first, because a question already answered does not
+   * need asking again.
    */
   knownSite: ObserverSite | null;
   /** Taken up on the closing plate by someone whose site is already known. */
   onEnter: () => void;
-}
-
-/**
- * A site as the slate writes one: four places, and the hemisphere as a letter
- * rather than a sign, because a minus in front of a latitude is a thing you
- * have to decode and an S is a thing you can read.
- */
-function coordinates(site: ObserverSite): string {
-  const lat = `${Math.abs(site.latitude).toFixed(4)}°${site.latitude < 0 ? 'S' : 'N'}`;
-  const lon = `${Math.abs(site.longitude).toFixed(4)}°${site.longitude < 0 ? 'W' : 'E'}`;
-  return `${lat} ${lon}`;
 }
 
 /**
@@ -146,14 +137,6 @@ export function Overture({
 
   const [catalog, setCatalog] = useState<StarCatalog | null>(null);
   const [constellations, setConstellations] = useState<ConstellationFigure[]>([]);
-
-  /*
-   * A returning visitor who is not where they were. Kept shut to begin with:
-   * the common case by a long way is that the answer from last time is still
-   * true, and putting a location form in front of someone who only wants to
-   * carry on makes them read it before they can find the way past it.
-   */
-  const [elsewhere, setElsewhere] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -467,34 +450,28 @@ export function Overture({
             </p>
 
             {/*
-              The way in, for someone who has answered this before.
-              
-              The question is still here, underneath, because a stored location
-              is a claim about where somebody was the last time they opened
-              this and not about where they are now. It is just no longer the
-              first thing they have to deal with.
+              One ask, in both states.
+
+              This used to be a second block written out here for the returning
+              case, which is how the two states drifted into two different
+              vocabularies. LocationAsk's own note says why that is a bad idea,
+              and it was right: it takes the known site now, and the wording is
+              the same on every device belonging to the same person whether or
+              not that particular one has been here before.
+
+              The coordinates stay on offer underneath either way, because a
+              stored location is a claim about where somebody was the last time
+              they opened this and not about where they are now.
             */}
-            {knownSite && !elsewhere ? (
-              <div className="ask">
-                <button className="button button--primary button--large" onClick={onEnter}>
-                  Show me my sky
-                </button>
-                <p className="provenance">
-                  Computed for <span className="readout">{coordinates(knownSite)}</span>
-                </p>
-                <button className="button button--quiet" onClick={() => setElsewhere(true)}>
-                  I&rsquo;m somewhere else
-                </button>
-              </div>
-            ) : (
-              <LocationAsk
-                status={status}
-                error={error}
-                permission={permission}
-                onRequestGps={onRequestGps}
-                onManual={onManual}
-              />
-            )}
+            <LocationAsk
+              status={status}
+              error={error}
+              permission={permission}
+              onRequestGps={onRequestGps}
+              onManual={onManual}
+              knownSite={knownSite}
+              onEnter={onEnter}
+            />
             <p className="provenance provenance--block">
               <span className="overture__sentence">Star positions from the HYG catalogue.</span>
               <span className="overture__sentence">

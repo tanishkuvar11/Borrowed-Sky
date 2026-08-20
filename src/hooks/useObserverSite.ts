@@ -131,16 +131,3 @@ export function useObserverSite() {
 
   return { site, status, error, permission, requestGps, setManual, clear };
 }
-
-/**
- * Times are always shown in the device's own timezone. That is right for the
- * ordinary case (you are standing where you are), but wrong if someone types
- * in coordinates on the far side of the world, so the interface says so when
- * the two clearly disagree.
- */
-export function timezoneMismatch(site: ObserverSite | null): boolean {
-  if (!site || site.source !== 'manual') return false;
-  const deviceOffsetHours = -new Date().getTimezoneOffset() / 60;
-  const solarOffsetHours = site.longitude / 15;
-  return Math.abs(deviceOffsetHours - solarOffsetHours) > 3;
-}

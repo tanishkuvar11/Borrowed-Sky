@@ -9,6 +9,7 @@
 
 import { useState } from 'react';
 import type { LocationStatus } from '../hooks/useObserverSite';
+import type { ObserverSite } from '../lib/astro/types';
 
 export interface LocationAskProps {
   status: LocationStatus;
@@ -17,6 +18,24 @@ export interface LocationAskProps {
   permission: PermissionState | 'unknown';
   onRequestGps: () => void;
   onManual: (latitude: number, longitude: number, label?: string) => void;
+  /**
+   * Where the visitor said they were on an earlier visit, or null the first
+   * time. Only changes what the first button does, never what it says.
+   */
+  knownSite?: ObserverSite | null;
+  /** Goes in with the known site rather than asking the browser again. */
+  onEnter?: () => void;
+}
+
+/**
+ * A site as the slate writes one: four places, and the hemisphere as a letter
+ * rather than a sign, because a minus in front of a latitude is a thing you
+ * have to decode and an S is a thing you can read.
+ */
+function coordinates(site: ObserverSite): string {
+  const lat = `${Math.abs(site.latitude).toFixed(4)}°${site.latitude < 0 ? 'S' : 'N'}`;
+  const lon = `${Math.abs(site.longitude).toFixed(4)}°${site.longitude < 0 ? 'W' : 'E'}`;
+  return `${lat} ${lon}`;
 }
 
 export function LocationAsk({
@@ -25,6 +44,8 @@ export function LocationAsk({
   permission,
   onRequestGps,
   onManual,
+  knownSite,
+  onEnter,
 }: LocationAskProps) {
   // Once the browser has refused, the way forward is the form, so open it
   // rather than leaving someone staring at a button that has already failed.
@@ -33,6 +54,14 @@ export function LocationAsk({
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
+
+  /*
+   * True when there is a site on file and somewhere to go with it. Both are
+   * required: the overture passes them together, and the plain gate behind it
+   * passes neither, so a half-wired caller falls back to asking rather than to
+   * a button that does nothing.
+   */
+  const goIn = Boolean(knownSite && onEnter);
 
   const submitManual = (event: React.FormEvent) => {
     event.preventDefault();
@@ -53,13 +82,31 @@ export function LocationAsk({
 
   return (
     <div className="ask">
+      {/*
+       * One button, one sentence, whether or not the app has been here before.
+       *
+       * It used to say "use my location" to a new visitor and "show me my sky"
+       * to a returning one, which described the mechanism to the person who
+       * had not seen it yet and the result to the person who had. That is the
+       * wrong way round, and it also meant the way in was worded differently
+       * on two devices belonging to the same person. What it does still
+       * differs: with a site on file it goes straight in, and without one it
+       * asks the browser first. That is a difference in what happens next, not
+       * in what is being offered.
+       */}
       <button
         className="button button--primary button--large"
-        onClick={onRequestGps}
-        disabled={status === 'requesting'}
+        onClick={knownSite && onEnter ? onEnter : onRequestGps}
+        disabled={!goIn && status === 'requesting'}
       >
-        {status === 'requesting' ? 'Finding you…' : 'Use my location'}
+        {!goIn && status === 'requesting' ? 'Finding you…' : 'Show me my sky'}
       </button>
+
+      {knownSite && onEnter && (
+        <p className="provenance">
+          Computed for <span className="ask__known">{coordinates(knownSite)}</span>
+        </p>
+      )}
 
       {error && <p className="gate__error">{error}</p>}
 

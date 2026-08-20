@@ -18,7 +18,7 @@ import {
   IconTonight,
 } from './components/icons';
 
-import { timezoneMismatch, useObserverSite } from './hooks/useObserverSite';
+import { useObserverSite } from './hooks/useObserverSite';
 import { useEyePosition } from './hooks/useEyePosition';
 import { useSmoothScroll } from './hooks/useSmoothScroll';
 import { useOrientation } from './hooks/useOrientation';
@@ -173,13 +173,6 @@ export default function App() {
           </span>
         </button>
       </header>
-
-      {timezoneMismatch(site) && (
-        <p className="banner">
-          Times are shown in this device's timezone, which does not match the coordinates you
-          entered.
-        </p>
-      )}
 
       {/*
         Only the sky runs under the floating chrome. The reading views are

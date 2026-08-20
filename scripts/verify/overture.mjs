@@ -171,12 +171,12 @@ async function main() {
         `/greenwich/i.test(document.querySelector('.overture__slate')?.innerText ?? '')`,
       )) === true,
     );
-    check(
-      'closing plate offers the ask',
-      (await evalPage(
-        `!!Array.from(document.querySelectorAll('.overture__plate button')).find(b => /use my location/i.test(b.innerText))`,
-      )) === true,
+    const firstVisit = await evalPage(
+      `document.querySelector('.overture__panel--close')?.innerText ?? ''`,
     );
+    check('closing plate offers the ask', /show me my sky/i.test(firstVisit));
+    check('and the coordinates underneath it', /enter coordinates instead/i.test(firstVisit));
+    check('it has no site to name yet', !/computed for/i.test(firstVisit));
 
     /*
      * And again as somebody coming back.
@@ -203,7 +203,15 @@ async function main() {
       `document.querySelector('.overture__panel--close')?.innerText ?? ''`,
     );
     check('the plate offers the way in', /show me my sky/i.test(plate));
-    check('it does not ask again', !/use my location/i.test(plate));
+    /*
+     * The point of the whole arrangement: one person's phone and one person's
+     * laptop are in different states, and they should not be reading different
+     * words. What differs is what the button does, not what it says.
+     */
+    check(
+      'it is worded exactly as it is to a stranger',
+      /show me my sky/i.test(plate) && /enter coordinates instead/i.test(plate),
+    );
     check(
       'it says which sky it means',
       /26\.20.*S/i.test(plate.replace(/\s+/g, ' ')),
@@ -211,16 +219,14 @@ async function main() {
     );
     await shot('21-overture-returning');
 
-    // And the question is still reachable for the day they are somewhere else.
+    // And the coordinates are still one tap under it, for the day they moved.
     await evalPage(
-      `Array.from(document.querySelectorAll('.overture__plate button')).find(b => /somewhere else/i.test(b.innerText))?.click()`,
+      `Array.from(document.querySelectorAll('.overture__plate button')).find(b => /enter coordinates instead/i.test(b.innerText))?.click()`,
     );
     await sleep(400);
     check(
-      'the question is one tap underneath',
-      (await evalPage(
-        `!!Array.from(document.querySelectorAll('.overture__plate button')).find(b => /use my location/i.test(b.innerText))`,
-      )) === true,
+      'the coordinates are one tap underneath',
+      (await evalPage(`document.querySelectorAll('.overture__plate .field__input').length`)) === 2,
     );
 
     // And the way in works.

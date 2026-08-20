@@ -386,6 +386,20 @@ button {
   margin: 0;
 }
 
+/*
+ * The site already on file, printed under the way in.
+ *
+ * In the body face rather than the mono, like every other coordinate on the
+ * screen. This one is the least live of all of them: it was written down on a
+ * previous visit and is being shown so it can be disagreed with.
+ */
+.ask__known {
+  font-family: var(--font-body);
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: 'lnum' 1, 'tnum' 1;
+  color: var(--starlight-soft);
+}
+
 .gate__form {
   width: 100%;
   display: grid;
@@ -660,26 +674,6 @@ button {
   50% {
     filter: brightness(1.35);
   }
-}
-
-.banner {
-  position: absolute;
-  top: var(--topbar-h);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 11;
-  margin: 0;
-  max-width: min(34rem, calc(100% - 2 * var(--pad-edge)));
-  padding: 0.4rem 0.9rem;
-  border-radius: 999px;
-  border: var(--rule) solid rgb(var(--rose-rgb) / 0.3);
-  background: var(--veil-strong);
-  backdrop-filter: blur(8px);
-  color: var(--dusk-rose);
-  font-family: var(--font-data);
-  font-size: var(--t-micro);
-  line-height: 1.5;
-  text-align: center;
 }
 
 /* --- bottom rail --------------------------------------------------------- */
