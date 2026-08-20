@@ -92,6 +92,28 @@ async function shoot(socket, name) {
   console.log(`  captured ${path}`);
 }
 
+
+/**
+ * Clicks through the landing page to the app.
+ *
+ * A seeded site no longer skips the overture; it only changes what the closing
+ * plate offers, from the question to the way in. Retried rather than clicked
+ * once, because the plate is on the page before the star catalogue has arrived
+ * and this runs against whatever the machine happens to be doing.
+ */
+function enterAppWith(evalPage, sleep) {
+  return async () => {
+    for (let i = 0; i < 60; i++) {
+      if (await evalPage(`!!document.querySelector('.app')`)) return;
+      await evalPage(
+        `document.querySelector('.overture__panel--close .button--primary')?.click()`,
+      );
+      await sleep(250);
+    }
+    throw new Error('never got past the landing page');
+  };
+}
+
 async function main() {
   await mkdir(OUT, { recursive: true });
 
@@ -163,6 +185,12 @@ async function main() {
           if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || 'eval failed');
           return r.result.value;
         });
+
+    // Past the landing page. The app opens on the overture every time now, even
+    // when it already knows where you are, so a seeded site lands there and the
+    // closing plate is the way through to the instrument.
+    const enterApp = enterAppWith(evalPage, sleep);
+    await enterApp();
 
     const shotPage = async (name) => {
       const { data } = await call('Page.captureScreenshot', { format: 'png' });

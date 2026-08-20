@@ -108,6 +108,28 @@ const IOS_SHIM = `
   };
 `;
 
+
+/**
+ * Clicks through the landing page to the app.
+ *
+ * A seeded site no longer skips the overture; it only changes what the closing
+ * plate offers, from the question to the way in. Retried rather than clicked
+ * once, because the plate is on the page before the star catalogue has arrived
+ * and this runs against whatever else the machine happens to be doing.
+ */
+function enterAppWith(evalPage, sleep) {
+  return async () => {
+    for (let i = 0; i < 60; i++) {
+      if (await evalPage(`!!document.querySelector('.app')`)) return;
+      await evalPage(
+        `document.querySelector('.overture__panel--close .button--primary')?.click()`,
+      );
+      await sleep(250);
+    }
+    throw new Error('never got past the landing page');
+  };
+}
+
 async function main() {
   await mkdir(OUT, { recursive: true });
   const chrome = spawn(
@@ -198,6 +220,8 @@ async function main() {
            .find(c => c.startsWith('rose--')) ?? '(none)'`,
       );
 
+    const enterApp = enterAppWith(evalPage, sleep);
+
     const seedSite = () =>
       evalPage(
         `localStorage.setItem('borrowed-sky:site', ${JSON.stringify(JSON.stringify(SITE))})`,
@@ -245,6 +269,7 @@ async function main() {
       await sleep(1500);
       await seedSite();
       await call('Page.reload');
+      await enterApp();
       await sleep(1500);
       await waitForRose('rose--blocked');
 
@@ -277,6 +302,7 @@ async function main() {
     await sleep(1500);
     await seedSite();
     await call('Page.reload');
+    await enterApp();
     await sleep(1500);
     await waitForRose('rose--ask');
 

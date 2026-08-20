@@ -74,6 +74,25 @@ export interface OvertureProps {
   permission: PermissionState | 'unknown';
   onRequestGps: () => void;
   onManual: (latitude: number, longitude: number, label?: string) => void;
+  /**
+   * Where the visitor already said they were, on an earlier visit, or null the
+   * first time. The page is shown either way; this only changes what the
+   * closing plate offers, because a question already answered is not a question.
+   */
+  knownSite: ObserverSite | null;
+  /** Taken up on the closing plate by someone whose site is already known. */
+  onEnter: () => void;
+}
+
+/**
+ * A site as the slate writes one: four places, and the hemisphere as a letter
+ * rather than a sign, because a minus in front of a latitude is a thing you
+ * have to decode and an S is a thing you can read.
+ */
+function coordinates(site: ObserverSite): string {
+  const lat = `${Math.abs(site.latitude).toFixed(4)}°${site.latitude < 0 ? 'S' : 'N'}`;
+  const lon = `${Math.abs(site.longitude).toFixed(4)}°${site.longitude < 0 ? 'W' : 'E'}`;
+  return `${lat} ${lon}`;
 }
 
 /**
@@ -118,6 +137,8 @@ export function Overture({
   permission,
   onRequestGps,
   onManual,
+  knownSite,
+  onEnter,
 }: OvertureProps) {
   const scroller = useRef<HTMLDivElement>(null);
   const progress = useScrollProgress(scroller);
@@ -125,6 +146,14 @@ export function Overture({
 
   const [catalog, setCatalog] = useState<StarCatalog | null>(null);
   const [constellations, setConstellations] = useState<ConstellationFigure[]>([]);
+
+  /*
+   * A returning visitor who is not where they were. Kept shut to begin with:
+   * the common case by a long way is that the answer from last time is still
+   * true, and putting a location form in front of someone who only wants to
+   * carry on makes them read it before they can find the way past it.
+   */
+  const [elsewhere, setElsewhere] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -427,18 +456,45 @@ export function Overture({
               <span className="overture__sentence">Your stars are different.</span>
               <span className="overture__sentence">Your horizon is different.</span>
               <span className="overture__sentence">The galaxy bends differently above you.</span>
-              <span className="overture__sentence">Tell us where you&rsquo;re standing.</span>
+              <span className="overture__sentence">
+                {knownSite ? 'And we know where you’re standing.' : 'Tell us where you’re standing.'}
+              </span>
             </p>
             <p className="overture__figure">
-              We&rsquo;ll show you the sky that is actually there.
+              {knownSite
+                ? 'Yours is computed and waiting.'
+                : 'We’ll show you the sky that is actually there.'}
             </p>
-            <LocationAsk
-              status={status}
-              error={error}
-              permission={permission}
-              onRequestGps={onRequestGps}
-              onManual={onManual}
-            />
+
+            {/*
+              The way in, for someone who has answered this before.
+              
+              The question is still here, underneath, because a stored location
+              is a claim about where somebody was the last time they opened
+              this and not about where they are now. It is just no longer the
+              first thing they have to deal with.
+            */}
+            {knownSite && !elsewhere ? (
+              <div className="ask">
+                <button className="button button--primary button--large" onClick={onEnter}>
+                  Show me my sky
+                </button>
+                <p className="provenance">
+                  Computed for <span className="readout">{coordinates(knownSite)}</span>
+                </p>
+                <button className="button button--quiet" onClick={() => setElsewhere(true)}>
+                  I&rsquo;m somewhere else
+                </button>
+              </div>
+            ) : (
+              <LocationAsk
+                status={status}
+                error={error}
+                permission={permission}
+                onRequestGps={onRequestGps}
+                onManual={onManual}
+              />
+            )}
             <p className="provenance provenance--block">
               <span className="overture__sentence">Star positions from the HYG catalogue.</span>
               <span className="overture__sentence">

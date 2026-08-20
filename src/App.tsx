@@ -52,6 +52,26 @@ export default function App() {
   const sky = useSkyData(site);
   const journal = useJournal();
 
+  /*
+   * The landing page is the way in every time, not only the first time.
+   *
+   * It used to be shown only while there was no stored site, which meant that
+   * everyone who had ever answered the question never saw it again: they opened
+   * the app straight onto the instrument. That is defensible for a tool and
+   * wrong for this one. The page is the argument for the app, it computes a
+   * real sky over Greenwich to make that argument, and it is the only place the
+   * provenance of every number is written down. Skipping it for the people who
+   * come back most is skipping it for almost everybody.
+   *
+   * A returning visitor is not asked again. Their site is already known, so the
+   * closing plate offers the way in instead of the question, and offers the
+   * question underneath it for the day they are somewhere else.
+   *
+   * Not persisted, deliberately. This is about opening the app, so it resets
+   * with every load, which is the whole point.
+   */
+  const [entered, setEntered] = useState(false);
+
   // Orientation lives here rather than in the sky view, because the header's
   // rose reports it and the sky view is not always the visible screen.
   const orientation = useOrientation();
@@ -94,14 +114,27 @@ export default function App() {
     [journal, site],
   );
 
-  if (!site) {
+  if (!site || !entered) {
     return (
       <Overture
         status={status}
         error={error}
         permission={permission}
-        onRequestGps={requestGps}
-        onManual={setManual}
+        knownSite={site}
+        onEnter={() => setEntered(true)}
+        /*
+         * Answering the question is entering. Someone who has just tapped "use
+         * my location" has said where they are and is waiting to be shown it;
+         * handing them a second button would be asking them to agree twice.
+         */
+        onRequestGps={() => {
+          setEntered(true);
+          requestGps();
+        }}
+        onManual={(latitude, longitude, label) => {
+          setEntered(true);
+          setManual(latitude, longitude, label);
+        }}
       />
     );
   }

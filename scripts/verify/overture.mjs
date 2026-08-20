@@ -26,6 +26,9 @@ const PORT = 9342;
 const STOPS = [0, 0.24, 0.48, 0.72, 0.92, 1];
 
 const profile = join(tmpdir(), `bs-chrome-o-${Date.now()}`);
+/** Johannesburg, the site the rest of the suite shoots from. */
+const RETURNING = { latitude: -26.2041, longitude: 28.0473, elevation: 1753, source: 'gps' };
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let nextId = 1;
 
@@ -174,6 +177,64 @@ async function main() {
         `!!Array.from(document.querySelectorAll('.overture__plate button')).find(b => /use my location/i.test(b.innerText))`,
       )) === true,
     );
+
+    /*
+     * And again as somebody coming back.
+     *
+     * The page is shown on every visit now, not only the first, so the case
+     * that matters most is the one where the location question has already
+     * been answered. Asking it a second time would be the app forgetting a
+     * thing it has written down, so the plate has to offer the way in instead
+     * and keep the question underneath for the day they have moved.
+     */
+    console.log('');
+    console.log('returning visitor:');
+    await evalPage(
+      `localStorage.setItem('borrowed-sky:site', ${JSON.stringify(JSON.stringify(RETURNING))})`,
+    );
+    await call('Page.reload');
+    await sleep(9000);
+
+    check(
+      'the landing page is shown to someone it already knows',
+      (await evalPage(`!!document.querySelector('.overture')`)) === true,
+    );
+    const plate = await evalPage(
+      `document.querySelector('.overture__panel--close')?.innerText ?? ''`,
+    );
+    check('the plate offers the way in', /show me my sky/i.test(plate));
+    check('it does not ask again', !/use my location/i.test(plate));
+    check(
+      'it says which sky it means',
+      /26\.20.*S/i.test(plate.replace(/\s+/g, ' ')),
+      plate.replace(/\s+/g, ' ').slice(0, 120),
+    );
+    await shot('21-overture-returning');
+
+    // And the question is still reachable for the day they are somewhere else.
+    await evalPage(
+      `Array.from(document.querySelectorAll('.overture__plate button')).find(b => /somewhere else/i.test(b.innerText))?.click()`,
+    );
+    await sleep(400);
+    check(
+      'the question is one tap underneath',
+      (await evalPage(
+        `!!Array.from(document.querySelectorAll('.overture__plate button')).find(b => /use my location/i.test(b.innerText))`,
+      )) === true,
+    );
+
+    // And the way in works.
+    await call('Page.reload');
+    await sleep(9000);
+    await evalPage(
+      `Array.from(document.querySelectorAll('.overture__plate button')).find(b => /show me my sky/i.test(b.innerText))?.click()`,
+    );
+    await sleep(2500);
+    check(
+      'the way in reaches the instrument',
+      (await evalPage(`!!document.querySelector('.app .sky-view')`)) === true,
+    );
+    await shot('22-overture-entered');
 
     const errs = await evalPage(`JSON.stringify(window.__pageErrors || [])`);
     check('no page errors', errs === '[]', errs);
