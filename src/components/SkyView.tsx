@@ -16,7 +16,7 @@ import { ObjectRail, type RailTab } from './ObjectRail';
 import { ReadoutPanel } from './ReadoutPanel';
 import { HorizonDial } from './HorizonDial';
 import { GuidePlaque } from './GuidePlaque';
-import { orientationState, type Orientation } from './OrientationSheet';
+import { type Orientation } from './OrientationSheet';
 import {
   eqjToHorMatrix,
   horVectorToAltAz,
@@ -25,7 +25,6 @@ import {
 } from '../lib/astro/frames';
 import { starToBody, type ConstellationFigure, type StarCatalog } from '../lib/astro/starfield';
 import { toObserver } from '../lib/astro/solar';
-import { compassPoint } from '../lib/astro/satellites';
 import type { ObserverSite, SkyBody, SkyConditions } from '../lib/astro/types';
 import type { TonightTimeline } from '../lib/astro/events';
 import type { Tone } from '../lib/ai';
@@ -33,12 +32,6 @@ import type { Tone } from '../lib/ai';
 const MIN_FOV = 20;
 const MAX_FOV = 110;
 
-/** What the strip says when it is not being driven by the phone. */
-const AIM_NOTE: Record<string, string> = {
-  ask: 'Manual mode · tap the rose to use your compass',
-  blocked: 'Manual mode · drag the sky to look around',
-  paused: 'Manual mode · tap the emblem to follow your phone again',
-};
 
 export interface SkyViewProps {
   catalog: StarCatalog | null;
@@ -55,7 +48,6 @@ export interface SkyViewProps {
   orientation: Orientation;
   followCompass: boolean;
   onFollowCompass: (on: boolean) => void;
-  onOpenCompass: () => void;
   onChangeSite: () => void;
   onToneChange: (tone: Tone) => void;
   onRecord: (body: SkyBody) => void;
@@ -78,7 +70,6 @@ export function SkyView({
   orientation,
   followCompass,
   onFollowCompass,
-  onOpenCompass,
   onChangeSite,
   onToneChange,
   onRecord,
@@ -300,7 +291,6 @@ export function SkyView({
     if (selectedBody && selectedBody.altitude < -5) setSelectedId(null);
   }, [selectedBody]);
 
-  const aimNote = AIM_NOTE[orientationState(orientation, followCompass)];
 
   return (
     <div className={selectedBody ? 'sky-view sky-view--tracking' : 'sky-view'}>
@@ -370,12 +360,6 @@ export function SkyView({
 
       <div className="sky-view__deck" ref={deckRef}>
         <HorizonDial heading={camera.azimuth} live={compassLive} />
-
-        {aimNote && (
-          <button className="aim-note" onClick={onOpenCompass}>
-            {aimNote} · facing {compassPoint(camera.azimuth)}
-          </button>
-        )}
 
         {conditions && (
           <GuidePlaque

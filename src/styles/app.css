@@ -1626,33 +1626,6 @@ button {
     0 2px 8px rgba(0, 0, 0, 0.8);
 }
 
-.aim-note {
-  justify-self: center;
-  max-width: 100%;
-  padding: 0.24rem 0.7rem;
-  border: var(--rule) solid var(--brass-engrave);
-  border-radius: 999px;
-  background: var(--veil-strong);
-  font-family: var(--font-data);
-  /*
-   * Sized for the monospace actually in use. This line is long enough to run
-   * off the deck and into the elevation scale if the face sets wide, so it is
-   * measured against the current one rather than assumed. Wrapping is allowed
-   * rather than relied upon; it should still make one line on most screens.
-   */
-  font-size: 0.5938rem;
-  letter-spacing: 0.04em;
-  line-height: 1.5;
-  text-align: center;
-  text-wrap: balance;
-  color: var(--starlight-mute);
-  backdrop-filter: blur(8px);
-  transition: color 220ms var(--ease), border-color 220ms var(--ease);
-}
-.aim-note:hover {
-  color: var(--starlight-soft);
-  border-color: var(--brass-hairline);
-}
 
 /* --- the guide ----------------------------------------------------------- */
 
@@ -2845,10 +2818,6 @@ button {
     height: 92px;
   }
 
-  .aim-note {
-    font-size: 0.5625rem;
-    padding: 0.28rem 0.6rem;
-  }
 
   /*
    * Thinner glass.

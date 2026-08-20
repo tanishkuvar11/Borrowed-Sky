@@ -171,7 +171,6 @@ export default function App() {
             orientation={orientation}
             followCompass={followCompass}
             onFollowCompass={setFollowCompass}
-            onOpenCompass={() => setSheet('compass')}
             onChangeSite={clear}
             onToneChange={setTone}
             onRecord={record}

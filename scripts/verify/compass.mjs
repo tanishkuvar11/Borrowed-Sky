@@ -335,10 +335,6 @@ async function main() {
 
     await closeDialog();
     check('header rose shows live tracking', (await roseState()) === 'rose--live');
-    check(
-      'sky view drops the manual-mode note',
-      (await evalPage(`!document.querySelector('.aim-note')`)) === true,
-    );
     await shot('compass-active');
 
     await call('Page.removeScriptToEvaluateOnNewDocument', { identifier });
