@@ -487,6 +487,11 @@ export function Overture({
                 Nothing in this app is simulated or placeholder data, including the sky you just
                 scrolled through.
               </span>
+              <span className="overture__sentence">
+                Once you say where you are, your coordinates are rounded to the nearest kilometre
+                and sent to OpenStreetMap and Open-Meteo, to put a name and a timezone on the
+                place. That is the only thing about you this app sends anywhere.
+              </span>
             </p>
           </div>
         </section>

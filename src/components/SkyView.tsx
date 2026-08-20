@@ -26,6 +26,7 @@ import {
 import { starToBody, type ConstellationFigure, type StarCatalog } from '../lib/astro/starfield';
 import { toObserver } from '../lib/astro/solar';
 import type { ObserverSite, SkyBody, SkyConditions } from '../lib/astro/types';
+import type { Place } from '../lib/place';
 import type { TonightTimeline } from '../lib/astro/events';
 import type { Tone } from '../lib/ai';
 
@@ -48,6 +49,8 @@ export interface SkyViewProps {
   orientation: Orientation;
   followCompass: boolean;
   onFollowCompass: (on: boolean) => void;
+  /** Looked up for the observer's coordinates, or null while it is still in the air. */
+  place: Place | null;
   onChangeSite: () => void;
   onToneChange: (tone: Tone) => void;
   onRecord: (body: SkyBody) => void;
@@ -70,6 +73,7 @@ export function SkyView({
   orientation,
   followCompass,
   onFollowCompass,
+  place,
   onChangeSite,
   onToneChange,
   onRecord,
@@ -341,7 +345,7 @@ export function SkyView({
         corner read as assembled.
       */}
       <div className={columnOpen ? 'sky-view__aside is-open' : 'sky-view__aside'} ref={asideRef}>
-        <ReadoutPanel site={site} now={now} onChangeSite={onChangeSite} />
+        <ReadoutPanel site={site} now={now} place={place} onChangeSite={onChangeSite} />
         <ObjectRail
           bodies={bodies}
           tab={railTab}

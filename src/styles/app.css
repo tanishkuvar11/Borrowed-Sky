@@ -1145,6 +1145,15 @@ button {
   border-bottom: var(--rule) solid var(--brass-engrave);
 }
 
+/*
+ * The note under the zone: quieter than a reading, because it is about the
+ * screen rather than about the sky.
+ */
+.readout-panel__note {
+  color: var(--starlight-mute);
+  font-size: 0.75rem;
+}
+
 .readout-panel__key {
   display: inline-block;
   min-width: 2.4rem;

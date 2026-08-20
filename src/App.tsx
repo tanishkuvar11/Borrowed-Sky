@@ -19,6 +19,7 @@ import {
 } from './components/icons';
 
 import { useObserverSite } from './hooks/useObserverSite';
+import { usePlace } from './hooks/usePlace';
 import { useEyePosition } from './hooks/useEyePosition';
 import { useSmoothScroll } from './hooks/useSmoothScroll';
 import { useOrientation } from './hooks/useOrientation';
@@ -50,6 +51,7 @@ const COMPASS_HINT: Record<string, string> = {
 export default function App() {
   const { site, status, error, permission, requestGps, setManual, clear } = useObserverSite();
   const sky = useSkyData(site);
+  const place = usePlace(site);
   const journal = useJournal();
 
   /*
@@ -196,6 +198,7 @@ export default function App() {
             orientation={orientation}
             followCompass={followCompass}
             onFollowCompass={setFollowCompass}
+            place={place}
             onChangeSite={clear}
             onToneChange={setTone}
             onRecord={record}

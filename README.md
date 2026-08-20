@@ -49,6 +49,20 @@ Concretely:
 - **Satellite positions** are propagated with SGP4 ([satellite.js](https://github.com/shashwatak/satellite-js)) from live orbital elements published by [Celestrak](https://celestrak.org/). No pass time is looked up or approximated; each one is searched for numerically from the elements.
 - **The AI never computes anything.** It receives a finished, structured description of the sky and turns it into a sentence. It is explicitly instructed that the data it is given is the only source of truth and that it must refuse rather than guess.
 
+### The one thing that is looked up rather than computed
+
+A place name cannot be derived from first principles. Everything above the horizon in this app comes out of astronomy-engine, SGP4 and the catalogues it ships, but "you are near Udupi, and the clocks there are on Asia/Kolkata" is a fact about people, and somebody had to write it down first.
+
+So it is asked for, and this is the only request in the app that carries anything about the user. The two existing network paths do not: Celestrak is asked for orbital elements and knows nothing about who is asking, and watsonx is sent a sky that has already been computed. This one sends a coordinate.
+
+Three things follow, and they are the whole of [`api/place.ts`](api/place.ts):
+
+- **The coordinates are rounded to two decimal places before they leave.** That is a little over a kilometre, which is the difference between naming the town somebody is in and naming their street. The town is all that is being asked for.
+- **Nothing is invented when it fails.** There is no "somewhere near" and no guessed country. The endpoint reports the failure and the plate goes on showing the coordinates it already had, which were computed and are true.
+- **It stays a narrow pipe.** Two fixed upstreams and nothing passed through from the caller but a latitude and a longitude, so it cannot be used as a general proxy by anyone who finds it.
+
+The landing page says all of this in one sentence before you are asked for anything.
+
 ### The one thing that is drawn rather than computed
 
 The foreground (the hills and the water at the bottom of the frame) is invented. It is scenery, and the app fences it in accordingly: it is clipped strictly **below the true horizon**, the brass line, so it can never sit in front of a real object or imply a skyline that is not there. Everything above that line is computed; the foreground is the frame around it.
@@ -72,12 +86,14 @@ npx tsx scripts/verify/satellites.check.ts   # SGP4, eclipse test, pass search
 npx tsx scripts/verify/events.check.ts       # timeline across four latitudes
 npx tsx scripts/verify/milkyway.check.ts     # galactic frame
 npx tsx scripts/verify/grounding.check.ts    # the guard on Granite's answers
+npx tsx scripts/verify/place.check.ts        # the clock-difference note
 npm run verify:granite                       # live call to watsonx, needs credentials
 ```
 
 - `frames.check.ts` cross-checks the fast matrix pipeline against astronomy-engine's own `DefineStar → Equator → Horizon` path, two routes sharing no code. They agree to **0.01 arcseconds** across five stars, four sites and three dates.
 - `satellites.check.ts` validates propagation against physics derived independently: ISS altitude, orbital speed, period (92.8 min), and the fraction of each orbit spent in sunlight (~63%), plus invariants on every predicted pass.
 - `events.check.ts` runs the timeline at Johannesburg, Delhi, the equator, and Svalbard in midsummer, where the Sun never sets and the correct answer is "there is no darkness tonight."
+- `place.check.ts` covers the one comparison the place lookup does to its own answer: whether the clocks on screen are the clocks where the observer is standing. It exists because the obvious version, comparing the two zone names, shipped and was wrong. Browsers still report legacy aliases, so a phone in India says `Asia/Calcutta` where the lookup returns `Asia/Kolkata`, and a person sitting at home was told their own clock disagreed with their own location. A wrong warning is worse than no warning, so the comparison is on the offsets the zones are actually set to, and the cases cover aliases, summer time, half-hour offsets and zones that do not resolve.
 - `milkyway.check.ts` checks the galactic frame against published equatorial positions. Sagittarius A\* (the observational anchor for the galactic centre) lands **0.1 arcseconds** from its catalogue position, and the north celestial pole round-trips exactly, which catches a pole-angle error that testing the centre alone would miss.
 
 There are also three headless-Chrome integration passes (`npm run verify:ui`) that drive the real app over the DevTools protocol. `screenshot.mjs` and `interact.mjs` assert that tapping an object opens a panel with real readings, that explanations render, and that journal entries persist and plot. `compass.mjs` covers the two orientation paths that otherwise need a physical phone on a real https origin: it loads the app by LAN address to confirm an insecure origin is reported as a connection problem, then shims Safari's gated `requestPermission` to confirm the hook actually subscribes once permission is granted and reads `webkitCompassHeading` as north-referenced.
@@ -257,6 +273,8 @@ The translation is the product. And it is aimed at people who are currently on t
 - [astronomy-engine](https://github.com/cosinekitty/astronomy), ephemeris, MIT
 - [satellite.js](https://github.com/shashwatak/satellite-js), SGP4, MIT
 - [Celestrak](https://celestrak.org/), orbital elements, free and keyless
+- [Nominatim](https://nominatim.openstreetmap.org/) on OpenStreetMap data, place names, ODbL, free and keyless
+- [Open-Meteo](https://open-meteo.com/), the IANA timezone at a coordinate, CC BY 4.0, free and keyless
 - [IBM Granite](https://www.ibm.com/granite) on [watsonx.ai](https://www.ibm.com/products/watsonx-ai), narration, Apache 2.0 model family
 - The Sun, the planets and the Moon are photographs, not drawings. Every portrait in the
   object column, the dossier and the guide panel is a spacecraft image, cut out
