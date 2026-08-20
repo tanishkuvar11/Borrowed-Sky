@@ -554,27 +554,6 @@ button {
   text-overflow: ellipsis;
 }
 
-.wordmark__tag {
-  margin: 0.1rem 0 0;
-  font-family: var(--font-data);
-  font-size: 0.5625rem;
-  font-weight: 500;
-  letter-spacing: 0.28em;
-  text-indent: 0.28em;
-  text-transform: uppercase;
-  /*
-   * Teal, because this line is the system announcing itself, and teal is what
-   * the machine speaks in throughout: the guide's title, the live compass, the
-   * active view. Held well down in opacity so a designation does not compete
-   * with the name above it.
-   */
-  color: var(--visible);
-  opacity: 0.72;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 /*
  * The two circular controls flanking the wordmark.
  *
@@ -2995,10 +2974,6 @@ button {
   /* The deck clears the column instead of sliding under it. */
   .sky-view__deck {
     padding-left: calc(clamp(9rem, 27vw, 15rem) + var(--inset) * 2);
-  }
-
-  .wordmark__tag {
-    display: none;
   }
 
   .horizon {

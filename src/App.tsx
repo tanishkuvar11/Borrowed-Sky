@@ -160,7 +160,6 @@ export default function App() {
 
         <div className="wordmark">
           <h1 className="wordmark__name">Borrowed Sky</h1>
-          <p className="wordmark__tag">AI-powered stargazing companion</p>
         </div>
 
         <button

@@ -367,7 +367,7 @@ export function Overture({
 
       <div className="overture__flow">
         <section className="overture__panel overture__panel--hero" style={panelStyle(hero)}>
-          <p className="engrave overture__eyebrow">
+          <p className="overture__eyebrow">
             Borrowed Sky
             <span className="overture__eyebrow-rule" aria-hidden="true" />
             <IconSpark size={11} />
