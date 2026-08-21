@@ -187,14 +187,57 @@ function filterVector(
  * this arithmetic would be two chances for the heading on screen to stop
  * matching the sky.
  */
-function aimFrom(look: number[], up: number[]): { azimuth: number; altitude: number; roll: number } {
+/**
+ * Interpolates between two bearings the short way round.
+ *
+ * Radians in and out. A straight lerp between 350 and 10 degrees travels the
+ * long way through 180, which is the exact failure this is here to avoid, so
+ * the difference is wrapped into a half turn before it is walked.
+ */
+function blendAngles(from: number, to: number, t: number): number {
+  let delta = to - from;
+  while (delta > Math.PI) delta -= 2 * Math.PI;
+  while (delta < -Math.PI) delta += 2 * Math.PI;
+  return from + delta * t;
+}
+
+export function aimFrom(look: number[], up: number[]): { azimuth: number; altitude: number; roll: number } {
   const nLook = Math.hypot(look[0], look[1], look[2]) || 1;
   const lx = look[0] / nLook;
   const ly = look[1] / nLook;
   const lz = look[2] / nLook;
 
   const altitude = Math.asin(Math.max(-1, Math.min(1, lz))) * RAD;
-  let azimuth = Math.atan2(lx, ly) * RAD;
+
+  /*
+   * Which way you are facing, near the zenith, where that stops being a
+   * question the look direction can answer.
+   *
+   * Azimuth is atan2 of the look vector's horizontal part, and the whole point
+   * of this app is people holding a phone up at the sky, which drives that
+   * horizontal part to nothing. At eighty-five degrees up it is already less
+   * than a tenth of the vector; a millimetre of hand shake then swings the
+   * answer through any angle at all, and what somebody sees is the sky snapping
+   * from west to east and back while they hold still. It is not noise in the
+   * sensor. It is a division that has run out of numerator.
+   *
+   * The screen's own up axis is the answer, because it is perpendicular to the
+   * look direction and therefore lying flat exactly when the look direction is
+   * standing on end. Pointed up, the top of the screen leans away from where
+   * you are facing, so its bearing is the one wanted, turned around.
+   *
+   * Blended rather than switched. A hard changeover at some threshold trades a
+   * flip near the zenith for a smaller flip at the threshold, which is the same
+   * bug moved somewhere harder to reproduce. Below about a quarter of the
+   * vector the look direction hands over gradually, and the two agree
+   * everywhere in between, so nothing jumps.
+   */
+  const nUp = Math.hypot(up[0], up[1], up[2]) || 1;
+  const fromLook = Math.atan2(lx, ly);
+  const fromUp = Math.atan2(-up[0] / nUp, -up[1] / nUp);
+  const trustLook = Math.min(1, Math.hypot(lx, ly) / 0.25);
+
+  let azimuth = blendAngles(fromUp, fromLook, trustLook) * RAD;
   if (azimuth < 0) azimuth += 360;
 
   // Roll: how far the screen's up axis is rotated from the sky's "up".
