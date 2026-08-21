@@ -140,9 +140,17 @@
   flex: none;
 }
 
-.overture__clock {
-  color: var(--visible);
-}
+/*
+ * The clock has no rule of its own, and the class is left on it as a handle
+ * for scripts/verify/overture.mjs, which reads the time out of the slate to
+ * prove the sky is being recomputed as the page scrolls.
+ *
+ * It used to be teal, which in this app means "live": the compass while it is
+ * tracking, the view you are on, the guide's own name. The clock is live, so
+ * the reasoning held. But it sits in a row of three, and the coordinates and
+ * the Sun's depth beside it are just as computed and just as current; setting
+ * one of the three apart claimed a distinction between them that is not there.
+ */
 
 /*
  * The reason the clock reads what it reads. Set below the time and dimmer than
