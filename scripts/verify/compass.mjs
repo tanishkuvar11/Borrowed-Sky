@@ -220,6 +220,10 @@ async function main() {
            .find(c => c.startsWith('rose--')) ?? '(none)'`,
       );
 
+    /** The sentence the sky itself offers about its aim, if it is offering one. */
+    const prompt = () =>
+      evalPage(`document.querySelector('.compass-prompt')?.innerText.trim() ?? '(none)'`);
+
     /** The same state, in the word printed under the rose. */
     const tagWord = () =>
       evalPage(`document.querySelector('.compass-tag__state')?.innerText.trim() ?? '(none)'`);
@@ -319,6 +323,11 @@ async function main() {
 
     check('header rose invites a tap', (await roseState()) === 'rose--ask', await roseState());
     check(
+      'the sky says what can be done about it, not just what it is',
+      /your phone/i.test(await prompt()),
+      await prompt(),
+    );
+    check(
       'and says so in a word, not only in a colour',
       (await tagWord()).toLowerCase() === 'off',
       await tagWord(),
@@ -375,6 +384,11 @@ async function main() {
 
     await closeDialog();
     check('header rose shows live tracking', (await roseState()) === 'rose--live');
+    check(
+      'and the sky stops offering to do anything about it',
+      (await prompt()) === '(none)',
+      await prompt(),
+    );
     check(
       'and says so in a word, not only in a colour',
       (await tagWord()).toLowerCase() === 'live',

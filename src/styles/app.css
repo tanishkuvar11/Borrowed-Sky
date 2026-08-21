@@ -585,6 +585,55 @@ button {
  * is what a knurled or divided ring looks like at this size. Under it a very
  * fine gold circle, and inside that the dished glass.
  */
+/*
+ * The header's left group: the menu, and the way out beside it.
+ *
+ * Top left with an arrow and the word back is where a person looks to leave a
+ * screen, and it is worth the width it takes off the wordmark. The name has
+ * ellipsis protection and has had it all along; this is the first thing on the
+ * bar that has ever actually needed it.
+ */
+.topbar__left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.go-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.42rem 0.8rem 0.42rem 0.6rem;
+  border: var(--rule) solid var(--brass-hairline);
+  border-radius: 999px;
+  background: var(--veil-strong);
+  backdrop-filter: blur(6px);
+  font-family: var(--font-display);
+  font-size: 0.5938rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--brass-bright);
+  cursor: pointer;
+  transition: border-color 220ms var(--ease), color 220ms var(--ease);
+}
+.go-back:hover {
+  border-color: var(--brass-dim);
+  color: var(--starlight);
+}
+
+/* On a narrow phone the arrow says it on its own, and the name needs the room. */
+@media (max-width: 430px) {
+  .go-back span {
+    display: none;
+  }
+  .go-back {
+    padding: 0.42rem 0.55rem;
+  }
+}
+
 .rose {
   position: relative;
   width: 46px;
@@ -1169,6 +1218,8 @@ button {
 /* --- the observer's plate ------------------------------------------------ */
 
 .readout-panel {
+  /* A readout. Nothing here responds to a press, so nothing here invites one. */
+  cursor: default;
   position: relative;
   display: flex;
   align-items: center;
@@ -1188,14 +1239,6 @@ button {
   backdrop-filter: blur(14px) saturate(0.9);
   transition: box-shadow 260ms var(--ease), border-color 260ms var(--ease);
 }
-.readout-panel:hover {
-  border-color: var(--brass-dim);
-  box-shadow:
-    inset 0 1px 0 rgb(var(--sheen-rgb) / 0.2),
-    inset 0 -18px 34px -26px rgb(var(--sheen-rgb) / 0.4),
-    0 10px 30px -14px rgba(0, 0, 0, 0.9);
-}
-
 /*
  * Measurement ticks along the top edge of the plate.
  *
@@ -1293,9 +1336,6 @@ button {
   color: var(--brass);
   opacity: 0.8;
   transition: opacity 260ms var(--ease);
-}
-.readout-panel:hover .readout-panel__clock {
-  opacity: 1;
 }
 
 /* --- the tabs over the column -------------------------------------------- */
@@ -1664,6 +1704,55 @@ button {
 }
 
 /*
+ * The prompt above the rule: what you can do about the aim, when there is
+ * something to do about it.
+ *
+ * Sits in the deck rather than floating anywhere, so it is directly over the
+ * control it is talking about, and centred, because it is a sentence rather
+ * than a status: it should read as the app speaking up, not as a chip parked
+ * in a corner.
+ */
+.compass-prompt {
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  /* Clear of the index, whose cardinal word stands up off the rule. */
+  margin-bottom: calc(var(--step) * 2.4);
+  padding: 0.38rem 0.85rem;
+  border: var(--rule) solid var(--brass-hairline);
+  border-radius: 999px;
+  background: var(--veil-strong);
+  backdrop-filter: blur(8px);
+  font-family: var(--font-display);
+  font-size: 0.5625rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--brass-bright);
+  cursor: pointer;
+  transition: border-color 220ms var(--ease), color 220ms var(--ease);
+}
+.compass-prompt:hover {
+  border-color: var(--brass-dim);
+  color: var(--starlight);
+}
+
+/*
+ * The one that is an offer rather than an explanation gets a slow pulse, the
+ * same one the header rose uses to mean the same thing. The other two are
+ * statements and sit still.
+ */
+.compass-prompt--ask {
+  animation: rose-ask 2.6s var(--ease) infinite;
+}
+.compass-prompt--blocked {
+  color: var(--starlight-mute);
+  letter-spacing: 0.1em;
+}
+
+/*
  * The horizon.
  *
  * Full bleed, and deliberately not inset like a panel: this is the edge of the
@@ -1701,11 +1790,19 @@ button {
  * Sat on the crest of the arc, so the heading is read where the horizon is
  * highest, which is where the eye already is.
  */
+/*
+ * The index: the fixed mark the scale runs beneath.
+ *
+ * It used to sit on the crest of the arc, because that was the highest point of
+ * the horizon and the place the eye already was. On a level rule every point is
+ * the highest one, so it sits on the line itself, straddling it the way the
+ * pointer on a real dial straddles the scale it reads.
+ */
 .horizon__index {
   position: absolute;
   left: 50%;
-  top: 42%;
-  transform: translate(-50%, -50%);
+  top: 0;
+  transform: translate(-50%, -46%);
   display: grid;
   justify-items: center;
   gap: 0.2rem;
@@ -2992,10 +3089,6 @@ button {
    * rather than cropping it. What is below the card is the sky canvas's own
    * ground, which is drawn whatever this is set to.
    */
-  .sky-view {
-    --horizon-h: 92px;
-  }
-
   /*
    * No room for two columns facing each other, so the briefing lies across the
    * bottom again, above the dial. It is the only thing down here now, and the
@@ -3134,11 +3227,6 @@ button {
     right: var(--inset);
     width: auto;
     max-height: none;
-  }
-
-  /* A short frame cannot spare 124px of it. The band shrinks; the curve stays. */
-  .sky-view {
-    --horizon-h: 62px;
   }
 
   /*

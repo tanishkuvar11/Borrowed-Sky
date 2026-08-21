@@ -16,7 +16,8 @@ import { ObjectRail, type RailTab } from './ObjectRail';
 import { ReadoutPanel } from './ReadoutPanel';
 import { HorizonDial } from './HorizonDial';
 import { GuidePlaque } from './GuidePlaque';
-import { type Orientation } from './OrientationSheet';
+import { IconCompassRose } from './icons';
+import { orientationState, type Orientation } from './OrientationSheet';
 import {
   eqjToHorMatrix,
   horVectorToAltAz,
@@ -29,6 +30,24 @@ import type { ObserverSite, SkyBody, SkyConditions } from '../lib/astro/types';
 import type { Place } from '../lib/place';
 import type { TonightTimeline } from '../lib/astro/events';
 import type { Tone } from '../lib/ai';
+
+/**
+ * What the sky says about its own aim, when it is not following the phone.
+ *
+ * One line each, written as the thing you would do rather than as the state
+ * you are in. `live` is absent on purpose: there is nothing to offer somebody
+ * whose view is already turning with them.
+ *
+ * `blocked` is the desktop case and the plain-http case, where the sensor is
+ * not coming. It still gets a line, because "you cannot have this here" is
+ * useful the first time somebody wonders why the sky will not turn, and the
+ * sheet behind it explains which of the two reasons applies.
+ */
+const COMPASS_PROMPT: Record<string, string> = {
+  ask: 'Turn the sky with your phone',
+  paused: 'Follow your phone again',
+  blocked: 'Drag to look around. Why no compass?',
+};
 
 const MIN_FOV = 20;
 const MAX_FOV = 110;
@@ -49,9 +68,9 @@ export interface SkyViewProps {
   orientation: Orientation;
   followCompass: boolean;
   onFollowCompass: (on: boolean) => void;
+  onOpenCompass: () => void;
   /** Looked up for the observer's coordinates, or null while it is still in the air. */
   place: Place | null;
-  onChangeSite: () => void;
   onToneChange: (tone: Tone) => void;
   onRecord: (body: SkyBody) => void;
   onOpenGuide: () => void;
@@ -73,8 +92,8 @@ export function SkyView({
   orientation,
   followCompass,
   onFollowCompass,
+  onOpenCompass,
   place,
-  onChangeSite,
   onToneChange,
   onRecord,
   onOpenGuide,
@@ -123,6 +142,8 @@ export function SkyView({
   }));
 
   const compassLive = orientation.status === 'active' && followCompass;
+  const compassMode = orientationState(orientation, followCompass);
+  const compassPrompt = COMPASS_PROMPT[compassMode];
 
   const camera: Camera = useMemo(
     () =>
@@ -345,7 +366,7 @@ export function SkyView({
         corner read as assembled.
       */}
       <div className={columnOpen ? 'sky-view__aside is-open' : 'sky-view__aside'} ref={asideRef}>
-        <ReadoutPanel site={site} now={now} place={place} onChangeSite={onChangeSite} />
+        <ReadoutPanel site={site} now={now} place={place} />
         <ObjectRail
           bodies={bodies}
           tab={railTab}
@@ -391,6 +412,30 @@ export function SkyView({
         rail. Nothing floats under it.
       */}
       <div className="sky-view__deck">
+        {/*
+          What to do about it, when the view is not following the phone.
+
+          The header says which mode the compass is in, in a word, which tells
+          you the state and nothing about what you can do with it. "Manual"
+          answers a question nobody asked; the question people actually have,
+          standing outside holding a phone up at the sky, is whether this thing
+          can turn with them. So when it can and is not, the sky itself says so,
+          in a sentence, on the control that would turn it on.
+
+          Nothing when it is already live. A prompt that is always there is
+          furniture, and the whole point of this one is that it means something
+          when it appears.
+        */}
+        {compassPrompt && (
+          <button
+            className={`compass-prompt compass-prompt--${compassMode}`}
+            onClick={compassMode === 'paused' ? () => onFollowCompass(true) : onOpenCompass}
+          >
+            <IconCompassRose size={14} />
+            <span>{compassPrompt}</span>
+          </button>
+        )}
+
         <HorizonDial heading={camera.azimuth} live={compassLive} />
       </div>
 

@@ -39,6 +39,16 @@ export function IconSky(props: IconProps) {
   );
 }
 
+/** Back: an arrow pointing the way out. */
+export function IconBack(props: IconProps) {
+  return (
+    <svg {...frame(props)}>
+      <path d="M19 12H5" />
+      <path d="M11 6l-6 6 6 6" />
+    </svg>
+  );
+}
+
 /** Explore: a refractor on its tripod. */
 export function IconExplore(props: IconProps) {
   return (

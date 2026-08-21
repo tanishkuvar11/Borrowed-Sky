@@ -9,6 +9,7 @@ import { OrientationSheet, orientationState } from './components/OrientationShee
 import { SettingsSheet } from './components/SettingsSheet';
 import { Diagnostics, diagnosticsRequested } from './components/Diagnostics';
 import {
+  IconBack,
   IconCompassRose,
   IconEmblem,
   IconExplore,
@@ -186,15 +187,31 @@ export default function App() {
       {diagnosticsRequested() && <Diagnostics />}
 
       <header className="topbar">
-        <button
-          className="rose rose--plain"
-          onClick={() => setSheet('settings')}
-          aria-label="Menu"
-        >
-          <span className="rose__face">
-            <IconMenu size={20} />
-          </span>
-        </button>
+        {/*
+          The way out, in the words it would be asked for.
+
+          This has now been three things. It was nothing at all, then the name
+          in the header, then a cell in the rail labelled HOME, and none of
+          those is what somebody looks for when they want to leave a screen:
+          they look top left, for an arrow, next to the word back. So that is
+          what is there.
+        */}
+        <div className="topbar__left">
+          <button
+            className="rose rose--plain"
+            onClick={() => setSheet('settings')}
+            aria-label="Menu"
+          >
+            <span className="rose__face">
+              <IconMenu size={20} />
+            </span>
+          </button>
+
+          <button className="go-back" onClick={() => setEntered(false)}>
+            <IconBack size={16} />
+            <span>Go back</span>
+          </button>
+        </div>
 
         {/*
           The name is the way back, which is where every site on the web has
@@ -250,8 +267,8 @@ export default function App() {
             orientation={orientation}
             followCompass={followCompass}
             onFollowCompass={setFollowCompass}
+            onOpenCompass={() => setSheet('compass')}
             place={place}
-            onChangeSite={clear}
             onToneChange={setTone}
             onRecord={record}
             onOpenGuide={() => setView('explore')}

@@ -139,18 +139,26 @@ export function HorizonDial({ heading, live }: { heading: number; live: boolean 
       ctx.clearRect(0, 0, width, height);
 
       /*
-       * The arc. A very large radius, so the curve is a suggestion rather than
-       * a bowl: sag works out at about a twenty-fifth of the width, which is
-       * the amount that reads as "the ground falls away at the edges" without
-       * reading as "this app is drawn on a ball".
+       * A flat strip, not an arc.
+       *
+       * It was drawn as a very shallow curve, on the argument that the real
+       * horizon is convex and that saying so made the band read as the edge of
+       * a world rather than as a control. That argument was right about what
+       * the curve said and wrong about what it cost: to show a sag of any
+       * visible size the band has to be tall enough to contain it, and the
+       * whole thing was taking a fifth of the frame to make a point about
+       * geometry. A scale is a scale. This one is now a rule, and the sky above
+       * it is what the frame is for.
+       *
+       * The centre and the normal are kept as values rather than folded away,
+       * because everything below is written in terms of them and a flat line is
+       * simply the case where the normal points straight down.
        */
-      const R = width * 3.2;
       const centreX = width / 2;
-      const crest = height * 0.42;
-      const centreY = crest + R;
+      const crest = 1;
 
-      /** Height of the arc at a horizontal offset from the centre. */
-      const arcY = (dx: number) => centreY - Math.sqrt(Math.max(0, R * R - dx * dx));
+      /** The rule is level, so this is the same height everywhere along it. */
+      const arcY = (_dx: number) => crest;
 
       const pixelsPerDegree = width / DEGREES_ACROSS;
 
@@ -171,13 +179,22 @@ export function HorizonDial({ heading, live }: { heading: number; live: boolean 
        * fastest away from a light above it, and the eye reads the rate of that
        * falloff as curvature. Spread evenly it looks like a painted stripe.
        */
+      /*
+       * Tuned for the strip's height, which is a third of what it was.
+       *
+       * The old ramp went to almost black by the bottom, which is what a tall
+       * band needs if it is to look like a surface curving away. Over 44px the
+       * same ramp is just a dark bar: there is no room for a falloff to read as
+       * one, and the marks cut into it disappear along with the light. So the
+       * metal stays lit nearly all the way down and only turns at the very
+       * bottom edge, where it meets the rail.
+       */
       const fill = ctx.createLinearGradient(0, crest, 0, height);
-      fill.addColorStop(0, metal(1.22));
-      fill.addColorStop(0.04, metal(1.0));
-      fill.addColorStop(0.13, metal(0.74));
-      fill.addColorStop(0.3, metal(0.47));
-      fill.addColorStop(0.58, metal(0.24));
-      fill.addColorStop(1, metal(0.09));
+      fill.addColorStop(0, metal(1.34));
+      fill.addColorStop(0.12, metal(1.08));
+      fill.addColorStop(0.55, metal(0.88));
+      fill.addColorStop(0.85, metal(0.66));
+      fill.addColorStop(1, metal(0.4));
       ctx.fillStyle = fill;
       ctx.fillRect(0, 0, width, height);
 
@@ -190,9 +207,10 @@ export function HorizonDial({ heading, live }: { heading: number; live: boolean 
       ctx.globalAlpha = 0.05;
       ctx.strokeStyle = lip;
       ctx.lineWidth = 1;
-      for (let offset = 6; offset < height; offset += 3) {
+      for (let offset = 4; offset < height; offset += 3) {
         ctx.beginPath();
-        for (let x = 0; x <= width; x += 12) ctx.lineTo(x, arcY(x - centreX) + offset);
+        ctx.moveTo(0, crest + offset);
+        ctx.lineTo(width, crest + offset);
         ctx.stroke();
       }
       ctx.globalAlpha = 1;
@@ -276,18 +294,14 @@ export function HorizonDial({ heading, live }: { heading: number; live: boolean 
         const edge = 1 - Math.min(1, Math.abs(x - centreX) / (width / 2));
         const fade = (0.3 + 0.7 * Math.min(1, edge * 2.2)) * (major ? 1 : medium ? 0.8 : 0.5);
 
-        /*
-         * Ticks stand perpendicular to the arc rather than straight down. On a
-         * curve that is the whole difference between a scale engraved on the
-         * instrument and a row of lines dropped on top of it: the marks at the
-         * ends of a real dial lean outwards, because the dial does.
-         */
+        /* Ticks hang from the rule, and the lettering stands under them. */
         const dx = x - centreX;
         const y = arcY(dx);
-        const lean = Math.asin(Math.max(-1, Math.min(1, dx / R)));
-        const nx = Math.sin(lean);
-        const ny = Math.cos(lean);
-        const len = major ? 12 : medium ? 7 : 3.5;
+        // Straight down. On a curve these leaned outwards with the card; on a
+        // level rule leaning would be a flourish with nothing behind it.
+        const nx = 0;
+        const ny = 1;
+        const len = major ? 9 : medium ? 6 : 3;
 
         /*
          * Cut twice: the lit lower lip first, then the dark bed of the groove
@@ -326,11 +340,11 @@ export function HorizonDial({ heading, live }: { heading: number; live: boolean 
            */
           if (Math.abs(offset) > 3) {
             ctx.font = "500 13px 'Cabinet Grotesk', system-ui, sans-serif";
-            engrave(cardinal, x + nx * 26, y + ny * 26);
+            engrave(cardinal, x, y + 22);
           }
         } else if (medium && normalised % 30 === 0) {
           ctx.font = "400 10px 'Share Tech Mono', ui-monospace, monospace";
-          engrave(String(normalised), x + nx * 19, y + ny * 19);
+          engrave(String(normalised), x, y + 18);
         }
       }
 

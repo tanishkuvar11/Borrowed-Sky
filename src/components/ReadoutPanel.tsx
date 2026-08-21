@@ -40,13 +40,11 @@ export function ReadoutPanel({
   site,
   now,
   place,
-  onChangeSite,
 }: {
   site: ObserverSite;
   now: Date;
   /** Looked up rather than computed, so null until it answers, and null if it never does. */
   place: Place | null;
-  onChangeSite: () => void;
 }) {
   /*
    * Built through one formatter rather than from the Date's own getters.
@@ -72,7 +70,18 @@ export function ReadoutPanel({
     .replace(',', ' ');
 
   return (
-    <button className="readout-panel" onClick={onChangeSite} title="Change location">
+    /*
+     * A plate, not a button.
+     *
+     * Pressing it used to clear the stored location, which is the most
+     * destructive thing this app can do and it was sitting under the least
+     * button-shaped surface on the screen: a set of engraved readings, in the
+     * corner, that a person taps to read more closely. Nothing about it warned
+     * that a tap would throw the location away, and there is now a labelled way
+     * out of the app in the header and the coordinates on offer at the far end
+     * of it, so this does not need to be the door as well.
+     */
+    <div className="readout-panel">
       <div className="readout-panel__rows">
         <span className="readout-panel__line">{stamp}</span>
         <span className="readout-panel__line">
@@ -134,6 +143,6 @@ export function ReadoutPanel({
       <span className="readout-panel__clock">
         <ClockFace date={now} size={44} />
       </span>
-    </button>
+    </div>
   );
 }
