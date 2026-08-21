@@ -19,7 +19,6 @@ import {
 } from '../lib/ai';
 import { compassPoint, heightInWords } from '../lib/astro/satellites';
 import { funFactFor, type Fact } from '../lib/facts';
-import { populationOf, type Population } from '../lib/astro/populations';
 import type { ObserverSite, SkyBody, SkyConditions } from '../lib/astro/types';
 import type { TonightTimeline } from '../lib/astro/events';
 
@@ -35,12 +34,6 @@ export interface ObjectSheetProps {
   onToneChange: (tone: Tone) => void;
   onClose: () => void;
   onRecord: (body: SkyBody) => void;
-  /**
-   * Pre-computed stellar populations, derived once from the catalogue and
-   * reused for every tap. Null until the catalogue is loaded; absent for
-   * non-star bodies.
-   */
-  populations?: Population[] | null;
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -73,7 +66,6 @@ export function ObjectSheet({
   onToneChange,
   onClose,
   onRecord,
-  populations,
 }: ObjectSheetProps) {
   const [answer, setAnswer] = useState<GuideAnswer | null>(null);
   const [fact, setFact] = useState<Fact | null>(null);
@@ -274,33 +266,6 @@ export function ObjectSheet({
             <dd className="readout">{body.spectralType}</dd>
           </div>
         )}
-        {body.kind === 'star' && populations != null && (() => {
-          const index = parseInt(body.id.slice(5), 10);
-          const pop = populationOf(populations, index);
-          if (!pop) return null;
-          const sunCi = 0.65;
-          const sunM = 4.83;
-          const ciDiff = pop.centroid.colorIndex - sunCi;
-          const mDiff = pop.centroid.absoluteMagnitude - sunM;
-          const ciNote =
-            Math.abs(ciDiff) < 0.15
-              ? 'similar colour to the Sun'
-              : ciDiff > 0
-              ? 'redder than the Sun'
-              : 'bluer than the Sun';
-          const mNote =
-            Math.abs(mDiff) < 0.5
-              ? 'similar brightness to the Sun'
-              : mDiff < 0
-              ? `${Math.abs(mDiff).toFixed(1)} mag brighter than the Sun`
-              : `${mDiff.toFixed(1)} mag fainter than the Sun`;
-          return (
-            <div className="reading">
-              <dt className="engrave">Population</dt>
-              <dd className="readout">{pop.name} &middot; {ciNote}, {mNote}</dd>
-            </div>
-          );
-        })()}
         {body.constellation && (
           <div className="reading">
             <dt className="engrave">Constellation</dt>
