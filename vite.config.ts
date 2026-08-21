@@ -44,7 +44,17 @@ export default defineConfig(async ({ mode }) => {
   // Surface .env values to the dev API handlers, which read process.env just as
   // they do on the deployed host. Nothing here is exposed to the client bundle.
   const env = loadEnv(mode, process.cwd(), '');
-  for (const key of ['WATSONX_API_KEY', 'WATSONX_PROJECT_ID', 'WATSONX_URL', 'WATSONX_MODEL_ID']) {
+  // Named one by one rather than copied wholesale, so a stray value in a .env
+  // file cannot reach a handler by accident. Anything the API reads has to be
+  // listed here as well, which is a small tax and a useful one.
+  for (const key of [
+    'WATSONX_API_KEY',
+    'WATSONX_PROJECT_ID',
+    'WATSONX_URL',
+    'WATSONX_MODEL_ID',
+    'OLLAMA_URL',
+    'OLLAMA_MODEL',
+  ]) {
     if (env[key] && !process.env[key]) process.env[key] = env[key];
   }
 

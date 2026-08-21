@@ -67,6 +67,22 @@ function enterAppWith(evalPage, sleep) {
   };
 }
 
+/**
+ * Polls until something is there, or gives up.
+ *
+ * Returns whatever the probe returned, or null on the timeout, so the caller
+ * still gets to decide whether absence is a failure.
+ */
+async function until(probe, timeout) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    const found = await probe();
+    if (found) return found;
+    await sleep(500);
+  }
+  return null;
+}
+
 async function main() {
   await mkdir(OUT, { recursive: true });
   const chrome = spawn(
@@ -224,14 +240,26 @@ async function main() {
     await evalPage(
       `[...document.querySelectorAll('.sheet .button')].find(b => /tell me about/i.test(b.textContent))?.click()`,
     );
-    await sleep(2500);
-    const narration = await evalPage(`
-      (() => {
-        const t = document.querySelector('.sheet__narration')?.textContent;
-        const p = document.querySelector('.sheet__guide .provenance')?.textContent;
-        return t ? JSON.stringify({ text: t, provenance: p }) : null;
-      })()
-    `);
+    /*
+     * Waited for rather than slept through.
+     *
+     * How long an answer takes depends on which model produced it, and that is
+     * no longer one number: watsonx answers in a second or two, a local Granite
+     * on a laptop can take the better part of a minute, and a question that
+     * needs a lookup costs a whole extra round trip on top. A fixed sleep
+     * encodes whichever of those the machine happened to be doing on the day it
+     * was written, and fails on every other one. Polling costs nothing when the
+     * answer is quick.
+     */
+    const narration = await until(async () => {
+      return evalPage(`
+        (() => {
+          const t = document.querySelector('.sheet__narration')?.textContent;
+          const p = document.querySelector('.sheet__guide .provenance')?.textContent;
+          return t ? JSON.stringify({ text: t, provenance: p }) : null;
+        })()
+      `);
+    }, 90_000);
     check('explanation rendered', !!narration);
     if (narration) console.log(`  ${narration}`);
     await shot('06-explained');
@@ -269,11 +297,16 @@ async function main() {
     );
     await sleep(700);
     await evalPage(`document.querySelectorAll('.chat__suggestions .pill')[0]?.click()`);
-    await sleep(2500);
-    const chat = await evalPage(`
-      JSON.stringify([...document.querySelectorAll('.bubble')].map(b => b.textContent.trim().slice(0, 220)))
-    `);
-    const bubbles = JSON.parse(chat);
+    // Same reasoning as the explanation above: wait for the answer, not a guess
+    // at how long the model that produced it takes.
+    const chat = await until(async () => {
+      const raw = await evalPage(`
+        JSON.stringify([...document.querySelectorAll('.bubble')].map(b => b.textContent.trim().slice(0, 220)))
+      `);
+      const found = JSON.parse(raw);
+      return found.length >= 2 && found[1] ? raw : null;
+    }, 90_000);
+    const bubbles = chat ? JSON.parse(chat) : [];
     check('guide answered', bubbles.length >= 2, `${bubbles.length} bubbles`);
     for (const b of bubbles) console.log(`  · ${b}`);
     await shot('08-guide-answer');

@@ -210,7 +210,7 @@ function assert(
   }
 }
 
-console.log(`\nrunning 11 cases`);
+console.log(`\nrunning 12 cases`);
 console.log(`  focus object : ${knownName} at ${knownAltitude}deg toward the ${knownDirection}`);
 console.log(`  bad altitude : ${unsupportedAltitude.toFixed(1)}deg (outside all tolerance windows)`);
 console.log(`  bad magnitude: ${unsupportedMagnitude.toFixed(1)} (outside all tolerance windows)`);
@@ -368,11 +368,29 @@ assert(
   false,
 );
 
+/*
+ * Case 12: the Sun may be spoken of at night.
+ *
+ * The Sun is deliberately absent from the object lists, because "what can I
+ * see" never means the Sun. It has to be somewhere in the context all the
+ * same: the guard checks capitalised names against what the context contains,
+ * and at night no conditions summary mentions the Sun either, so a sentence as
+ * ordinary as "Saturn rises after the Sun goes down" was refused and replaced
+ * by the local narrator. An answer censored for saying something true is
+ * indistinguishable, from outside, from an AI that is not there.
+ */
+assert(
+  12,
+  'the Sun can be named in an answer even when it is down',
+  checkGrounding('Saturn will be easier to see once the Sun is properly down.', ctx),
+  true,
+);
+
 // ---------------------------------------------------------------------------
 
 console.log(
   failures.length
-    ? `\nFAIL  ${failures.length} of 11 cases failed\n  ${failures.join('\n  ')}`
-    : `\nPASS  ${passed} of 11 cases`,
+    ? `\nFAIL  ${failures.length} of 12 cases failed\n  ${failures.join('\n  ')}`
+    : `\nPASS  ${passed} of 12 cases`,
 );
 process.exit(failures.length ? 1 : 0);

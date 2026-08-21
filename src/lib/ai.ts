@@ -61,6 +61,20 @@ export interface SkyContext {
     moonPhase: string;
     moonIlluminatedPercent: number;
   };
+  /**
+   * Always present, above the horizon or under it.
+   *
+   * The Sun is left out of the lists below, because "what can I see" never
+   * means the Sun and a list that started with it would be answering a
+   * different question. But leaving it out of the context entirely had a
+   * consequence nobody looked for: the guard checks every capitalised body
+   * name in an answer against the context, so at night, when no summary
+   * mentions the Sun either, a sentence as ordinary as "Saturn rises after the
+   * Sun goes down" was unsupported, refused, and quietly replaced by the local
+   * narrator. The AI looked absent when it was being censored for saying
+   * something true.
+   */
+  sun: { name: 'Sun'; altitudeDegrees: number; direction: string; aboveHorizon: boolean };
   visibleNow: ContextObject[];
   aboveHorizonButHardToSee: ContextObject[];
   comingUp: { name: string; startsInMinutes: number; detail: string }[];
@@ -110,6 +124,17 @@ function limitingMagnitude(darkness: string): number {
   return 5.5;
 }
 
+/** The Sun as the context always carries it: named, placed, and honest about being down. */
+function sunContext(bodies: SkyBody[]): SkyContext['sun'] {
+  const sun = bodies.find((b) => b.kind === 'sun');
+  return {
+    name: 'Sun',
+    altitudeDegrees: sun ? Math.round(sun.altitude * 10) / 10 : 0,
+    direction: sun ? compassPoint(sun.azimuth) : 'unknown',
+    aboveHorizon: sun ? sun.altitude > 0 : false,
+  };
+}
+
 export function buildSkyContext(options: {
   now: Date;
   site: ObserverSite;
@@ -150,6 +175,7 @@ export function buildSkyContext(options: {
       moonPhase: conditions.moonPhaseName,
       moonIlluminatedPercent: Math.round(conditions.moonIlluminatedFraction * 100),
     },
+    sun: sunContext(bodies),
     visibleNow: visible.map(toContextObject),
     aboveHorizonButHardToSee: marginal.map(toContextObject),
     comingUp,

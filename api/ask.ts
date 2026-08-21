@@ -62,13 +62,34 @@ const SYSTEM_PROMPT = `You are the sky guide inside "Borrowed Sky", an app for p
 ABSOLUTE RULES:
 - The JSON block you are given is the ONLY authoritative description of this observer's sky. It was computed from real astronomical data for their exact location and moment.
 - Never state a position, altitude, direction, time, distance or brightness that is not present in that JSON. Do not estimate or recall them from memory.
-- If you are asked something the JSON does not answer, say plainly that you cannot see it in tonight's data. Never guess.
+- If you are asked something you have no computed source for, say plainly that you cannot see it in tonight's data. Never guess.
 - Never claim something is visible if the JSON says it is below the horizon or not currently visible.
 
 STYLE:
 - Warm, direct, and concrete. Second person. Point people at the sky, not at a screen.
 - Use compass directions and rough height above the horizon ("about a third of the way up in the south-east") rather than raw numbers, unless asked for precision.
 - No emoji. No markdown headings. No bullet lists unless asked.`;
+
+/**
+ * The half of the instructions that only makes sense when there are tools.
+ *
+ * Kept separate and appended only when tools are actually offered, because it
+ * is the exact opposite advice otherwise: told to look things up with nothing
+ * to look them up with, the model narrates a search it cannot run.
+ *
+ * This exists because the guardrails were fighting the tools. The rules above
+ * are written to stop a model answering from memory, and they worked so well
+ * that a model holding a function which would have computed the real answer
+ * still declined and asked the user for their location instead. "Never state
+ * what you cannot source" and "here is how to source it" have to arrive
+ * together, or the first one wins and the second is never used.
+ */
+const TOOL_RULES = `
+LOOKING THINGS UP:
+- You have functions that compute this observer's sky from the same astronomical engine that produced the JSON above. What they return is exactly as authoritative as the JSON.
+- If a question needs a position, a time, or an identification that the JSON does not already contain, CALL A FUNCTION. Do not refuse, and do not answer from memory or from what you know about the night sky in general.
+- Never ask the person where they are or what time it is. Both are already known and the functions use them.
+- Only say you cannot see something in tonight's data once a function has actually told you so.`;
 
 const TONE = {
   simple: `Write for a curious ten-year-old. Two or three short sentences. Everyday words only, no jargon. One vivid, true comparison is welcome.`,
@@ -170,6 +191,82 @@ function toolResultsIn(transcript: ChatMessage[]): unknown[] {
   return out;
 }
 
+/**
+ * The same Granite, running on the machine this is served from.
+ *
+ * IBM publishes the Granite weights under Apache 2.0, so the model behind a
+ * watsonx deployment is a model anybody can run. That is useful here for one
+ * specific reason and it is worth being exact about it: the hosted path is the
+ * real one, and this exists so that the tool-calling loop can be exercised
+ * without spending a hosted token on every malformed argument and every
+ * misunderstanding about message shape while it is being built.
+ *
+ * It is a fallback, never a preference. watsonx is tried first every time, and
+ * when this answers instead the interface says so by name, because "which
+ * model said this" is exactly the kind of thing this app refuses to be vague
+ * about.
+ *
+ * Ollama differs from watsonx in two ways that matter. Its tool calls carry
+ * arguments as an object rather than as a JSON string, and they have no id, so
+ * both are normalised here into the shape the rest of this file already
+ * speaks. Nothing downstream should have to know which one answered.
+ */
+async function callLocalModel(options: {
+  messages: ChatMessage[];
+  tools?: unknown[];
+  tone: Tone;
+}): Promise<{ reply: ChatMessage; model: string }> {
+  const base = (process.env.OLLAMA_URL || 'http://127.0.0.1:11434').replace(/\/+$/, '');
+  const model = process.env.OLLAMA_MODEL || 'granite3.3:8b';
+
+  const upstream = await fetch(`${base}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      messages: options.messages,
+      ...(options.tools?.length ? { tools: options.tools } : {}),
+      stream: false,
+      options: { temperature: 0.4, num_predict: options.tone === 'simple' ? 220 : 340 },
+    }),
+    // Generous. A local model on a laptop is slower than a datacentre and the
+    // alternative to waiting is the narrator, which is always available anyway.
+    signal: AbortSignal.timeout(120_000),
+  });
+
+  if (!upstream.ok) {
+    const detail = await upstream.text().catch(() => '');
+    throw new Error(`local granite responded ${upstream.status}: ${detail.slice(0, 200)}`);
+  }
+
+  const json = (await upstream.json()) as {
+    message?: {
+      role?: string;
+      content?: string;
+      tool_calls?: { function?: { name?: string; arguments?: unknown } }[];
+    };
+  };
+
+  const raw = json.message ?? {};
+  const reply: ChatMessage = { role: 'assistant', content: raw.content };
+
+  if (raw.tool_calls?.length) {
+    reply.tool_calls = raw.tool_calls.map((call, index) => ({
+      id: `local-${index}`,
+      type: 'function',
+      function: {
+        name: call.function?.name,
+        arguments:
+          typeof call.function?.arguments === 'string'
+            ? call.function.arguments
+            : JSON.stringify(call.function?.arguments ?? {}),
+      },
+    }));
+  }
+
+  return { reply, model: `${model} (local)` };
+}
+
 /** One call to watsonx, returning the assistant turn it produced. */
 async function callModel(options: {
   base: string;
@@ -221,7 +318,17 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const apiKey = process.env.WATSONX_API_KEY;
   const projectId = process.env.WATSONX_PROJECT_ID;
 
-  if (!apiKey || !projectId) {
+  /*
+   * A local Granite counts as configured, but only as a fallback.
+   *
+   * OLLAMA_MODEL has to be set for this to be considered at all: a machine that
+   * happens to have Ollama running should not quietly start answering for
+   * watsonx, because then a broken deployment looks like a working one and
+   * nobody finds out until the credentials are needed.
+   */
+  const localAllowed = Boolean(process.env.OLLAMA_MODEL);
+
+  if ((!apiKey || !projectId) && !localAllowed) {
     // Not an error condition, just an unconfigured deployment. The client has a
     // deterministic narrator for exactly this case.
     sendJson(res, 503, {
@@ -259,6 +366,16 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return;
   }
 
+  /*
+   * The tools come from the client too, for the same reason the sky does: the
+   * functions live next to the astronomy that implements them, and a second
+   * copy of their declarations over here would be a second copy to drift. This
+   * endpoint never calls them. It forwards a list of names and shapes to the
+   * model and hands the model's requests back.
+   */
+  const tools = Array.isArray(body.tools) ? (body.tools as unknown[]).slice(0, 12) : undefined;
+  const hasTools = Boolean(tools?.length);
+
   const userPrompt = [
     'COMPUTED SKY DATA (the only source of truth):',
     '```json',
@@ -270,6 +387,21 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     question
       ? `The person watching the sky asks: "${question}"`
       : 'Introduce what is worth looking at right now, and where to look.',
+    /*
+     * The same instruction as the system rules, repeated last.
+     *
+     * Not redundancy for its own sake. A system prompt sits behind a JSON block
+     * describing the whole sky, and a model reading that block concludes it has
+     * been given everything there is; the smaller ones then decline rather than
+     * look further, which is the failure this whole layer exists to fix. Put
+     * next to the question, where it is the last thing read, it is acted on.
+     */
+    ...(hasTools
+      ? [
+          '',
+          'If answering this needs a position, a time, or an identification that is not already in the JSON above, call one of the functions. Do not say you cannot see it until a function has told you so.',
+        ]
+      : []),
   ].join('\n');
 
   /*
@@ -290,17 +422,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     ? (body.transcript as ChatMessage[]).slice(0, MAX_TRANSCRIPT_TURNS)
     : [];
 
-  /*
-   * The tools come from the client too, for the same reason the sky does: the
-   * functions live next to the astronomy that implements them, and a second
-   * copy of their declarations over here would be a second copy to drift. This
-   * endpoint never calls them. It forwards a list of names and shapes to the
-   * model and hands the model's requests back.
-   */
-  const tools = Array.isArray(body.tools) ? (body.tools as unknown[]).slice(0, 12) : undefined;
 
   const messages: ChatMessage[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: tools?.length ? SYSTEM_PROMPT + TOOL_RULES : SYSTEM_PROMPT },
     { role: 'user', content: userPrompt },
     ...transcript,
   ];
@@ -325,102 +449,116 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const evidence: unknown[] = [skyContext, ...toolResultsIn(transcript)];
 
   try {
-    const token = await getIamToken(apiKey);
+    /*
+     * One way to ask, whichever model ends up answering.
+     *
+     * watsonx is walked first, down the list of Granite deployments this
+     * project might be offered, skipping any that are simply absent from the
+     * region. Only when none of them can answer does the local model get a
+     * turn, and only when it was explicitly allowed. Everything after this
+     * point is written as though there were one model, because from here there
+     * is.
+     */
+    const hosted = apiKey && projectId;
+    const token = hosted ? await getIamToken(apiKey) : null;
     const base = (process.env.WATSONX_URL || DEFAULT_URL).replace(/\/+$/, '');
-
     let lastError = 'watsonx request failed';
 
-    for (const modelId of modelCandidates()) {
-      let reply: ChatMessage;
-      try {
-        reply = await callModel({ base, token, projectId, modelId, messages, tools, tone });
-      } catch (err) {
-        lastError = err instanceof Error ? err.message : String(err);
-        if (err instanceof ModelUnavailable) continue;
-        throw err;
-      }
-
-      preferredModel = modelId;
-
-      /*
-       * The model wants to look something up.
-       *
-       * Handed straight back to the client, which is where the sky is. Nothing
-       * is decided here about whether the request is reasonable; the tools
-       * themselves refuse what they cannot answer, and they are the only ones
-       * in a position to know.
-       */
-      if (reply.tool_calls?.length) {
-        sendJson(res, 200, {
-          kind: 'tool_calls',
-          model: modelId,
-          calls: reply.tool_calls.map((call) => ({
-            id: call.id,
-            name: call.function?.name,
-            arguments: call.function?.arguments,
-          })),
-          transcript: [...transcript, reply],
-        });
-        return;
-      }
-
-      const text = reply.content?.trim();
-      if (!text) {
-        lastError = `${modelId} returned an empty completion`;
-        continue;
-      }
-
-      // --- grounding check --------------------------------------------------
-      //
-      // Against the sky context and every tool result in this exchange. An
-      // answer that states a number, name or direction none of them supports
-      // gets one retry before the endpoint refuses to send it. Two round trips
-      // is the limit before someone standing in a field gives up and moves on.
-
-      const firstReport = checkGrounding(text, evidence);
-      if (firstReport.ok) {
-        sendJson(res, 200, { kind: 'answer', text, model: modelId, checked: true });
-        return;
-      }
-
-      const retry = await callModel({
-        base,
-        token,
-        projectId,
-        modelId,
-        tone,
-        tools,
-        messages: [
-          ...messages,
-          { role: 'assistant', content: text },
-          {
-            role: 'user',
-            content:
-              'Your previous answer contained claims that are not supported by the sky data ' +
-              'or by any tool result in this conversation:\n' +
-              firstReport.unsupported.map((u) => `- ${u}`).join('\n') +
-              '\nPlease answer again using only what those contain. If they do not support ' +
-              'what was asked, say so rather than guess.',
-          },
-        ],
-      });
-
-      const retryText = retry.content?.trim();
-      if (retryText) {
-        const retryReport = checkGrounding(retryText, evidence);
-        if (retryReport.ok) {
-          sendJson(res, 200, { kind: 'answer', text: retryText, model: modelId, checked: true });
-          return;
+    const ask = async (turns: ChatMessage[]): Promise<{ reply: ChatMessage; model: string }> => {
+      if (hosted && token) {
+        for (const modelId of modelCandidates()) {
+          try {
+            const reply = await callModel({
+              base,
+              token,
+              projectId,
+              modelId,
+              messages: turns,
+              tools,
+              tone,
+            });
+            preferredModel = modelId;
+            return { reply, model: modelId };
+          } catch (err) {
+            lastError = err instanceof Error ? err.message : String(err);
+            if (err instanceof ModelUnavailable) continue;
+            if (!localAllowed) throw err;
+            break;
+          }
         }
-        sendJson(res, 502, { error: 'ai_ungrounded', unsupported: retryReport.unsupported });
-        return;
       }
 
-      sendJson(res, 502, { error: 'ai_ungrounded', unsupported: firstReport.unsupported });
+      if (!localAllowed) throw new Error(lastError);
+      return callLocalModel({ messages: turns, tools, tone });
+    };
+
+    const { reply, model } = await ask(messages);
+
+    /*
+     * The model wants to look something up.
+     *
+     * Handed straight back to the client, which is where the sky is. Nothing is
+     * decided here about whether the request is reasonable; the tools
+     * themselves refuse what they cannot answer, and they are the only ones in
+     * a position to know.
+     */
+    if (reply.tool_calls?.length) {
+      sendJson(res, 200, {
+        kind: 'tool_calls',
+        model,
+        calls: reply.tool_calls.map((call) => ({
+          id: call.id,
+          name: call.function?.name,
+          arguments: call.function?.arguments,
+        })),
+        transcript: [...transcript, reply],
+      });
       return;
     }
 
-    throw new Error(lastError);
+    const text = reply.content?.trim();
+    if (!text) throw new Error(`${model} returned an empty completion`);
+
+    // --- grounding check ----------------------------------------------------
+    //
+    // Against the sky context and every tool result in this exchange. An answer
+    // that states a number, name or direction none of them supports gets one
+    // retry before the endpoint refuses to send it. Two round trips is the
+    // limit before someone standing in a field gives up and moves on.
+
+    const firstReport = checkGrounding(text, evidence);
+    if (firstReport.ok) {
+      sendJson(res, 200, { kind: 'answer', text, model, checked: true });
+      return;
+    }
+
+    const { reply: second } = await ask([
+      ...messages,
+      { role: 'assistant', content: text },
+      {
+        role: 'user',
+        content:
+          'Your previous answer contained claims that are not supported by the sky data ' +
+          'or by any tool result in this conversation:\n' +
+          firstReport.unsupported.map((u) => `- ${u}`).join('\n') +
+          '\nPlease answer again using only what those contain. If they do not support ' +
+          'what was asked, say so rather than guess.',
+      },
+    ]);
+
+    const retryText = second.content?.trim();
+    if (retryText) {
+      const retryReport = checkGrounding(retryText, evidence);
+      if (retryReport.ok) {
+        sendJson(res, 200, { kind: 'answer', text: retryText, model, checked: true });
+        return;
+      }
+      sendJson(res, 502, { error: 'ai_ungrounded', unsupported: retryReport.unsupported });
+      return;
+    }
+
+    sendJson(res, 502, { error: 'ai_ungrounded', unsupported: firstReport.unsupported });
+    return;
   } catch (err) {
     sendJson(res, 502, {
       error: 'ai_unavailable',
