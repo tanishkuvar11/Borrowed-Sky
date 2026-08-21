@@ -344,6 +344,24 @@ async function main() {
     await shot('07-journal-filled');
 
     /*
+     * The briefing is a way into the guide and nothing else.
+     *
+     * It spent a version as a panel that expanded and collapsed itself, which
+     * is two controls wearing one coat. One button, one destination.
+     */
+    console.log('');
+    console.log('tap the briefing:');
+    await evalPage(`document.querySelector('.rail__item')?.click()`);
+    await sleep(600);
+    await evalPage(`document.querySelector('.guide-panel')?.click()`);
+    await sleep(800);
+    check(
+      'it opens the guide rather than opening itself',
+      (await evalPage(`!!document.querySelector('.chat, .view__title')`)) === true &&
+        (await evalPage(`!document.querySelector('.sky-view')`)) === true,
+    );
+
+    /*
      * Back goes back one step.
      *
      * Tapping the briefing leaves the sky for Explore, and the button in the

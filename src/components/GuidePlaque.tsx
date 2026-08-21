@@ -141,39 +141,22 @@ export function GuidePlaque({
     // Tone changes the wording, so it does justify a rebuild.
   }, [epoch, tone, conditions === null, bodies.length === 0]);
 
-  /*
-   * Open where there is room for it, shut where there is not.
-   *
-   * On a wide frame the briefing has a column of its own down one side and
-   * costs the sky nothing, so it starts open. On a phone it lies over the
-   * chart, and a paragraph you did not ask for covering the thing you came to
-   * look at is the wrong default however good the paragraph is. Measured once,
-   * at mount, because this is a starting position and not a thing to be
-   * overridden every time somebody turns their phone sideways.
-   */
-  const [open, setOpen] = useState(
-    () => typeof window === 'undefined' || window.innerWidth >= 760,
-  );
-
   const subject = headline(bodies);
 
   return (
-    <div className={open ? 'guide-panel is-open' : 'guide-panel'}>
+    <button className="guide-panel" onClick={onOpenGuide}>
       {/*
-        The title row is a switch, and the text under it is the way in.
+        One button, one destination: the guide.
         
-        The panel used to be one button: everything in it opened the full guide,
-        which meant that on a phone a paragraph of briefing sat across the sky
-        whether or not anybody wanted it, and the only thing you could do about
-        it was leave the screen. Two controls instead. The row shows or hides
-        the briefing, and the briefing itself still opens the guide, so nothing
-        that used to be one tap away is now two.
+        This briefly had a title row that expanded and collapsed the prose under
+        it, which solved the phone problem and bought a second thing to
+        understand. A panel that opens into a screen and also opens into itself
+        is two controls wearing one coat. It is a button again, and the phone
+        problem is solved where it belonged, in the stylesheet: at narrow widths
+        the prose is not rendered at all and what is left is a labelled bar with
+        an arrow, which is what a way in should look like.
       */}
-      <button
-        className="guide-panel__head"
-        onClick={() => setOpen((was) => !was)}
-        aria-expanded={open}
-      >
+      <span className="guide-panel__head">
         <GuideSight working={working} />
 
         <span className="guide-panel__title">
@@ -185,32 +168,30 @@ export function GuidePlaque({
 
         <span className="guide-panel__chevron" aria-hidden>
           <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor">
-            <path d="M3 5l4 4 4-4" strokeWidth="1.4" strokeLinecap="round" />
+            <path d="M5 2l5 5-5 5" strokeWidth="1.4" strokeLinecap="round" />
           </svg>
         </span>
-      </button>
+      </span>
 
-      {open && (
-        <button className="guide-panel__body" onClick={onOpenGuide}>
-          {answer ? (
-            <>
-              <span className="guide-panel__text">{answer.text}</span>
-              {answer.source === 'local' && (
-                <span className="guide-panel__source provenance">Built-in narrator</span>
-              )}
-            </>
-          ) : (
-            <span className="guide-panel__text guide-panel__text--waiting">Reading the sky…</span>
-          )}
-        </button>
-      )}
+      <span className="guide-panel__body">
+        {answer ? (
+          <>
+            <span className="guide-panel__text">{answer.text}</span>
+            {answer.source === 'local' && (
+              <span className="guide-panel__source provenance">Built-in narrator</span>
+            )}
+          </>
+        ) : (
+          <span className="guide-panel__text guide-panel__text--waiting">Reading the sky…</span>
+        )}
+      </span>
 
       {/*
         The subject of the briefing, in orbit at the right. Present only when
         something actually is up; on a clouded-over or daylight sky the corner
         is simply empty rather than showing a planet that is not there.
       */}
-      {open && subject && (
+      {subject && (
         <span className="guide-panel__subject" aria-hidden>
           <span className="guide-panel__orbit" />
           <PlanetMark
@@ -221,6 +202,6 @@ export function GuidePlaque({
           />
         </span>
       )}
-    </div>
+    </button>
   );
 }
