@@ -103,6 +103,20 @@ export function ObjectSheet({
   const abortRef = useRef<AbortController | null>(null);
 
   /*
+   * The live values, held in a ref rather than read from the closure.
+   *
+   * `conditions`, `bodies` and `now` are rebuilt every second by the clock in
+   * useSkyData. Naming them as dependencies of the effect below means the
+   * effect runs every second, which is how the first version of this quietly
+   * overwrote a Granite answer with the local one about a second after it
+   * arrived: the answer was correct, it appeared, and then the tick wiped it.
+   * Nothing about the sky a second later changes which description belongs on
+   * screen, so the effect watches the subject and the tone and reads the rest.
+   */
+  const liveRef = useRef({ now, bodies, conditions, timeline });
+  liveRef.current = { now, bodies, conditions, timeline };
+
+  /*
    * Say what the thing is, straight away.
    *
    * Opening a sheet used to give you four numbers and a button, which is a
@@ -111,25 +125,24 @@ export function ObjectSheet({
    * no time, so it writes the description on open, out of the same computed
    * numbers printed above it.
    *
-   * The button stays, and now offers the thing it could not offer before: the
-   * same subject explained by the model rather than assembled from a template.
-   * That is a fair trade for a wait and a round trip. Four numbers and silence
-   * was not.
+   * The button stays, and offers the thing it could not offer before: the same
+   * subject explained by the model rather than assembled from a template.
    */
   useEffect(() => {
     abortRef.current?.abort();
-    if (!conditions) {
+    const live = liveRef.current;
+    if (!live.conditions) {
       setAnswer(null);
       return;
     }
     setAnswer({
       text: narrateLocally(
         buildSkyContext({
-          now,
+          now: live.now,
           site,
-          bodies,
-          conditions,
-          timeline,
+          bodies: live.bodies,
+          conditions: live.conditions,
+          timeline: live.timeline,
           focus: body,
           focusFact: factFor(body),
         }),
@@ -137,12 +150,10 @@ export function ObjectSheet({
       ),
       source: 'local',
     });
-    // On `tone` as well: switching between simple and detailed is a request for
-    // a different explanation, and this one costs nothing to rewrite. It does
-    // drop a Granite answer back to the local one, which is the honest result
-    // of asking a different question; the button is right there to ask again.
+    // Subject and tone only. Everything else is read from the ref above, for
+    // the reason written there.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [body.id, site, conditions, tone]);
+  }, [body.id, site, tone]);
 
   const explain = useCallback(async () => {
     abortRef.current?.abort();

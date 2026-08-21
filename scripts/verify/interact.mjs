@@ -274,8 +274,21 @@ async function main() {
 
 
     console.log('\nask the guide to explain it:');
+    /*
+     * What the sheet said before anybody asked.
+     *
+     * The description is written on open by the built-in narrator, so
+     * `.sheet__narration` exists from the moment the panel does. Waiting for it
+     * to appear therefore returns instantly and proves nothing, which is what
+     * this check did until it was pointed at a working model and cheerfully
+     * reported the local text back. What is being waited for is the answer
+     * changing hands, so the line it started with is recorded first.
+     */
+    const beforeAsking = await evalPage(
+      `document.querySelector('.sheet__guide .provenance')?.textContent ?? ''`,
+    );
     await evalPage(
-      `[...document.querySelectorAll('.sheet .button')].find(b => /tell me about/i.test(b.textContent))?.click()`,
+      `[...document.querySelectorAll('.sheet .button')].find(b => /ask the ai guide/i.test(b.textContent))?.click()`,
     );
     /*
      * Waited for rather than slept through.
@@ -292,12 +305,14 @@ async function main() {
       return evalPage(`
         (() => {
           const t = document.querySelector('.sheet__narration')?.textContent;
-          const p = document.querySelector('.sheet__guide .provenance')?.textContent;
-          return t ? JSON.stringify({ text: t, provenance: p }) : null;
+          const p = document.querySelector('.sheet__guide .provenance')?.textContent ?? '';
+          return t && p !== ${JSON.stringify(beforeAsking)}
+            ? JSON.stringify({ text: t, provenance: p })
+            : null;
         })()
       `);
     }, 90_000);
-    check('explanation rendered', !!narration);
+    check('the guide answered, and not with the line already on screen', !!narration);
     if (narration) console.log(`  ${narration}`);
     await shot('06-explained');
 
