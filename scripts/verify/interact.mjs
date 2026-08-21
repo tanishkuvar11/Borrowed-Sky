@@ -343,6 +343,31 @@ async function main() {
     check('journal chart plotted the sighting', JSON.parse(chart).marks === 1, chart);
     await shot('07-journal-filled');
 
+    /*
+     * Back goes back one step.
+     *
+     * Tapping the briefing leaves the sky for Explore, and the button in the
+     * corner then said "go back" and returned to the landing page, which is a
+     * long way further back than anybody meant. From anywhere that is not the
+     * sky it now returns to the sky, and only from the sky does it leave.
+     */
+    console.log('');
+    console.log('back from a reading view:');
+    await evalPage(
+      `[...document.querySelectorAll('.rail__item')].find(b => /explore/i.test(b.textContent))?.click()`,
+    );
+    await sleep(700);
+    const backLabel = await evalPage(
+      `document.querySelector('.go-back')?.textContent?.trim() ?? ''`,
+    );
+    check('the button says where it goes', /back to sky/i.test(backLabel), backLabel);
+    await evalPage(`document.querySelector('.go-back')?.click()`);
+    await sleep(700);
+    check(
+      'and goes there, rather than out to the landing page',
+      (await evalPage(`!!document.querySelector('.app .sky-view')`)) === true,
+    );
+
     console.log('\nask a question in the guide:');
     await evalPage(
       `[...document.querySelectorAll('.rail__item')].find(b => b.textContent.trim().startsWith('Explore'))?.click()`,

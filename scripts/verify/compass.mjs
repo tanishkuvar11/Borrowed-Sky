@@ -323,8 +323,8 @@ async function main() {
 
     check('header rose invites a tap', (await roseState()) === 'rose--ask', await roseState());
     check(
-      'the sky says what can be done about it, not just what it is',
-      /your phone/i.test(await prompt()),
+      'the sky names the compass and offers a way to turn it on',
+      /compass/i.test(await prompt()) && /tap/i.test(await prompt()),
       await prompt(),
     );
     check(

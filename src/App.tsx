@@ -207,9 +207,22 @@ export default function App() {
             </span>
           </button>
 
-          <button className="go-back" onClick={() => setEntered(false)}>
+          {/*
+            Back goes back one step, not all the way out.
+            
+            It always returned to the landing page, which is right from the sky
+            and wrong from anywhere else: tapping the guide takes you to Explore,
+            and the button that then says "go back" ought to return you to the
+            sky you were looking at rather than to the door of the building. The
+            landing page is one step further back, from the sky, which is where
+            it was reached from in the first place.
+          */}
+          <button
+            className="go-back"
+            onClick={() => (view === 'sky' ? setEntered(false) : setView('sky'))}
+          >
             <IconBack size={16} />
-            <span>Go back</span>
+            <span>{view === 'sky' ? 'Go back' : 'Back to sky'}</span>
           </button>
         </div>
 
@@ -239,6 +252,18 @@ export default function App() {
               <IconCompassRose size={20} />
             </span>
           </button>
+          {/*
+            The name first, then the state.
+            
+            One word under a rose is only legible if you already know what the
+            rose is for. "Live" answers a question nobody asked; "Compass /
+            Live" answers the one somebody standing outside actually has, and
+            stacking them keeps it to the width of the longer word rather than
+            the width of both.
+          */}
+          <span className="compass-tag__label" aria-hidden>
+            Compass
+          </span>
           <span className="compass-tag__state" aria-hidden>
             {COMPASS_STATE[compassState]}
           </span>

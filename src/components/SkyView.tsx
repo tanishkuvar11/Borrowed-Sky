@@ -44,9 +44,9 @@ import type { Tone } from '../lib/ai';
  * sheet behind it explains which of the two reasons applies.
  */
 const COMPASS_PROMPT: Record<string, string> = {
-  ask: 'Turn the sky with your phone',
-  paused: 'Follow your phone again',
-  blocked: 'Drag to look around. Why no compass?',
+  ask: 'Compass orientation off. Tap to use it',
+  paused: 'Compass orientation paused. Tap to resume',
+  blocked: 'Compass orientation unavailable here',
 };
 
 const MIN_FOV = 20;

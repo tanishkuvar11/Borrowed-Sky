@@ -549,7 +549,14 @@ button {
    * tracking across twelve capitals gives most of that back, and this is the
    * one string on the screen that must never be clipped.
    */
-  font-size: clamp(0.95rem, calc(6.6vw - 6px), 2.5rem);
+  /*
+   * Fitted against what the bar actually has left. The two roses took a fixed
+   * ~105px when this was measured; there is a back button between them now, and
+   * the compass side carries a word under its rose, so the title has less to
+   * work with and the coefficient came down to match. It is the one string on
+   * screen that must never be clipped.
+   */
+  font-size: clamp(0.9rem, calc(5vw - 6px), 2.5rem);
   font-weight: 300;
   letter-spacing: 0.22em;
   /* Tracking adds a trailing space after the last letter; this recentres it. */
@@ -713,6 +720,23 @@ button {
 .compass-tag .rose {
   width: 40px;
   height: 40px;
+}
+
+/*
+ * The name of the thing, over the state of it. Dimmer than the state, because
+ * the state is what changes and therefore what is worth looking at; the label
+ * is there so the first look does not have to guess what the rose is for.
+ */
+.compass-tag__label {
+  font-family: var(--font-display);
+  font-size: 0.5rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  line-height: 1;
+  color: var(--brass);
+  opacity: 0.55;
 }
 
 .compass-tag__state {
@@ -1864,11 +1888,53 @@ button {
  * should feel like the instrument thinking rather than like a label attached
  * to it. So: dark optical glass, one hairline, and the sky visible through it.
  */
+/*
+ * The title row, which is now the switch.
+ *
+ * Laid out as its own line so the panel has something to be when it is shut: a
+ * labelled bar with a chevron, which is a thing you can obviously open, rather
+ * than a paragraph with its middle removed.
+ */
+.guide-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.guide-panel__chevron {
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  color: var(--brass);
+  opacity: 0.7;
+  transform: rotate(-90deg);
+  transition: transform 240ms var(--ease), opacity 240ms var(--ease);
+}
+.guide-panel.is-open .guide-panel__chevron {
+  transform: rotate(0deg);
+}
+.guide-panel__head:hover .guide-panel__chevron {
+  opacity: 1;
+}
+
 .guide-panel {
   position: relative;
+  /*
+   * A column, since the title row became a control of its own. It was a row of
+   * three: the sight, the prose, and the portrait off the right edge. The
+   * sight now sits inside the title row and the prose stacks under it, which
+   * is also what lets the panel shut to a single labelled bar.
+   */
   display: flex;
-  align-items: flex-start;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.55rem;
   width: 100%;
   /*
    * Held to a readable measure and centred, rather than run to both edges.
@@ -2001,6 +2067,18 @@ button {
  * minutes. Five lines is what the composition is built around; the panel opens
  * into the full guide, so nothing is being hidden, only deferred.
  */
+/* The prose, and the way into the full guide. */
+.guide-panel__body {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .guide-panel__text {
   font-family: var(--font-body);
   font-size: 1.0625rem;
@@ -3124,17 +3202,44 @@ button {
    * ground, which is drawn whatever this is set to.
    */
   /*
-   * No room for two columns facing each other, so the briefing lies across the
-   * bottom again, above the dial. It is the only thing down here now, and the
-   * object column is shut by default at this size, so nothing sits on anything.
+   * The briefing stays in the corner it started in, and shuts by default.
+   *
+   * It used to move to the bottom of the frame at this size, which put a
+   * paragraph across the sky above the dial whether or not anybody wanted one,
+   * and on a tall phone it landed on the horizon rule as well. It stays top
+   * right instead, narrow, where the sky is emptiest and the object column is
+   * not; shut it is a labelled bar two fingers wide, and opening it is a tap on
+   * that bar.
    */
   .sky-view__brief {
-    top: auto;
-    bottom: calc(var(--rail-h) + var(--horizon-h) - var(--step) * 2);
-    left: var(--inset);
+    top: calc(var(--topbar-h) + var(--step));
     right: var(--inset);
+    left: auto;
+    bottom: auto;
     width: auto;
-    max-height: none;
+    max-width: 80vw;
+    max-height: calc(100% - var(--topbar-h) - var(--rail-h) - var(--horizon-h) - var(--step) * 4);
+    overflow: hidden;
+    /*
+     * Shut, the panel is only as wide as the words in its own title bar, so it
+     * tucks into the corner and leaves the object strip opposite it alone. Open,
+     * it takes the width it needs to be read, which is most of the frame; that
+     * is a fair thing to take once somebody has asked for it, and one more tap
+     * puts it back.
+     */
+    justify-items: end;
+  }
+
+  .sky-view__brief .guide-panel {
+    width: fit-content;
+  }
+  /* Shut, it is a label and a chevron, and it should not be padded like a page. */
+  .sky-view__brief .guide-panel:not(.is-open) {
+    padding: 0.6rem 0.75rem;
+    gap: 0;
+  }
+  .sky-view__brief .guide-panel.is-open {
+    width: 80vw;
   }
 
 
@@ -3249,18 +3354,44 @@ button {
   }
 
   /*
-   * No room for two columns facing each other, so the briefing goes back to
-   * lying across the bottom, above the dial. It is the only thing down here
-   * now, and the object column is shut by default on a phone, so nothing is
-   * sitting on top of anything.
+   * The briefing stays in the corner it started in, and shuts by default.
+   *
+   * It used to move to the bottom of the frame at this size, which put a
+   * paragraph across the sky above the dial whether or not anybody wanted one,
+   * and on a tall phone it landed on the horizon rule as well. It stays top
+   * right instead, narrow, where the sky is emptiest and the object column is
+   * not; shut it is a labelled bar two fingers wide, and opening it is a tap on
+   * that bar.
    */
   .sky-view__brief {
-    top: auto;
-    bottom: calc(var(--rail-h) + var(--horizon-h) - var(--step));
-    left: var(--inset);
+    top: calc(var(--topbar-h) + var(--step));
     right: var(--inset);
+    left: auto;
+    bottom: auto;
     width: auto;
-    max-height: none;
+    max-width: 80vw;
+    max-height: calc(100% - var(--topbar-h) - var(--rail-h) - var(--horizon-h) - var(--step) * 4);
+    overflow: hidden;
+    /*
+     * Shut, the panel is only as wide as the words in its own title bar, so it
+     * tucks into the corner and leaves the object strip opposite it alone. Open,
+     * it takes the width it needs to be read, which is most of the frame; that
+     * is a fair thing to take once somebody has asked for it, and one more tap
+     * puts it back.
+     */
+    justify-items: end;
+  }
+
+  .sky-view__brief .guide-panel {
+    width: fit-content;
+  }
+  /* Shut, it is a label and a chevron, and it should not be padded like a page. */
+  .sky-view__brief .guide-panel:not(.is-open) {
+    padding: 0.6rem 0.75rem;
+    gap: 0;
+  }
+  .sky-view__brief .guide-panel.is-open {
+    width: 80vw;
   }
 
   /*
