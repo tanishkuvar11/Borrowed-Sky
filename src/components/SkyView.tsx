@@ -25,6 +25,7 @@ import {
   type Camera,
 } from '../lib/astro/frames';
 import { starToBody, type ConstellationFigure, type StarCatalog } from '../lib/astro/starfield';
+import { plottableStars, findPopulations, type Population } from '../lib/astro/populations';
 import { toObserver } from '../lib/astro/solar';
 import type { ObserverSite, SkyBody, SkyConditions } from '../lib/astro/types';
 import type { Place } from '../lib/place';
@@ -280,6 +281,19 @@ export function SkyView({
     return map;
   }, [constellations]);
 
+  /*
+   * Stellar populations, computed once for the lifetime of the page.
+   *
+   * The clustering runs over ~4,887 stars and is deterministic; it does not
+   * depend on time, observer, or anything that changes after the catalogue
+   * loads. Keying the memo on the catalog object means it runs exactly once
+   * and is reused for every subsequent tap.
+   */
+  const populations = useMemo<Population[] | null>(() => {
+    if (!catalog) return null;
+    return findPopulations(plottableStars(catalog));
+  }, [catalog]);
+
   const selectedBody = useMemo<SkyBody | null>(() => {
     if (!selectedId) return null;
 
@@ -452,6 +466,7 @@ export function SkyView({
           onToneChange={onToneChange}
           onClose={() => setSelectedId(null)}
           onRecord={onRecord}
+          populations={populations}
         />
       )}
     </div>

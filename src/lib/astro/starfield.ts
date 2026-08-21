@@ -44,6 +44,13 @@ export interface StarCatalog {
   magnitude: Float32Array;
   /** Index into {@link STAR_COLORS}, so the renderer can batch by colour. */
   colorBucket: Uint8Array;
+  /**
+   * Raw B-V colour index, from field index 3 of the catalogue. 0 means no
+   * reliable measurement and the star must be excluded from any colour-dependent
+   * computation. colorBucket is derived from this but quantised to twelve steps,
+   * which is far too coarse for clustering; this carries the real value.
+   */
+  colorIndex: Float32Array;
   proper: string[];
   bayer: string[];
   constellation: string[];
@@ -180,6 +187,7 @@ async function readStarCatalog(signal?: AbortSignal): Promise<StarCatalog> {
   const vectors = new Float64Array(n * 3);
   const magnitude = new Float32Array(n);
   const colorBucket = new Uint8Array(n);
+  const colorIndex = new Float32Array(n);
   const hip = new Int32Array(n);
   const distanceLy = new Float32Array(n);
   const proper: string[] = new Array(n);
@@ -195,6 +203,7 @@ async function readStarCatalog(signal?: AbortSignal): Promise<StarCatalog> {
     vectors[i * 3 + 2] = v.z;
     magnitude[i] = s[2];
     colorBucket[i] = bucketFor(s[3]);
+    colorIndex[i] = s[3];
     proper[i] = s[4];
     bayer[i] = s[5];
     constellation[i] = s[6];
@@ -209,6 +218,7 @@ async function readStarCatalog(signal?: AbortSignal): Promise<StarCatalog> {
     vectors,
     magnitude,
     colorBucket,
+    colorIndex,
     proper,
     bayer,
     constellation,
