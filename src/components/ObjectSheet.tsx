@@ -9,7 +9,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { PlanetMark } from './planet-marks';
-import { askGuide, buildSkyContext, factFor, type GuideAnswer, type Tone } from '../lib/ai';
+import {
+  askGuide,
+  buildSkyContext,
+  factFor,
+  narrateLocally,
+  type GuideAnswer,
+  type Tone,
+} from '../lib/ai';
 import { compassPoint, heightInWords } from '../lib/astro/satellites';
 import { funFactFor, type Fact } from '../lib/facts';
 import type { ObserverSite, SkyBody, SkyConditions } from '../lib/astro/types';
@@ -85,11 +92,47 @@ export function ObjectSheet({
   }, [body.id, body.name, body.kind]);
   const abortRef = useRef<AbortController | null>(null);
 
-  // A new selection invalidates the previous explanation.
+  /*
+   * Say what the thing is, straight away.
+   *
+   * Opening a sheet used to give you four numbers and a button, which is a
+   * dossier that has not been read yet: it told you where Venus was and left
+   * what Venus is behind a press. The built-in narrator costs nothing and takes
+   * no time, so it writes the description on open, out of the same computed
+   * numbers printed above it.
+   *
+   * The button stays, and now offers the thing it could not offer before: the
+   * same subject explained by the model rather than assembled from a template.
+   * That is a fair trade for a wait and a round trip. Four numbers and silence
+   * was not.
+   */
   useEffect(() => {
-    setAnswer(null);
     abortRef.current?.abort();
-  }, [body.id]);
+    if (!conditions) {
+      setAnswer(null);
+      return;
+    }
+    setAnswer({
+      text: narrateLocally(
+        buildSkyContext({
+          now,
+          site,
+          bodies,
+          conditions,
+          timeline,
+          focus: body,
+          focusFact: factFor(body),
+        }),
+        tone,
+      ),
+      source: 'local',
+    });
+    // On `tone` as well: switching between simple and detailed is a request for
+    // a different explanation, and this one costs nothing to rewrite. It does
+    // drop a Granite answer back to the local one, which is the honest result
+    // of asking a different question; the button is right there to ask again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [body.id, site, conditions, tone]);
 
   const explain = useCallback(async () => {
     abortRef.current?.abort();
@@ -230,29 +273,6 @@ export function ObjectSheet({
         </p>
       )}
 
-      {/*
-        One true thing, before anything is asked for.
-        
-        The readings above say where it is, which is what the app is for and is
-        not, on its own, interesting. The fact is why somebody looks up in the
-        first place, and it is here rather than inside the narration because it
-        costs no model, no key and no waiting: the corpus is already on the
-        machine, so it is on screen the instant the sheet opens.
-      */}
-      {fact && (
-        <div className="sheet__fact">
-          <p className="engrave">Did you know</p>
-          <p className="sheet__fact-text">{fact.text}</p>
-          <p className="provenance">
-            NASA,{' '}
-            <a href={fact.source} target="_blank" rel="noreferrer noopener">
-              {fact.title}
-            </a>
-            . Tap {body.name} again for another.
-          </p>
-        </div>
-      )}
-
       <div className="sheet__guide">
         <div className="sheet__guide-head">
           <p className="engrave">Sky guide</p>
@@ -272,21 +292,59 @@ export function ObjectSheet({
           </div>
         </div>
 
-        {answer ? (
+        {answer && (
           <>
             <p className="sheet__narration">{answer.text}</p>
             <p className="provenance">
               {answer.source === 'granite'
-                ? `Written by IBM Granite (${answer.model ?? 'watsonx'}) from the measurements above.`
+                ? `Written by IBM Granite (${answer.model ?? 'watsonx'}) from the measurements above.${
+                    answer.toolsUsed?.length ? ` Looked up: ${answer.toolsUsed.join(', ')}.` : ''
+                  }`
                 : answer.note ?? 'Written by the built-in narrator from the measurements above.'}
             </p>
           </>
-        ) : (
+        )}
+
+        {/*
+          Offered rather than required. The description above is already there,
+          so this is not the way to find out what the thing is; it is the way to
+          hear it from the model instead of from a template, which is worth a
+          wait to some people and not to others.
+        */}
+        {answer?.source !== 'granite' && (
           <button className="button" onClick={explain} disabled={asking}>
-            {asking ? 'Asking…' : `Tell me about ${body.name}`}
+            {asking ? 'Asking the guide…' : 'Ask the AI guide instead'}
           </button>
         )}
       </div>
+
+      {/*
+        One true thing, last.
+
+        This sat above the guide to begin with, which put it between the
+        readings and the description of the object: opening a sheet showed you
+        where a thing was and then a fact about it, with what the thing actually
+        is still behind a button. The fact is the reward for reading the rest,
+        not a substitute for it, so it goes at the bottom where a postscript
+        goes.
+
+        It still costs no model, no key and no waiting. The corpus is already on
+        the machine, so it is there whether or not the guide can be reached,
+        which is most of the reason it is worth having.
+      */}
+      {fact && (
+        <div className="sheet__fact">
+          <p className="engrave">Did you know</p>
+          <p className="sheet__fact-text">{fact.text}</p>
+          <p className="provenance">
+            NASA,{' '}
+            <a href={fact.source} target="_blank" rel="noreferrer noopener">
+              {fact.title}
+            </a>
+            . Tap {body.name} again for another.
+          </p>
+        </div>
+      )}
 
       <footer className="sheet__foot">
         <button

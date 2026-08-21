@@ -132,8 +132,36 @@ async function main() {
     ),
   );
 
+  /*
+   * The half that needs a model, and what happens when there is not one.
+   *
+   * Everything above this line reads the shipped file and can be checked on a
+   * plane. Everything below embeds a question, which means an embedder has to
+   * answer, and on a machine with no key and nothing running locally it will
+   * not. That is not a failure of the corpus and reporting it as one teaches
+   * people to ignore a red line.
+   *
+   * So it stops here and says so, in the summary as well as in place, because
+   * the one outcome worse than a check that cannot run is a check that cannot
+   * run and looks like it passed.
+   */
   const queries = [...REAL.map((r) => r.question), ...NONSENSE];
-  const vectors = await embedWith(corpus.embeddingModel, queries);
+  let vectors: number[][];
+  try {
+    vectors = await embedWith(corpus.embeddingModel, queries);
+  } catch (err) {
+    console.log('');
+    console.log(`  ----  retrieval NOT checked: ${err instanceof Error ? err.message : err}`);
+    console.log(`        ${corpus.embeddingModel} has to answer for a question to be embedded.`);
+    console.log('        Set WATSONX_API_KEY, or run: ollama serve');
+    console.log('');
+    if (failures.length) {
+      console.error(`FAIL  ${failures.length} case(s): ${failures.join(', ')}`);
+      process.exit(1);
+    }
+    console.log('PASS  the corpus itself is sound. Retrieval was not exercised (no embedder).');
+    return;
+  }
 
   console.log('\nquestions somebody would ask');
   const realScores: number[] = [];
