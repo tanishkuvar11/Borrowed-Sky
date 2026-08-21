@@ -41,6 +41,23 @@ const VIEWS: { id: View; label: string; Icon: typeof IconSky }[] = [
   { id: 'logbook', label: 'Logbook', Icon: IconLogbook },
 ];
 
+/**
+ * The mode, in one word, printed under the rose.
+ *
+ * The rose already said this in colour and in movement: teal and steady when
+ * tracking, a slow pulse when it wants a tap, desaturated when the browser will
+ * not release the sensor. That is legible once you know the code and invisible
+ * until then, and the one thing a person standing in a field needs to know
+ * about this app is whether the sky on screen is turning with them. So it is
+ * also said in words, which need no key.
+ */
+const COMPASS_STATE: Record<string, string> = {
+  live: 'Live',
+  paused: 'Paused',
+  ask: 'Off',
+  blocked: 'Manual',
+};
+
 const COMPASS_HINT: Record<string, string> = {
   live: 'Compass tracking',
   paused: 'Compass paused',
@@ -161,7 +178,6 @@ export default function App() {
     );
   }
 
-  const compassLive = orientation.status === 'active' && followCompass;
   const compassState = orientationState(orientation, followCompass);
 
   return (
@@ -195,16 +211,21 @@ export default function App() {
           <h1 className="wordmark__name">Borrowed Sky</h1>
         </button>
 
-        <button
-          className={`rose rose--${compassState}`}
-          onClick={() => setSheet('compass')}
-          aria-label={COMPASS_HINT[compassState]}
-          title={COMPASS_HINT[compassState]}
-        >
-          <span className="rose__face">
-            <IconCompassRose size={20} />
+        <div className={`compass-tag compass-tag--${compassState}`}>
+          <button
+            className={`rose rose--${compassState}`}
+            onClick={() => setSheet('compass')}
+            aria-label={COMPASS_HINT[compassState]}
+            title={COMPASS_HINT[compassState]}
+          >
+            <span className="rose__face">
+              <IconCompassRose size={20} />
+            </span>
+          </button>
+          <span className="compass-tag__state" aria-hidden>
+            {COMPASS_STATE[compassState]}
           </span>
-        </button>
+        </div>
       </header>
 
       {/*
@@ -319,22 +340,31 @@ export default function App() {
         ))}
 
         {/*
-          The centre emblem returns to the sky and hands the view back to the
-          compass, the "put me back where I am standing" control, which is the
-          one thing you want after wandering off in a drag.
+          The way back to the start, labelled like everything else in the row.
+
+          The emblem used to mean "put me back where I am standing", which the
+          Sky tab beside it already does and which the compass tag in the header
+          now does properly. Meanwhile there was no way back to the landing page
+          at all: it was the door in, and once through it the only route to it
+          again was clearing the stored location, which is a destructive act
+          wearing navigation's clothes.
+
+          Making the app's own mark the way home is the oldest convention on the
+          web, and it stops being a convention the moment it is unlabelled, so
+          it is labelled.
         */}
         <button
           className="rail__emblem"
-          onClick={() => {
-            setView('sky');
-            setFollowCompass(true);
-          }}
-          aria-label="Back to the live sky"
-          title="Back to the live sky"
+          onClick={() => setEntered(false)}
+          aria-label="Back to the start"
+          title="Back to the start"
         >
-          <span className={compassLive ? 'rail__emblem-face is-live' : 'rail__emblem-face'}>
-            <IconEmblem size={34} />
+          <span className="rail__emblem-dial">
+            <span className="rail__emblem-face">
+              <IconEmblem size={28} />
+            </span>
           </span>
+          <span className="rail__label">Home</span>
         </button>
 
         {VIEWS.slice(2).map((item) => (

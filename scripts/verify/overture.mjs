@@ -242,6 +242,34 @@ async function main() {
     );
     await shot('22-overture-entered');
 
+    /*
+     * And back out again, by a control that says what it does.
+     *
+     * There was no way back for a while: the landing page was the door in, and
+     * the only route to it afterwards was clearing the stored location, which
+     * is a destructive act wearing navigation's clothes. So the test is not
+     * just that something returns here, but that the thing which returns here
+     * is labelled, which is the whole of what was wrong with the last version
+     * of this where the name in the header quietly did it.
+     */
+    console.log('');
+    console.log('and back:');
+    const homeLabel = await evalPage(
+      `document.querySelector('.rail__emblem')?.innerText.trim() ?? ''`,
+    );
+    check('the way back is labelled', /home/i.test(homeLabel), homeLabel || '(no label)');
+
+    await evalPage(`document.querySelector('.rail__emblem')?.click()`);
+    await sleep(1200);
+    check(
+      'and it lands on the landing page',
+      (await evalPage(`!!document.querySelector('.overture')`)) === true,
+    );
+    check(
+      'without throwing the stored location away',
+      (await evalPage(`!!localStorage.getItem('borrowed-sky:site')`)) === true,
+    );
+
     const errs = await evalPage(`JSON.stringify(window.__pageErrors || [])`);
     check('no page errors', errs === '[]', errs);
   } finally {

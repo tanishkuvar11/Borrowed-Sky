@@ -220,6 +220,10 @@ async function main() {
            .find(c => c.startsWith('rose--')) ?? '(none)'`,
       );
 
+    /** The same state, in the word printed under the rose. */
+    const tagWord = () =>
+      evalPage(`document.querySelector('.compass-tag__state')?.innerText.trim() ?? '(none)'`);
+
     const enterApp = enterAppWith(evalPage, sleep);
 
     const seedSite = () =>
@@ -276,6 +280,11 @@ async function main() {
       const secure = await evalPage('window.isSecureContext');
       check('origin is genuinely insecure', secure === false, `isSecureContext=${secure}`);
       check('header rose shows blocked', (await roseState()) === 'rose--blocked', await roseState());
+      check(
+        'and says so in a word, not only in a colour',
+        (await tagWord()).toLowerCase() === 'manual',
+        await tagWord(),
+      );
 
       await openRose();
       const text = await dialogText();
@@ -309,6 +318,11 @@ async function main() {
     check('secure origin', (await evalPage('window.isSecureContext')) === true);
 
     check('header rose invites a tap', (await roseState()) === 'rose--ask', await roseState());
+    check(
+      'and says so in a word, not only in a colour',
+      (await tagWord()).toLowerCase() === 'off',
+      await tagWord(),
+    );
 
     await openRose();
     const before = await dialogText();
@@ -361,6 +375,11 @@ async function main() {
 
     await closeDialog();
     check('header rose shows live tracking', (await roseState()) === 'rose--live');
+    check(
+      'and says so in a word, not only in a colour',
+      (await tagWord()).toLowerCase() === 'live',
+      await tagWord(),
+    );
     await shot('compass-active');
 
     await call('Page.removeScriptToEvaluateOnNewDocument', { identifier });

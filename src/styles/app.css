@@ -638,6 +638,58 @@ button {
   transform: scale(0.95);
 }
 
+/*
+ * The rose with its mode written under it.
+ *
+ * Stacked rather than set beside it, because the header is three cells wide and
+ * the middle one is the wordmark: anything that grows on the right takes the
+ * name's width away, and it is the one string on the screen that must never be
+ * clipped. Vertically there is room to spare in a 68px bar.
+ *
+ * The word is not part of the button. It is a readout of what the button's
+ * state is, the tap target is the rose itself as it always was, and the full
+ * sentence stays on the title and the label for anyone who wants it.
+ */
+.compass-tag {
+  display: grid;
+  justify-items: center;
+  gap: 0.2rem;
+}
+
+/*
+ * A little smaller than the menu button opposite it, so that the stack of rose
+ * plus word balances the single circle across the bar rather than towering over
+ * it and riding up against the top of the frame.
+ */
+.compass-tag .rose {
+  width: 40px;
+  height: 40px;
+}
+
+.compass-tag__state {
+  font-family: var(--font-display);
+  font-size: 0.5rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  line-height: 1;
+  color: var(--brass);
+  opacity: 0.85;
+  transition: color 240ms var(--ease), opacity 240ms var(--ease);
+}
+
+/* Teal for live, because teal means "this is the live one" everywhere here. */
+.compass-tag--live .compass-tag__state {
+  color: var(--visible);
+  opacity: 1;
+}
+/* Stated plainly rather than greyed out: manual is a mode, not a failure. */
+.compass-tag--blocked .compass-tag__state,
+.compass-tag--paused .compass-tag__state {
+  color: var(--starlight-mute);
+}
+
 .rose__face {
   position: relative;
   display: grid;
@@ -802,13 +854,34 @@ button {
  * emblem floating in it — so it reads as a turned bezel you could grip, and it
  * still reads as one when nothing at all is happening.
  */
+/*
+ * The centre cell, which is a destination like the other four and is built like
+ * one: mark on top, label under it, same brass, same spacing. The dial inside
+ * it is what stands proud of the console.
+ */
 .rail__emblem {
   position: relative;
-  width: 60px;
-  height: 60px;
-  margin: 0 0.35rem -10px;
-  padding: 5px;
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+  margin: 0 0.35rem;
+  padding: 0.7rem 0.15rem 0.6rem;
   border: 0;
+  background: none;
+  color: var(--brass);
+  opacity: 0.62;
+  transition: color 220ms var(--ease), opacity 220ms var(--ease);
+}
+.rail__emblem:hover {
+  opacity: 0.9;
+}
+
+.rail__emblem-dial {
+  position: relative;
+  display: block;
+  width: 44px;
+  height: 44px;
+  padding: 4px;
   border-radius: 50%;
   background:
     radial-gradient(circle at 38% 24%, rgb(var(--sheen-rgb) / 0.16) 0%, transparent 60%),
@@ -823,7 +896,7 @@ button {
 }
 
 /* The divided scale around the rim. Turns very slowly, all on its own. */
-.rail__emblem::before {
+.rail__emblem-dial::before {
   content: '';
   position: absolute;
   inset: -2px;
@@ -838,14 +911,14 @@ button {
   opacity: 0.4;
   animation: bezel-turn 240s linear infinite;
 }
-.rail__emblem:hover {
+.rail__emblem:hover .rail__emblem-dial {
   box-shadow:
     inset 0 0 0 1px var(--brass-dim),
     inset 0 1px 0 rgb(var(--sheen-rgb) / 0.3),
     0 -2px 16px rgba(0, 0, 0, 0.8),
     0 0 34px -10px var(--brass);
 }
-.rail__emblem:active {
+.rail__emblem:active .rail__emblem-dial {
   transform: scale(0.94);
 }
 
@@ -869,13 +942,7 @@ button {
   color: var(--brass);
   transition: color 240ms var(--ease);
 }
-.rail__emblem-face.is-live {
-  color: var(--visible);
-  box-shadow:
-    inset 0 1px 3px rgba(0, 0, 0, 0.9),
-    inset 0 0 0 1px rgb(var(--visible-rgb) / 0.18),
-    inset 0 0 16px -5px var(--visible);
-}
+
 
 /* --- the optics ---------------------------------------------------------- */
 
