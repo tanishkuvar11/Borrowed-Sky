@@ -236,6 +236,43 @@ async function main() {
     if (sheet) console.log(`  ${sheet}`);
     await shot('05-object');
 
+    /*
+     * The fun fact, and the button that asks for the next one.
+     *
+     * The line under the fact used to read "tap the Moon again for another",
+     * which was not true: the sheet is already open on the Moon, so tapping it
+     * changes nothing, and on a phone the sheet is covering the Moon anyway. It
+     * is a button now, and this is the check that it does what it says.
+     *
+     * Four in a row, because one different fact could be luck and a rotation
+     * that has quietly stopped moving looks exactly like a rotation that has
+     * not until you ask it more than twice.
+     */
+    console.log('');
+    console.log('ask for another fact:');
+    const factSeen = [];
+    for (let i = 0; i < 4; i++) {
+      factSeen.push(
+        await evalPage(
+          `document.querySelector('.sheet__fact-text')?.textContent?.trim() ?? '(none)'`,
+        ),
+      );
+      await evalPage(
+        `[...document.querySelectorAll('.sheet__fact button')].find(b => /another/i.test(b.textContent))?.click()`,
+      );
+      await sleep(400);
+    }
+
+    check('the sheet offers a fact at all', factSeen[0] !== '(none)', factSeen[0]?.slice(0, 70));
+    check(
+      'and a different one each time it is asked',
+      new Set(factSeen).size === factSeen.length,
+      `${new Set(factSeen).size} distinct of ${factSeen.length}`,
+    );
+    for (const f of factSeen) console.log(`  · ${f.slice(0, 88)}`);
+    await shot('11-another-fact');
+
+
     console.log('\nask the guide to explain it:');
     await evalPage(
       `[...document.querySelectorAll('.sheet .button')].find(b => /tell me about/i.test(b.textContent))?.click()`,

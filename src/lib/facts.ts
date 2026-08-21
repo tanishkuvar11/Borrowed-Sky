@@ -41,7 +41,7 @@ export interface Fact {
  * are both true and both read as the answer to a question nobody asked.
  */
 const DANGLING =
-  /^(it|its|they|their|this|these|those|that|he|she|there|such|both|each|one|however|but|and|so|then|also|yet|still|instead|meanwhile|otherwise|therefore|thus|besides|in addition|furthermore|moreover|for one thing|on the other hand|as a result|that said|even so|of course|in fact|for example|for instance)\b/i;
+  /^(it|its|they|their|this|these|those|that|he|she|there|such|both|each|one|however|but|and|so|then|also|yet|still|instead|meanwhile|otherwise|therefore|thus|besides|in addition|furthermore|moreover|for one thing|for another|for one|in contrast|by contrast|conversely|likewise|similarly|again|second|secondly|third|thirdly|finally|lastly|on the other hand|as a result|that said|even so|of course|in fact|for example|for instance)\b/i;
 
 /** Sentences that are about the document rather than about the sky. */
 const HOUSEKEEPING = /(click|scroll|read more|learn more|watch|subscribe|newsletter|credit:|image:|caption|this page|website|browser)/i;

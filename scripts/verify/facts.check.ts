@@ -73,7 +73,7 @@ async function main() {
   console.log(`\nreading all ${everyFact.length} of them`);
 
   const dangling = everyFact.filter((f) =>
-    /^(it|its|they|their|this|these|those|that|he|she|there|however|but|and|so|then|also|yet|still|instead|meanwhile|therefore|thus|in addition|furthermore|moreover|for one thing|on the other hand|as a result|of course|in fact|for example|for instance)\b/i.test(
+    /^(it|its|they|their|this|these|those|that|he|she|there|however|but|and|so|then|also|yet|still|instead|meanwhile|therefore|thus|in addition|furthermore|moreover|for one thing|for another|for one|in contrast|by contrast|conversely|likewise|similarly|again|second|secondly|third|thirdly|finally|lastly|on the other hand|as a result|of course|in fact|for example|for instance)\b/i.test(
       f.text,
     ),
   );

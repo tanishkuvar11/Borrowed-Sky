@@ -90,6 +90,16 @@ export function ObjectSheet({
       cancelled = true;
     };
   }, [body.id, body.name, body.kind]);
+  /**
+   * The next fact for this object.
+   *
+   * The rotation lives in the facts module, which hands out the one it has not
+   * used yet for that subject, so this only has to ask again.
+   */
+  const nextFact = useCallback(() => {
+    funFactFor(body.name, body.kind).then(setFact);
+  }, [body.name, body.kind]);
+
   const abortRef = useRef<AbortController | null>(null);
 
   /*
@@ -341,8 +351,19 @@ export function ObjectSheet({
             <a href={fact.source} target="_blank" rel="noreferrer noopener">
               {fact.title}
             </a>
-            . Tap {body.name} again for another.
+            .
           </p>
+          {/*
+            A control, because the line under it used to be an instruction.
+            
+            It read "tap the Moon again for another", which is a reasonable
+            thing to write and was not true: the sheet is already open on the
+            Moon, so tapping it changes nothing, and on a phone the sheet is
+            covering the Moon anyway. Asking for the next one is a button.
+          */}
+          <button className="button button--quiet" onClick={nextFact}>
+            Another fact
+          </button>
         </div>
       )}
 
