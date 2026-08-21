@@ -581,3 +581,41 @@ export function runSkyTool(
     };
   }
 }
+
+/**
+ * The tools bound to one observer, ready to hand to the guide.
+ *
+ * The adapter exists so the caller never touches the raw call shape. Arguments
+ * arrive from the model as a JSON string, which may be malformed, and results
+ * go back as JSON, so both edges are handled once here rather than at every
+ * call site.
+ */
+export interface SkyToolset {
+  declarations: ToolDeclaration[];
+  /** Never throws. A refusal is an answer, and the model is expected to read it. */
+  run(name: string, argumentsJson: string | undefined): unknown;
+}
+
+export function createSkyToolset(ctx: SkyToolContext): SkyToolset {
+  return {
+    declarations: SKY_TOOLS,
+    run(name, argumentsJson) {
+      let args: Record<string, unknown> = {};
+      if (argumentsJson) {
+        try {
+          const parsed = JSON.parse(argumentsJson);
+          if (parsed && typeof parsed === 'object') args = parsed as Record<string, unknown>;
+        } catch {
+          /*
+           * Told, not swallowed. A model that emits malformed arguments will
+           * emit them again unless something says so, and "your arguments were
+           * not valid JSON" is a thing it can act on.
+           */
+          return { error: `The arguments to ${name} were not valid JSON.` };
+        }
+      }
+      const answer = runSkyTool(name, args, ctx);
+      return answer.ok ? answer.result : { error: answer.error };
+    },
+  };
+}

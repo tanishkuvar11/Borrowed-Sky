@@ -9,9 +9,35 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { askGuide, buildSkyContext, narrateLocally, type Tone } from '../lib/ai';
+import {
+  askGuide,
+  buildSkyContext,
+  narrateLocally,
+  type GuideAnswer,
+  type Tone,
+} from '../lib/ai';
 import type { ObserverSite, SkyBody, SkyConditions } from '../lib/astro/types';
 import type { TonightTimeline } from '../lib/astro/events';
+import { createSkyToolset } from '../lib/astro/tools';
+import type { StarCatalog } from '../lib/astro/starfield';
+import type { TleSet } from '../lib/astro/satellites';
+
+/**
+ * The line under an answer saying where it came from.
+ *
+ * Names the functions when the model called any, because that is the part
+ * worth seeing: an answer that says "Saturn sets at 03:12" is an assertion, and
+ * the same answer with "looked up: rise_set" under it is a claim with a route
+ * back to the arithmetic that produced it. This app's argument is that the
+ * route is always there; this is where it shows.
+ */
+function provenanceFor(answer: GuideAnswer): string {
+  const looked = answer.toolsUsed?.length ? ` Looked up: ${answer.toolsUsed.join(', ')}.` : '';
+  if (answer.source === 'granite') {
+    return `IBM Granite (${answer.model ?? 'watsonx'}), grounded in your computed sky.${looked}`;
+  }
+  return `${answer.note ?? 'Built-in narrator, from your computed sky.'}${looked}`;
+}
 
 interface Message {
   id: string;
@@ -33,6 +59,9 @@ export interface GuideViewProps {
   bodies: SkyBody[];
   conditions: SkyConditions | null;
   timeline: TonightTimeline | null;
+  /** The catalogue and the elements, so the model's lookups can reach them. */
+  catalog: StarCatalog | null;
+  tleSet: TleSet | null;
   tone: Tone;
   onToneChange: (tone: Tone) => void;
 }
@@ -43,6 +72,8 @@ export function GuideView({
   bodies,
   conditions,
   timeline,
+  catalog,
+  tleSet,
   tone,
   onToneChange,
 }: GuideViewProps) {
@@ -53,8 +84,8 @@ export function GuideView({
 
   // The live values change every second; the ask handler reads them from a ref
   // so it always sends the sky as it is at the instant the question is sent.
-  const liveRef = useRef({ now, bodies, conditions, timeline });
-  liveRef.current = { now, bodies, conditions, timeline };
+  const liveRef = useRef({ now, bodies, conditions, timeline, catalog, tleSet });
+  liveRef.current = { now, bodies, conditions, timeline, catalog, tleSet };
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -81,17 +112,31 @@ export function GuideView({
       });
 
       try {
-        const answer = await askGuide({ skyContext: context, tone, question: trimmed });
+        /*
+         * The guide gets the tools; the plaque on the chart does not.
+         *
+         * A caption describing what is up needs no lookups and should not spend
+         * two round trips deciding that. A question typed by a person is the
+         * opposite case: it is exactly the thing a snapshot cannot answer in
+         * advance, and it is worth the wait.
+         */
+        const answer = await askGuide({
+          skyContext: context,
+          tone,
+          question: trimmed,
+          tools: createSkyToolset({
+            site,
+            catalog: live.catalog,
+            tleSet: live.tleSet,
+          }),
+        });
         setMessages((prev) => [
           ...prev,
           {
             id: `a-${Date.now()}`,
             role: 'guide',
             text: answer.text,
-            provenance:
-              answer.source === 'granite'
-                ? `IBM Granite (${answer.model ?? 'watsonx'}), grounded in your computed sky.`
-                : answer.note ?? 'Built-in narrator, from your computed sky.',
+            provenance: provenanceFor(answer),
           },
         ]);
       } catch {

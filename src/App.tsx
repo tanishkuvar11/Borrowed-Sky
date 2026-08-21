@@ -296,6 +296,8 @@ export default function App() {
             bodies={sky.bodies}
             conditions={sky.conditions}
             timeline={sky.timeline}
+            catalog={sky.catalog}
+            tleSet={sky.tleSet}
             tone={tone}
             onToneChange={setTone}
           />

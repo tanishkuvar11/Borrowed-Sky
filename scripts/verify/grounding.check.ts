@@ -210,7 +210,7 @@ function assert(
   }
 }
 
-console.log(`\nrunning 8 cases`);
+console.log(`\nrunning 11 cases`);
 console.log(`  focus object : ${knownName} at ${knownAltitude}deg toward the ${knownDirection}`);
 console.log(`  bad altitude : ${unsupportedAltitude.toFixed(1)}deg (outside all tolerance windows)`);
 console.log(`  bad magnitude: ${unsupportedMagnitude.toFixed(1)} (outside all tolerance windows)`);
@@ -329,11 +329,50 @@ assert(
   false,
 );
 
+/*
+ * Cases 9 to 11: evidence that arrived from a tool call.
+ *
+ * The guide can now ask the astronomy engine for things the sky context never
+ * contained, so the context is no longer the whole of what an answer may be
+ * built from. The guard takes an array of sources instead, and these three make
+ * the difference visible.
+ *
+ * The middle one is the one that matters. The same sentence is checked twice,
+ * with the tool result and without, and it must pass with and fail without. If
+ * the array were being walked wrongly, or ignored, or flattened into a string,
+ * case 9 would still pass, because a guard that accepts everything accepts this
+ * too. Only the pair shows the tool result is what made the difference.
+ */
+const toolAnswer = {
+  name: 'Saturn',
+  altitudeDegrees: 41.6,
+  direction: 'south-east',
+  magnitude: 0.42,
+};
+
+const toolClaim = 'Saturn is about 41.6 degrees up toward the south-east, at magnitude 0.42.';
+
+assert(9, 'a claim the tool result supports passes', checkGrounding(toolClaim, [ctx, toolAnswer]), true);
+
+assert(
+  10,
+  'the same claim fails without it, so the array is really being read',
+  checkGrounding(toolClaim, ctx),
+  false,
+);
+
+assert(
+  11,
+  'a claim neither the context nor the tool supports is still refused',
+  checkGrounding('Saturn is about 88.4 degrees up toward the north-north-west.', [ctx, toolAnswer]),
+  false,
+);
+
 // ---------------------------------------------------------------------------
 
 console.log(
   failures.length
-    ? `\nFAIL  ${failures.length} of 8 cases failed\n  ${failures.join('\n  ')}`
-    : `\nPASS  ${passed} of 8 cases`,
+    ? `\nFAIL  ${failures.length} of 11 cases failed\n  ${failures.join('\n  ')}`
+    : `\nPASS  ${passed} of 11 cases`,
 );
 process.exit(failures.length ? 1 : 0);

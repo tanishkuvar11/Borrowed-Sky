@@ -12,6 +12,7 @@
 import { compassPoint, heightInWords, SATELLITE_FACTS } from './astro/satellites';
 import { BODY_FACTS } from './astro/solar';
 import type { ObserverSite, SkyBody, SkyConditions } from './astro/types';
+import type { SkyToolset } from './astro/tools';
 import type { TonightTimeline } from './astro/events';
 
 export type Tone = 'simple' | 'standard';
@@ -23,6 +24,14 @@ export interface GuideAnswer {
   model?: string;
   /** Present when Granite was tried and could not answer. */
   note?: string;
+  /**
+   * Which functions the model called to get here, if any.
+   *
+   * Shown to the person, because "it looked this up" is the difference between
+   * an answer and an assertion, and this app's whole argument is that the
+   * difference is visible.
+   */
+  toolsUsed?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -229,35 +238,97 @@ export async function askGuide(options: {
   skyContext: SkyContext;
   tone: Tone;
   question?: string;
+  /**
+   * The sky, as functions the model may call. Omit and it answers from the
+   * snapshot alone, which is what the plaque on the chart wants: a caption
+   * needs no lookups and should not spend two round trips deciding that.
+   */
+  tools?: SkyToolset;
   signal?: AbortSignal;
 }): Promise<GuideAnswer> {
-  const { skyContext, tone, question, signal } = options;
+  const { skyContext, tone, question, tools, signal } = options;
+
+  /*
+   * The loop.
+   *
+   * The model may answer, or it may ask for something first. The endpoint is
+   * stateless and the tools run here, on this machine, so a lookup is a round
+   * trip: it hands back what the model wants, this computes it out of
+   * astronomy-engine and posts the result back for the model to read.
+   *
+   * Bounded, and low. Every pass costs a call to watsonx and several seconds of
+   * somebody standing outside in the dark. Three is enough for "what is that
+   * bright thing in the south-east, and when does it set", which is about as
+   * compound as a real question gets; a model still asking on the fourth is
+   * looping, and the honest response to that is the narrator rather than
+   * another minute of waiting.
+   */
+  const MAX_ROUNDS = 3;
+  let transcript: unknown[] = [];
+  const used: string[] = [];
 
   try {
-    const res = await fetch('api/ask', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ skyContext, tone, question }),
-      signal,
-    });
+    for (let round = 0; round < MAX_ROUNDS; round++) {
+      const res = await fetch('api/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          skyContext,
+          tone,
+          question,
+          ...(tools ? { tools: tools.declarations } : {}),
+          ...(transcript.length ? { transcript } : {}),
+        }),
+        signal,
+      });
 
-    if (res.ok) {
-      const json = (await res.json()) as { text?: string; model?: string };
-      if (json.text) return { text: json.text, source: 'granite', model: json.model };
-      throw new Error('empty response');
+      if (!res.ok) return fallback(res, skyContext, tone, question, used);
+
+      const json = (await res.json()) as {
+        kind?: string;
+        text?: string;
+        model?: string;
+        calls?: { id: string; name: string; arguments?: string }[];
+        transcript?: unknown[];
+      };
+
+      if (json.kind === 'tool_calls' && json.calls?.length && tools) {
+        const answers = json.calls.map((call) => {
+          used.push(call.name);
+          return {
+            role: 'tool',
+            tool_call_id: call.id,
+            /*
+             * The result verbatim, as JSON. Not summarised on the way past:
+             * this string is both what the model reads and what the grounding
+             * guard later tests the answer against, and a summary would let a
+             * number reach one and not the other.
+             */
+            content: JSON.stringify(tools.run(call.name, call.arguments)),
+          };
+        });
+        transcript = [...(json.transcript ?? []), ...answers];
+        continue;
+      }
+
+      if (json.text) {
+        return {
+          text: json.text,
+          source: 'granite',
+          model: json.model,
+          toolsUsed: used.length ? [...new Set(used)] : undefined,
+        };
+      }
+
+      break;
     }
 
-    const detail = (await res.json().catch(() => ({}))) as { error?: string };
-    const note =
-      detail.error === 'ai_unconfigured'
-        ? 'The AI guide is not configured on this deployment, so this is the built-in narrator.'
-        : detail.error === 'rate_limited'
-          ? 'Too many questions in a row; this is the built-in narrator for now.'
-          : detail.error === 'ai_ungrounded'
-            ? "The AI guide's answer mentioned something that isn't in tonight's computed data, so the built-in narrator answered instead."
-            : 'The AI guide could not be reached, so this is the built-in narrator.';
-
-    return { text: narrateLocally(skyContext, tone, question), source: 'local', note };
+    // Out of rounds, or an answer that never arrived.
+    return {
+      text: narrateLocally(skyContext, tone, question),
+      source: 'local',
+      note: 'The AI guide did not settle on an answer, so this is the built-in narrator.',
+    };
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') throw err;
     return {
@@ -267,3 +338,30 @@ export async function askGuide(options: {
     };
   }
 }
+
+/** What the interface says when Granite was tried and could not answer. */
+async function fallback(
+  res: Response,
+  skyContext: SkyContext,
+  tone: Tone,
+  question: string | undefined,
+  used: string[],
+): Promise<GuideAnswer> {
+  const detail = (await res.json().catch(() => ({}))) as { error?: string };
+  const note =
+    detail.error === 'ai_unconfigured'
+      ? 'The AI guide is not configured on this deployment, so this is the built-in narrator.'
+      : detail.error === 'rate_limited'
+        ? 'Too many questions in a row; this is the built-in narrator for now.'
+        : detail.error === 'ai_ungrounded'
+          ? "The AI guide's answer mentioned something that isn't in tonight's computed data or in anything it looked up, so the built-in narrator answered instead."
+          : 'The AI guide could not be reached, so this is the built-in narrator.';
+
+  return {
+    text: narrateLocally(skyContext, tone, question),
+    source: 'local',
+    note,
+    toolsUsed: used.length ? [...new Set(used)] : undefined,
+  };
+}
+

@@ -122,6 +122,96 @@ function throttled(ip: string): boolean {
 
 // ---------------------------------------------------------------------------
 
+/**
+ * One turn of the exchange, in the shape watsonx wants it.
+ *
+ * `tool` messages are how a result gets back to the model: the client runs the
+ * function and posts the answer back keyed to the call it answers.
+ */
+interface ChatMessage {
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content?: string;
+  tool_calls?: { id: string; type?: string; function?: { name?: string; arguments?: string } }[];
+  tool_call_id?: string;
+}
+
+/**
+ * How far this will carry a conversation.
+ *
+ * A question needing four lookups is a question, and one needing forty is
+ * either a loop or somebody using the endpoint as a relay for something else.
+ * The cap is on turns and on bytes, because either can run away on its own.
+ */
+const MAX_TRANSCRIPT_TURNS = 24;
+const MAX_TRANSCRIPT_BYTES = 120_000;
+
+/** Thrown when a model is simply absent from this project, so the walk continues. */
+class ModelUnavailable extends Error {}
+
+/**
+ * Everything the tools returned during this exchange, read back out of the
+ * transcript.
+ *
+ * Parsed rather than taken on trust: a tool message whose content is not JSON
+ * is dropped instead of being fed to the guard as a string, because a string
+ * full of digits would widen the pool of numbers the answer is allowed to
+ * contain and that pool is the whole point of the check.
+ */
+function toolResultsIn(transcript: ChatMessage[]): unknown[] {
+  const out: unknown[] = [];
+  for (const message of transcript) {
+    if (message.role !== 'tool' || typeof message.content !== 'string') continue;
+    try {
+      out.push(JSON.parse(message.content));
+    } catch {
+      /* Not JSON, so not evidence. */
+    }
+  }
+  return out;
+}
+
+/** One call to watsonx, returning the assistant turn it produced. */
+async function callModel(options: {
+  base: string;
+  token: string;
+  projectId: string;
+  modelId: string;
+  messages: ChatMessage[];
+  tools?: unknown[];
+  tone: Tone;
+}): Promise<ChatMessage> {
+  const { base, token, projectId, modelId, messages, tools, tone } = options;
+
+  const upstream = await fetch(`${base}/ml/v1/text/chat?version=${API_VERSION}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      model_id: modelId,
+      project_id: projectId,
+      messages,
+      ...(tools?.length ? { tools, tool_choice_option: 'auto' } : {}),
+      max_tokens: tone === 'simple' ? 220 : 340,
+      temperature: 0.4,
+      time_limit: 20_000,
+    }),
+    signal: AbortSignal.timeout(25_000),
+  });
+
+  if (!upstream.ok) {
+    const detail = await upstream.text().catch(() => '');
+    const message = `watsonx responded ${upstream.status} for ${modelId}: ${detail.slice(0, 300)}`;
+    if (isModelUnavailable(upstream.status, detail)) throw new ModelUnavailable(message);
+    throw new Error(message);
+  }
+
+  const json = (await upstream.json()) as { choices?: { message?: ChatMessage }[] };
+  return json.choices?.[0]?.message ?? { role: 'assistant' };
+}
+
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== 'POST') {
     sendJson(res, 405, { error: 'method_not_allowed' });
@@ -182,140 +272,151 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       : 'Introduce what is worth looking at right now, and where to look.',
   ].join('\n');
 
+  /*
+   * The exchange so far, as the model left it.
+   *
+   * The endpoint holds nothing between requests, because the tools do not run
+   * here: they run in the browser, on the observer's own machine, which is the
+   * only place this app computes a sky. So a question that needs a tool takes
+   * two trips. The model asks, this returns the request to the client, the
+   * client answers it out of astronomy-engine and comes back with the result,
+   * and the transcript is what carries the middle of that conversation across
+   * the gap.
+   *
+   * It arrives from the client and is therefore not trusted: capped in length
+   * and in size, and never executed. It is text on its way to a model.
+   */
+  const transcript = Array.isArray(body.transcript)
+    ? (body.transcript as ChatMessage[]).slice(0, MAX_TRANSCRIPT_TURNS)
+    : [];
+
+  /*
+   * The tools come from the client too, for the same reason the sky does: the
+   * functions live next to the astronomy that implements them, and a second
+   * copy of their declarations over here would be a second copy to drift. This
+   * endpoint never calls them. It forwards a list of names and shapes to the
+   * model and hands the model's requests back.
+   */
+  const tools = Array.isArray(body.tools) ? (body.tools as unknown[]).slice(0, 12) : undefined;
+
+  const messages: ChatMessage[] = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'user', content: userPrompt },
+    ...transcript,
+  ];
+
+  if (JSON.stringify(messages).length > MAX_TRANSCRIPT_BYTES) {
+    sendJson(res, 413, {
+      error: 'conversation_too_long',
+      message: 'This exchange has grown past what the endpoint will forward.',
+    });
+    return;
+  }
+
+  /*
+   * Everything the answer is allowed to be built from.
+   *
+   * The sky context, plus whatever the tools actually returned during this
+   * exchange, read back out of the transcript rather than passed separately so
+   * the two can never disagree. This is the pool the grounding guard tests
+   * against: a number in the answer has to have come from the computed sky or
+   * from a function that computed it, and there is no third source.
+   */
+  const evidence: unknown[] = [skyContext, ...toolResultsIn(transcript)];
+
   try {
     const token = await getIamToken(apiKey);
     const base = (process.env.WATSONX_URL || DEFAULT_URL).replace(/\/+$/, '');
-    const candidates = modelCandidates();
 
     let lastError = 'watsonx request failed';
 
-    for (const modelId of candidates) {
-      const upstream = await fetch(`${base}/ml/v1/text/chat?version=${API_VERSION}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          model_id: modelId,
-          project_id: projectId,
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: userPrompt },
-          ],
-          max_tokens: tone === 'simple' ? 220 : 340,
-          temperature: 0.4,
-          time_limit: 20_000,
-        }),
-        signal: AbortSignal.timeout(25_000),
-      });
-
-      if (!upstream.ok) {
-        const detail = await upstream.text().catch(() => '');
-        lastError = `watsonx responded ${upstream.status} for ${modelId}: ${detail.slice(0, 300)}`;
-        if (isModelUnavailable(upstream.status, detail)) continue;
-        throw new Error(lastError);
+    for (const modelId of modelCandidates()) {
+      let reply: ChatMessage;
+      try {
+        reply = await callModel({ base, token, projectId, modelId, messages, tools, tone });
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : String(err);
+        if (err instanceof ModelUnavailable) continue;
+        throw err;
       }
 
-      const json = (await upstream.json()) as {
-        choices?: { message?: { content?: string } }[];
-      };
-      const text = json.choices?.[0]?.message?.content?.trim();
+      preferredModel = modelId;
+
+      /*
+       * The model wants to look something up.
+       *
+       * Handed straight back to the client, which is where the sky is. Nothing
+       * is decided here about whether the request is reasonable; the tools
+       * themselves refuse what they cannot answer, and they are the only ones
+       * in a position to know.
+       */
+      if (reply.tool_calls?.length) {
+        sendJson(res, 200, {
+          kind: 'tool_calls',
+          model: modelId,
+          calls: reply.tool_calls.map((call) => ({
+            id: call.id,
+            name: call.function?.name,
+            arguments: call.function?.arguments,
+          })),
+          transcript: [...transcript, reply],
+        });
+        return;
+      }
+
+      const text = reply.content?.trim();
       if (!text) {
         lastError = `${modelId} returned an empty completion`;
         continue;
       }
 
-      preferredModel = modelId;
-
       // --- grounding check --------------------------------------------------
       //
-      // Compare the answer against the sky context that was handed to the
-      // model. An answer that mentions a number, name or direction the context
-      // does not support gets one retry before the endpoint refuses to send it.
-      // Two round trips is the limit before someone standing in a field gives
-      // up and moves on.
+      // Against the sky context and every tool result in this exchange. An
+      // answer that states a number, name or direction none of them supports
+      // gets one retry before the endpoint refuses to send it. Two round trips
+      // is the limit before someone standing in a field gives up and moves on.
 
-      const firstReport = checkGrounding(text, skyContext);
+      const firstReport = checkGrounding(text, evidence);
       if (firstReport.ok) {
-        sendJson(res, 200, { text, model: modelId, checked: true });
+        sendJson(res, 200, { kind: 'answer', text, model: modelId, checked: true });
         return;
       }
 
-      // Build a retry: replay the original conversation, append the first
-      // answer as an assistant turn, then instruct the model to try again
-      // using only what the JSON contains.
-      const retryClaimsNote = firstReport.unsupported
-        .map((u) => `- ${u}`)
-        .join('\n');
-
-      const retryUpstream = await fetch(`${base}/ml/v1/text/chat?version=${API_VERSION}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          model_id: modelId,
-          project_id: projectId,
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: userPrompt },
-            { role: 'assistant', content: text },
-            {
-              role: 'user',
-              content:
-                'Your previous answer contained claims that are not supported by the sky data:\n' +
-                retryClaimsNote +
-                '\nPlease answer again using only what is in the JSON. If the data does not ' +
-                'support what was asked, say so rather than guess.',
-            },
-          ],
-          max_tokens: tone === 'simple' ? 220 : 340,
-          temperature: 0.4,
-          time_limit: 20_000,
-        }),
-        signal: AbortSignal.timeout(25_000),
+      const retry = await callModel({
+        base,
+        token,
+        projectId,
+        modelId,
+        tone,
+        tools,
+        messages: [
+          ...messages,
+          { role: 'assistant', content: text },
+          {
+            role: 'user',
+            content:
+              'Your previous answer contained claims that are not supported by the sky data ' +
+              'or by any tool result in this conversation:\n' +
+              firstReport.unsupported.map((u) => `- ${u}`).join('\n') +
+              '\nPlease answer again using only what those contain. If they do not support ' +
+              'what was asked, say so rather than guess.',
+          },
+        ],
       });
 
-      if (!retryUpstream.ok) {
-        // The retry itself failed at the network level. Treat this the same as
-        // any other upstream error so the outer catch can handle it cleanly.
-        const detail = await retryUpstream.text().catch(() => '');
-        throw new Error(
-          `watsonx retry responded ${retryUpstream.status} for ${modelId}: ${detail.slice(0, 300)}`,
-        );
-      }
-
-      const retryJson = (await retryUpstream.json()) as {
-        choices?: { message?: { content?: string } }[];
-      };
-      const retryText = retryJson.choices?.[0]?.message?.content?.trim();
-
+      const retryText = retry.content?.trim();
       if (retryText) {
-        const retryReport = checkGrounding(retryText, skyContext);
+        const retryReport = checkGrounding(retryText, evidence);
         if (retryReport.ok) {
-          sendJson(res, 200, { text: retryText, model: modelId, checked: true });
+          sendJson(res, 200, { kind: 'answer', text: retryText, model: modelId, checked: true });
           return;
         }
-        // Retry also failed grounding. Do not send either answer.
-        sendJson(res, 502, {
-          error: 'ai_ungrounded',
-          unsupported: retryReport.unsupported,
-        });
+        sendJson(res, 502, { error: 'ai_ungrounded', unsupported: retryReport.unsupported });
         return;
       }
 
-      // Retry came back empty. Fall through to the next model candidate rather
-      // than silently swallowing the failure: the empty-completion branch above
-      // will handle it on the next iteration if we continue, but since we are
-      // already past the model-walk, report it directly.
-      sendJson(res, 502, {
-        error: 'ai_ungrounded',
-        unsupported: firstReport.unsupported,
-      });
+      sendJson(res, 502, { error: 'ai_ungrounded', unsupported: firstReport.unsupported });
       return;
     }
 
