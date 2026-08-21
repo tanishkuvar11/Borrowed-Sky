@@ -19,6 +19,7 @@ import {
 import type { ObserverSite, SkyBody, SkyConditions } from '../lib/astro/types';
 import type { TonightTimeline } from '../lib/astro/events';
 import { createSkyToolset } from '../lib/astro/tools';
+import { retrieve } from '../lib/corpus';
 import type { StarCatalog } from '../lib/astro/starfield';
 import type { TleSet } from '../lib/astro/satellites';
 
@@ -33,10 +34,13 @@ import type { TleSet } from '../lib/astro/satellites';
  */
 function provenanceFor(answer: GuideAnswer): string {
   const looked = answer.toolsUsed?.length ? ` Looked up: ${answer.toolsUsed.join(', ')}.` : '';
+  const read = answer.sources?.length
+    ? ` Explained from NASA: ${[...new Set(answer.sources.map((s) => s.title))].join('; ')}.`
+    : '';
   if (answer.source === 'granite') {
-    return `IBM Granite (${answer.model ?? 'watsonx'}), grounded in your computed sky.${looked}`;
+    return `IBM Granite (${answer.model ?? 'watsonx'}), grounded in your computed sky.${looked}${read}`;
   }
-  return `${answer.note ?? 'Built-in narrator, from your computed sky.'}${looked}`;
+  return `${answer.note ?? 'Built-in narrator, from your computed sky.'}${looked}${read}`;
 }
 
 interface Message {
@@ -120,10 +124,22 @@ export function GuideView({
          * opposite case: it is exactly the thing a snapshot cannot answer in
          * advance, and it is worth the wait.
          */
+        /*
+         * Background first, then the question.
+         *
+         * Retrieved rather than offered as a tool the model may choose,
+         * because the questions that need a source are precisely the ones a
+         * model answers from memory without noticing it needed one. "Why is
+         * Mars red" does not feel to a model like a question it cannot
+         * already answer.
+         */
+        const found = await retrieve(trimmed);
+
         const answer = await askGuide({
           skyContext: context,
           tone,
           question: trimmed,
+          sources: found.passages,
           tools: createSkyToolset({
             site,
             catalog: live.catalog,

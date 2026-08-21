@@ -13,6 +13,7 @@ import { compassPoint, heightInWords, SATELLITE_FACTS } from './astro/satellites
 import { BODY_FACTS } from './astro/solar';
 import type { ObserverSite, SkyBody, SkyConditions } from './astro/types';
 import type { SkyToolset } from './astro/tools';
+import type { Passage } from './corpus';
 import type { TonightTimeline } from './astro/events';
 
 export type Tone = 'simple' | 'standard';
@@ -24,6 +25,14 @@ export interface GuideAnswer {
   model?: string;
   /** Present when Granite was tried and could not answer. */
   note?: string;
+  /**
+   * The NASA passages the answer was allowed to explain from.
+   *
+   * Shown under the answer, because an explanation with a source is a
+   * different kind of statement from one without, and this app's whole
+   * argument is that the difference should be visible.
+   */
+  sources?: Passage[];
   /**
    * Which functions the model called to get here, if any.
    *
@@ -270,9 +279,18 @@ export async function askGuide(options: {
    * needs no lookups and should not spend two round trips deciding that.
    */
   tools?: SkyToolset;
+  /**
+   * Passages retrieved for this question, if any were.
+   *
+   * Retrieval happens before the call rather than as a tool the model may
+   * choose, because the questions that need background are exactly the ones a
+   * model answers confidently from memory without noticing it needs anything.
+   * Waiting to be asked is the wrong design for a source of truth.
+   */
+  sources?: Passage[];
   signal?: AbortSignal;
 }): Promise<GuideAnswer> {
-  const { skyContext, tone, question, tools, signal } = options;
+  const { skyContext, tone, question, tools, sources, signal } = options;
 
   /*
    * The loop.
@@ -303,6 +321,7 @@ export async function askGuide(options: {
           tone,
           question,
           ...(tools ? { tools: tools.declarations } : {}),
+          ...(sources?.length ? { sources } : {}),
           ...(transcript.length ? { transcript } : {}),
         }),
         signal,
@@ -343,6 +362,7 @@ export async function askGuide(options: {
           source: 'granite',
           model: json.model,
           toolsUsed: used.length ? [...new Set(used)] : undefined,
+          sources: sources?.length ? sources : undefined,
         };
       }
 

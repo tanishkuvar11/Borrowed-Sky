@@ -374,6 +374,24 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
    * model and hands the model's requests back.
    */
   const tools = Array.isArray(body.tools) ? (body.tools as unknown[]).slice(0, 12) : undefined;
+  /*
+   * Passages retrieved from the corpus for this question.
+   *
+   * NASA's own writing, found by meaning rather than by keyword, and sent in
+   * with the question so the model explains from a source instead of from
+   * memory. It is the same rule the positions follow, applied to prose: the
+   * guide may say what a thing is, as long as somebody it can cite said it
+   * first.
+   *
+   * The client does the searching. This only carries the result, and the
+   * grounding guard treats it as evidence like everything else, so a number
+   * quoted out of a NASA passage is supported and one invented around it is
+   * not.
+   */
+  const sources = Array.isArray(body.sources)
+    ? (body.sources as { title?: string; source?: string; text?: string }[]).slice(0, 4)
+    : [];
+
   const hasTools = Boolean(tools?.length);
 
   const userPrompt = [
@@ -384,6 +402,16 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     '',
     TONE[tone],
     '',
+    ...(sources.length
+      ? [
+          'BACKGROUND, from NASA. You may explain using these and you must not explain from memory. Name the source in passing when you use one, as "NASA says" or similar. If they do not cover what was asked, say so.',
+          ...sources.map(
+            (passage, i) =>
+              `[${i + 1}] ${passage.title ?? 'NASA'} (${passage.source ?? ''})\n${passage.text ?? ''}`,
+          ),
+          '',
+        ]
+      : []),
     question
       ? `The person watching the sky asks: "${question}"`
       : 'Introduce what is worth looking at right now, and where to look.',
@@ -446,7 +474,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
    * against: a number in the answer has to have come from the computed sky or
    * from a function that computed it, and there is no third source.
    */
-  const evidence: unknown[] = [skyContext, ...toolResultsIn(transcript)];
+  const evidence: unknown[] = [skyContext, ...toolResultsIn(transcript), ...sources];
 
   try {
     /*

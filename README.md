@@ -49,6 +49,18 @@ Concretely:
 - **Satellite positions** are propagated with SGP4 ([satellite.js](https://github.com/shashwatak/satellite-js)) from live orbital elements published by [Celestrak](https://celestrak.org/). No pass time is looked up or approximated; each one is searched for numerically from the elements.
 - **The AI never computes anything.** It receives a finished, structured description of the sky and turns it into a sentence. It is explicitly instructed that the data it is given is the only source of truth and that it must refuse rather than guess.
 
+### Explanations come from somewhere too
+
+The guard stops the model stating a position it was not given. That covers where things are, and the people this app is for ask about both: *why is Mars red*, *what does magnitude mean*, *why does the Moon change shape*. Those were answered from memory, which is the one thing the rest of the project refuses to do. A recalled fact is unverifiable and usually right, and "usually right" is the standard this app exists to beat.
+
+So there is a corpus. [`scripts/build-corpus.mjs`](scripts/build-corpus.mjs) reads NASA's own science writing, which is public domain, cuts it into passages, records the page and the date each one came from, and embeds it. When a question is asked, it is embedded too and compared against every passage in the browser; the closest few are sent with the question, and the model is told to explain from them and to name the source. The guide may say what a thing is, as long as somebody it can cite said it first.
+
+Three things this gets right, and each of them is a way it could have gone wrong quietly:
+
+- **The embedding model is recorded in the file.** Vectors from two different models compare perfectly well and mean nothing: the arithmetic runs, the numbers look reasonable, and the passages that come back are noise in the shape of an answer. If the corpus was built by a model other than the one embedding the question, retrieval returns nothing and says why. There is no degraded mode.
+- **There is a floor, and it was measured.** Retrieval always returns something, because there is always a closest vector. [`corpus.check.ts`](scripts/verify/corpus.check.ts) asks six real questions and three deliberately unrelated ones: the real ones land between 0.76 and 0.89, and the best that "how do I poach an egg" managed was 0.54. The first draft of the threshold was 0.55, one hundredth above that, which is a coin toss wearing a rule's clothing. It is 0.65 now, in the middle of the gap, and the check fails if that gap ever closes.
+- **Retrieved passages are evidence.** They join the pool the grounding guard tests against, so a number quoted out of a NASA passage is supported and one invented around it is not.
+
 ### The one thing that is looked up rather than computed
 
 A place name cannot be derived from first principles. Everything above the horizon in this app comes out of astronomy-engine, SGP4 and the catalogues it ships, but "you are near Udupi, and the clocks there are on Asia/Kolkata" is a fact about people, and somebody had to write it down first.
@@ -87,6 +99,8 @@ npx tsx scripts/verify/events.check.ts       # timeline across four latitudes
 npx tsx scripts/verify/milkyway.check.ts     # galactic frame
 npx tsx scripts/verify/grounding.check.ts    # the guard on Granite's answers
 npx tsx scripts/verify/place.check.ts        # the clock-difference note
+npx tsx scripts/verify/tools.check.ts        # the functions the model may call
+npx tsx scripts/verify/corpus.check.ts       # what retrieval finds, and declines
 npm run verify:granite                       # live call to watsonx, needs credentials
 ```
 
