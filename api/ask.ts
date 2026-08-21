@@ -169,6 +169,25 @@ const MAX_TRANSCRIPT_BYTES = 120_000;
 class ModelUnavailable extends Error {}
 
 /**
+ * Whether a refusal looks like it was about the tools rather than about
+ * anything else.
+ *
+ * Worth distinguishing, because the response to "you may not send me a tools
+ * array" is to ask again without one, and the response to "your quota is
+ * spent" or "that key is wrong" is not: retrying those just spends a second
+ * call to be told the same thing. A rejected request is cheap and a wasted
+ * round trip is not free either, so the retry is narrowed to the shape of
+ * refusal it can actually do something about.
+ *
+ * Deliberately loose about the wording. Every host phrases this differently
+ * and the cost of matching one phrase too many is one extra call.
+ */
+function looksLikeToolRefusal(message: string): boolean {
+  if (/(401|403|429)/.test(message)) return false;
+  return /tool|function[_ ]call|not supported|unsupported|invalid.*request|400/i.test(message);
+}
+
+/**
  * Everything the tools returned during this exchange, read back out of the
  * transcript.
  *
@@ -503,6 +522,15 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const base = (process.env.WATSONX_URL || DEFAULT_URL).replace(/\/+$/, '');
     let lastError = 'watsonx request failed';
 
+    /*
+     * Whether the tools had to be given up to get an answer at all.
+     *
+     * Reported rather than hidden, because an answer written without the
+     * lookups is a different thing from one written with them, and the panel
+     * under it says which.
+     */
+    let toolsDropped = false;
+
     const ask = async (turns: ChatMessage[]): Promise<{ reply: ChatMessage; model: string }> => {
       if (hosted && token) {
         for (const modelId of modelCandidates()) {
@@ -513,7 +541,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
               projectId,
               modelId,
               messages: turns,
-              tools,
+              tools: toolsDropped ? undefined : tools,
               tone,
             });
             preferredModel = modelId;
@@ -521,6 +549,39 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           } catch (err) {
             lastError = err instanceof Error ? err.message : String(err);
             if (err instanceof ModelUnavailable) continue;
+
+            /*
+             * One retry with the tools taken off.
+             *
+             * A host that will not accept a tools array, or a model that has
+             * none, refuses the whole request; the failure is indistinguishable
+             * from any other 400 and the result was no answer at all. Every
+             * question would have fallen through to the deterministic narrator
+             * and nothing would have said why.
+             *
+             * Granite answering from the sky snapshot without lookups is worse
+             * than Granite with them and far better than silence, so the tools
+             * are dropped and the question asked again. Once: a second failure
+             * is not about the tools.
+             */
+            if (!toolsDropped && tools?.length && looksLikeToolRefusal(lastError)) {
+              toolsDropped = true;
+              try {
+                const reply = await callModel({
+                  base,
+                  token,
+                  projectId,
+                  modelId,
+                  messages: turns,
+                  tone,
+                });
+                preferredModel = modelId;
+                return { reply, model: modelId };
+              } catch (second) {
+                lastError = second instanceof Error ? second.message : String(second);
+              }
+            }
+
             if (!localAllowed) throw err;
             break;
           }
@@ -528,7 +589,16 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       }
 
       if (!localAllowed) throw new Error(lastError);
-      return callLocalModel({ messages: turns, tools, tone });
+      try {
+        return await callLocalModel({ messages: turns, tools: toolsDropped ? undefined : tools, tone });
+      } catch (err) {
+        // Same reasoning as above. Plenty of local models have no tool support
+        // at all and say so by refusing the request outright.
+        const detail = err instanceof Error ? err.message : String(err);
+        if (toolsDropped || !tools?.length || !looksLikeToolRefusal(detail)) throw err;
+        toolsDropped = true;
+        return callLocalModel({ messages: turns, tone });
+      }
     };
 
     const { reply, model } = await ask(messages);
@@ -567,7 +637,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
     const firstReport = checkGrounding(text, evidence);
     if (firstReport.ok) {
-      sendJson(res, 200, { kind: 'answer', text, model, checked: true });
+      sendJson(res, 200, { kind: 'answer', text, model, checked: true, toolsDropped });
       return;
     }
 
@@ -589,7 +659,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     if (retryText) {
       const retryReport = checkGrounding(retryText, evidence);
       if (retryReport.ok) {
-        sendJson(res, 200, { kind: 'answer', text: retryText, model, checked: true });
+        sendJson(res, 200, { kind: 'answer', text: retryText, model, checked: true, toolsDropped });
         return;
       }
       sendJson(res, 502, { error: 'ai_ungrounded', unsupported: retryReport.unsupported });

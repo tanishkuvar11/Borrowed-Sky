@@ -41,6 +41,15 @@ export interface GuideAnswer {
    * difference is visible.
    */
   toolsUsed?: string[];
+  /**
+   * True when the model would not take the tools and answered without them.
+   *
+   * Worth saying out loud. An answer written from the snapshot alone is a
+   * different thing from one written after looking something up, and this is
+   * the difference between a host that supports tool calling and one that does
+   * not, which is not a thing to discover from the wording of an answer.
+   */
+  toolsDropped?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -334,6 +343,7 @@ export async function askGuide(options: {
         text?: string;
         model?: string;
         calls?: { id: string; name: string; arguments?: string }[];
+        toolsDropped?: boolean;
         transcript?: unknown[];
       };
 
@@ -362,6 +372,7 @@ export async function askGuide(options: {
           source: 'granite',
           model: json.model,
           toolsUsed: used.length ? [...new Set(used)] : undefined,
+          toolsDropped: json.toolsDropped || undefined,
           sources: sources?.length ? sources : undefined,
         };
       }
