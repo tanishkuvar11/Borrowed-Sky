@@ -256,6 +256,36 @@ If the project was created outside Dallas, set `WATSONX_URL` to that region's en
 
 **Deploy:** the repo is configured for Vercel (`vercel.json`); `api/*.ts` become serverless functions automatically. On a host with no serverless support the app still works; it will report that satellite passes and AI narration are unavailable rather than faking either.
 
+### Deploying with the AI switched on
+
+The endpoints read their configuration per request, so a deployment that goes
+up without credentials starts answering with Granite the moment the credentials
+exist. Nothing needs rebuilding for that. Two things do need doing, and the
+second is easy to miss because its failure is silent.
+
+1. **Set the environment variables on the host**: `WATSONX_API_KEY`,
+   `WATSONX_PROJECT_ID`, and `WATSONX_URL` for the region the project lives in.
+   Leave `OLLAMA_MODEL` unset there. A local Granite is a development
+   convenience; on a deployment it would mean a broken watsonx configuration
+   quietly looked like a working one.
+
+2. **Rebuild the corpus with the embedder the deployment will use**:
+
+   ```
+   npm run corpus
+   ```
+
+   The shipped vectors record which model produced them, and a question embedded
+   by a different model cannot be compared against them. `retrieve()` checks
+   this and declines rather than returning nonsense, which is the right
+   behaviour and an invisible one: retrieval simply stops and the citations
+   disappear. Run this with watsonx credentials present so the corpus is built
+   by the same model that will embed the questions, and commit the result.
+
+Everything that is not the AI works without any of it: the sky, the timeline,
+the compass, the fun facts and the place lookup need no key. A deployment with
+no credentials at all is a working app that says which narrator is speaking.
+
 ---
 
 ## Addressing the Space Exploration theme
