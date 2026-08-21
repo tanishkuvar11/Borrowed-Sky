@@ -12,6 +12,7 @@
  */
 
 import { readJsonBody, sendJson, type ApiRequest, type ApiResponse } from './_lib/http.js';
+import { clientIp, createBucket, originAllowed, tooManyFrom } from './_lib/guard.js';
 import { checkGrounding } from './_lib/grounding.js';
 
 const DEFAULT_URL = 'https://us-south.ml.cloud.ibm.com';
@@ -126,20 +127,18 @@ async function getIamToken(apiKey: string): Promise<string> {
   return tokenCache.token;
 }
 
-// --- crude per-IP throttle, since this endpoint is public and unauthenticated -
-
-const hits = new Map<string, number[]>();
+/*
+ * The ceiling on one address.
+ *
+ * Twenty a minute, and a question can cost three of them: the model asks for a
+ * lookup, the browser answers it, the model is asked again. So this is six or
+ * seven questions a minute, which is faster than anybody types and slower than
+ * anything trying to drain the quota. See _lib/guard.ts for what this does and
+ * does not actually prevent.
+ */
+const bucket = createBucket();
 const WINDOW_MS = 60_000;
 const MAX_PER_WINDOW = 20;
-
-function throttled(ip: string): boolean {
-  const now = Date.now();
-  const recent = (hits.get(ip) || []).filter((t) => now - t < WINDOW_MS);
-  recent.push(now);
-  hits.set(ip, recent);
-  if (hits.size > 5000) hits.clear();
-  return recent.length > MAX_PER_WINDOW;
-}
 
 // ---------------------------------------------------------------------------
 
@@ -339,9 +338,21 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return;
   }
 
-  const forwarded = req.headers['x-forwarded-for'];
-  const ip = (Array.isArray(forwarded) ? forwarded[0] : forwarded || 'local').split(',')[0].trim();
-  if (throttled(ip)) {
+  /*
+   * Refused before anything is spent, not after.
+   *
+   * Both of these run ahead of the IAM exchange and the model call, so a
+   * request that is not going to be served costs the account nothing at all.
+   */
+  if (!originAllowed(req)) {
+    sendJson(res, 403, {
+      error: 'origin_not_allowed',
+      message: 'This deployment does not answer requests from that origin.',
+    });
+    return;
+  }
+
+  if (tooManyFrom(bucket, clientIp(req), MAX_PER_WINDOW, WINDOW_MS)) {
     sendJson(res, 429, { error: 'rate_limited', message: 'Too many questions in a minute.' });
     return;
   }

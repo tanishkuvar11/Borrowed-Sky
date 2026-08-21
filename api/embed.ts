@@ -26,6 +26,7 @@
  */
 
 import { readJsonBody, sendJson, type ApiRequest, type ApiResponse } from './_lib/http.js';
+import { clientIp, createBucket, originAllowed, tooManyFrom } from './_lib/guard.js';
 
 const DEFAULT_URL = 'https://us-south.ml.cloud.ibm.com';
 const API_VERSION = '2024-10-08';
@@ -70,7 +71,25 @@ function normalise(vector: number[]): number[] {
   return vector.map((v) => Math.round((v / length) * 10000) / 10000);
 }
 
+/* This one spends the same key /api/ask does, so it is held to the same terms. */
+const bucket = createBucket();
+const WINDOW_MS = 60_000;
+const MAX_PER_WINDOW = 20;
+
 export default async function handler(req: ApiRequest, res: ApiResponse) {
+  if (!originAllowed(req)) {
+    sendJson(res, 403, {
+      error: 'origin_not_allowed',
+      message: 'This deployment does not answer requests from that origin.',
+    });
+    return;
+  }
+
+  if (tooManyFrom(bucket, clientIp(req), MAX_PER_WINDOW, WINDOW_MS)) {
+    sendJson(res, 429, { error: 'rate_limited', message: 'Too many embeddings in a minute.' });
+    return;
+  }
+
   if (req.method !== 'POST') {
     sendJson(res, 405, { error: 'method_not_allowed' });
     return;

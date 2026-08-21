@@ -27,6 +27,7 @@
  */
 
 import { queryParam, sendJson, type ApiRequest, type ApiResponse } from './_lib/http.js';
+import { clientIp, createBucket, tooManyFrom } from './_lib/guard.js';
 
 /**
  * OpenStreetMap's own geocoder, for the name.
@@ -149,9 +150,35 @@ async function lookupTimezone(lat: number, lon: number): Promise<string | null> 
   return typeof body.timezone === 'string' ? body.timezone : null;
 }
 
+/*
+ * The ceiling on one address.
+ *
+ * The cache below absorbs the ordinary case completely: everybody standing in
+ * the same square kilometre is one upstream request a day. What it cannot
+ * absorb is a caller sending coordinates that are deliberately never the same,
+ * which misses every time and goes straight out to Nominatim. Their usage
+ * policy is one request a second and the remedy for ignoring it is blocking
+ * the address, which would take the place name off this app for everybody
+ * rather than for whoever was abusing it.
+ *
+ * Thirty a minute is far above what a person moving around can generate and
+ * far below anything worth worrying OpenStreetMap about.
+ */
+const bucket = createBucket();
+const WINDOW_MS = 60_000;
+const MAX_PER_WINDOW = 30;
+
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== 'GET') {
     sendJson(res, 405, { error: 'method_not_allowed' });
+    return;
+  }
+
+  if (tooManyFrom(bucket, clientIp(req), MAX_PER_WINDOW, WINDOW_MS)) {
+    sendJson(res, 429, {
+      error: 'rate_limited',
+      message: 'Too many lookups in a minute.',
+    });
     return;
   }
 
