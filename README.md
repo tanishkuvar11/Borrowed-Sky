@@ -268,6 +268,21 @@ The translation is the product. And it is aimed at people who are currently on t
 
 ---
 
+## Privacy and security
+
+The app asks for one thing about you, and the design question was how little of it can leave.
+
+- **Your position never leaves your device at full precision.** It is rounded to two decimal places, a little over a kilometre, at the one boundary where anything is sent. That is the difference between naming the town you are in and naming your street.
+- **The sky is computed where you are standing.** Positions, rise and set times, satellite passes and the star field are all worked out in your browser. Even the AI's lookups run there: the endpoint relays the model's request back to the page, the page answers it out of astronomy-engine, and the result goes back. No server ever works out a position about you.
+- **One request carries anything personal**, and it is a rounded coordinate sent to OpenStreetMap and Open-Meteo to put a name and a timezone on the place. The landing page says so in a sentence before you are asked for anything.
+- **Location arrives only through the browser's own permission prompt**, and is kept in `localStorage` on your device. Never a cookie, never a URL.
+- **The watsonx key is server-side only.** It is not in the client bundle, not in any `VITE_`-prefixed variable, and `.env` is not in the repository.
+- **The endpoints that spend something refuse before they spend it.** `/api/ask`, `/api/embed` and `/api/place` check an origin allowlist and a per-address rate limit ahead of the IAM exchange, so a request that will not be served costs nothing.
+
+What that is not: authentication. This is an app you open in a browser without an account, and a secret shipped to a browser is not a secret. The origin allowlist stops another site putting this app's AI behind its own page; it does not stop a caller that is not a browser, and [`scripts/verify/guard.check.ts`](scripts/verify/guard.check.ts) asserts that hole deliberately so a green tick cannot be read as a stronger claim than the code makes. The rate limit lives in one instance's memory, so on a serverless host the real ceiling is a multiple of the stated one.
+
+The honest summary is that this was treated as a privacy problem rather than a security one. The interesting work was minimising what leaves the device at all, not adding a login.
+
 ## Honest limitations
 
 - **The browser compass drifts.** It is less accurate than a native app's, and on some Android browsers it is not north-referenced at all. The app detects this, says so, and offers a manual correction rather than pretending to a precision it does not have. Where Chromium exposes `AbsoluteOrientationSensor` it is preferred, since a reading from that is north-referenced by definition rather than by hope; iOS uses `webkitCompassHeading` for the same reason.
