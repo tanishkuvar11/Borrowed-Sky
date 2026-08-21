@@ -343,16 +343,32 @@ assert(
  * case 9 would still pass, because a guard that accepts everything accepts this
  * too. Only the pair shows the tool result is what made the difference.
  */
+/*
+ * Values chosen against tonight's actual sky, not written down.
+ *
+ * The first version of these cases used fixed numbers, and passed for a week
+ * until the evening the real sky put something within tolerance of one of them
+ * and case 10 started reporting that a claim was supported when the whole point
+ * was that it should not be. The context here is computed at run time, so
+ * anything compared against it has to be derived at run time too. Every other
+ * case in this file already does that; these now do as well.
+ */
+const toolAltitude = findUnsupportedValue(knownAltitude, 1, contextNums);
+const toolDirection = absentDirection ?? knownDirection;
 const toolAnswer = {
-  name: 'Saturn',
-  altitudeDegrees: 41.6,
-  direction: 'south-east',
-  magnitude: 0.42,
+  name: knownName,
+  altitudeDegrees: toolAltitude,
+  direction: toolDirection,
 };
 
-const toolClaim = 'Saturn is about 41.6 degrees up toward the south-east, at magnitude 0.42.';
+const toolClaim = `${knownName} is about ${toolAltitude.toFixed(1)} degrees up toward the ${toolDirection}.`;
 
-assert(9, 'a claim the tool result supports passes', checkGrounding(toolClaim, [ctx, toolAnswer]), true);
+assert(
+  9,
+  'a claim the tool result supports passes',
+  checkGrounding(toolClaim, [ctx, toolAnswer]),
+  true,
+);
 
 assert(
   10,
@@ -361,10 +377,14 @@ assert(
   false,
 );
 
+const neverSaid = findUnsupportedValue(toolAltitude, 3, [...contextNums, toolAltitude]);
 assert(
   11,
   'a claim neither the context nor the tool supports is still refused',
-  checkGrounding('Saturn is about 88.4 degrees up toward the north-north-west.', [ctx, toolAnswer]),
+  checkGrounding(
+    `${knownName} is about ${neverSaid.toFixed(1)} degrees up.`,
+    [ctx, toolAnswer],
+  ),
   false,
 );
 

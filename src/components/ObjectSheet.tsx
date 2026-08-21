@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { PlanetMark } from './planet-marks';
 import { askGuide, buildSkyContext, factFor, type GuideAnswer, type Tone } from '../lib/ai';
 import { compassPoint, heightInWords } from '../lib/astro/satellites';
+import { funFactFor, type Fact } from '../lib/facts';
 import type { ObserverSite, SkyBody, SkyConditions } from '../lib/astro/types';
 import type { TonightTimeline } from '../lib/astro/events';
 
@@ -60,7 +61,28 @@ export function ObjectSheet({
   onRecord,
 }: ObjectSheetProps) {
   const [answer, setAnswer] = useState<GuideAnswer | null>(null);
+  const [fact, setFact] = useState<Fact | null>(null);
   const [asking, setAsking] = useState(false);
+
+  /*
+   * A new fact each time the sheet opens on something.
+   *
+   * Keyed on the object rather than fetched once, because the interesting case
+   * is somebody tapping Venus, closing it, and tapping Venus again: the second
+   * fact is what makes the app feel like it knows more than one thing. The
+   * rotation lives in the facts module, which hands out the next one it has not
+   * used for that object yet.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    setFact(null);
+    funFactFor(body.name, body.kind).then((found) => {
+      if (!cancelled) setFact(found);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [body.id, body.name, body.kind]);
   const abortRef = useRef<AbortController | null>(null);
 
   // A new selection invalidates the previous explanation.
@@ -206,6 +228,29 @@ export function ObjectSheet({
             ? 'In sunlight: visible as a moving point of light'
             : "In Earth's shadow: overhead, but nothing to see"}
         </p>
+      )}
+
+      {/*
+        One true thing, before anything is asked for.
+        
+        The readings above say where it is, which is what the app is for and is
+        not, on its own, interesting. The fact is why somebody looks up in the
+        first place, and it is here rather than inside the narration because it
+        costs no model, no key and no waiting: the corpus is already on the
+        machine, so it is on screen the instant the sheet opens.
+      */}
+      {fact && (
+        <div className="sheet__fact">
+          <p className="engrave">Did you know</p>
+          <p className="sheet__fact-text">{fact.text}</p>
+          <p className="provenance">
+            NASA,{' '}
+            <a href={fact.source} target="_blank" rel="noreferrer noopener">
+              {fact.title}
+            </a>
+            . Tap {body.name} again for another.
+          </p>
+        </div>
       )}
 
       <div className="sheet__guide">

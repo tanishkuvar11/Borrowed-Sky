@@ -60,6 +60,21 @@ function loadCorpus(): Promise<Corpus | null> {
 }
 
 /**
+ * Every passage filed under a topic, in the order the corpus stores them.
+ *
+ * Used by the fun facts, which do not search: they already know what the
+ * subject is, because somebody just tapped it.
+ */
+export async function passagesAbout(topic: string): Promise<Passage[]> {
+  const corpus = await loadCorpus();
+  if (!corpus?.passages?.length) return [];
+  const wanted = topic.toLowerCase().replace(/^the\s+/, '').trim();
+  return corpus.passages
+    .filter((p) => p.topic.toLowerCase() === wanted)
+    .map(({ topic: t, title, source, text }) => ({ topic: t, title, source, text }));
+}
+
+/**
  * Below this, the nearest passage is not about the question.
  *
  * Retrieval always returns something: there is always a closest vector, even

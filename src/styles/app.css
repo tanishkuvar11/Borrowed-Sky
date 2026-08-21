@@ -2298,6 +2298,40 @@ button {
   color: var(--dusk-rose);
 }
 
+/*
+ * The fact panel: the one part of the dossier that is not a measurement.
+ *
+ * Set apart from the readings above it by a rule and a warmer ground rather
+ * than by a box, because it is the same instrument saying something different,
+ * not a second component bolted on. The sentence is set in the body face at
+ * reading size; everything around it stays engraving.
+ */
+.sheet__fact {
+  margin-top: 1.1rem;
+  padding-top: 0.9rem;
+  border-top: var(--rule) solid var(--brass-engrave);
+}
+
+.sheet__fact-text {
+  margin: 0.35rem 0 0.5rem;
+  font-family: var(--font-body);
+  font-size: var(--t-body);
+  line-height: 1.5;
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: 'lnum' 1, 'tnum' 1;
+  color: var(--starlight);
+}
+
+.sheet__fact .provenance a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--brass-hairline);
+}
+.sheet__fact .provenance a:hover {
+  text-decoration-color: var(--brass);
+}
+
 .sheet__guide {
   border-top: var(--rule) solid var(--brass-engrave);
   padding-top: 0.85rem;

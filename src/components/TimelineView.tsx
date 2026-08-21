@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { headlineSpan, type TimelineSpan, type TonightTimeline } from '../lib/astro/events';
+import { funFactFor, type Fact } from '../lib/facts';
 import type { ObserverSite, SkyConditions } from '../lib/astro/types';
 import { askGuide, buildSkyContext, type GuideAnswer, type Tone } from '../lib/ai';
 import type { SkyBody } from '../lib/astro/types';
@@ -313,7 +314,7 @@ export function TimelineView({
               {expanded === span.id && (
                 <div className="agenda__body">
                   <p>{span.detail}</p>
-                  {span.fact && <p className="agenda__fact">{span.fact}</p>}
+                  <AgendaFact name={span.name} kind={span.kind} fallback={span.fact} />
                   <dl className="readings readings--inline">
                     <div className="reading">
                       <dt className="engrave">Window</dt>
@@ -365,4 +366,56 @@ export function TimelineView({
       </div>
     </div>
   );
+}
+
+/**
+ * A different true thing each time a row is opened.
+ *
+ * The timeline already carried one fact per object, written into the span when
+ * it was built, which meant the Moon said the same sentence every night for as
+ * long as you used the app. These come out of the NASA corpus and rotate, and
+ * they carry the page they were taken from.
+ *
+ * The old one is kept as the fallback rather than deleted. It needs no corpus
+ * and no network, so a build without either still says something rather than
+ * showing a gap where a fact used to be.
+ */
+function AgendaFact({
+  name,
+  kind,
+  fallback,
+}: {
+  name: string;
+  kind: string;
+  fallback?: string;
+}) {
+  const [fact, setFact] = useState<Fact | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    funFactFor(name, kind === 'satellite-pass' ? 'satellite' : kind).then((found) => {
+      if (!cancelled) setFact(found);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [name, kind]);
+
+  if (fact) {
+    return (
+      <p className="agenda__fact">
+        {fact.text}{' '}
+        <a
+          className="agenda__fact-source"
+          href={fact.source}
+          target="_blank"
+          rel="noreferrer noopener"
+        >
+          NASA
+        </a>
+      </p>
+    );
+  }
+
+  return fallback ? <p className="agenda__fact">{fallback}</p> : null;
 }
