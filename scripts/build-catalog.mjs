@@ -196,7 +196,21 @@ async function buildStars() {
       bayer,
       con,
       f[iHip] ? Number.parseInt(f[iHip], 10) : 0,
-      (f[iSpect] || '').trim().slice(0, 3),
+      /*
+       * The whole class, not the first three characters of it.
+       *
+       * This was sliced to three to save bytes, which silently rewrote three
+       * quarters of the catalogue: G8III is a giant and G8I is a supergiant,
+       * K2III became K2I, and the app printed the result under the word
+       * Spectrum as though it were the measurement. The failure is not that
+       * the string was cut off, which anybody would notice; it is that cutting
+       * it off produced another valid classification, so it looked like data.
+       *
+       * It costs about fifteen kilobytes across five thousand stars, on a file
+       * that is already three hundred, and this repository has exactly one
+       * rule that outranks a saving that size.
+       */
+      (f[iSpect] || '').trim(),
       round(distLy, 1),
     ]);
   }
