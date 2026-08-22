@@ -21,7 +21,7 @@ One piece of this project is owned end to end by [IBM Bob](https://bob.ibm.com/)
 
 It was chosen deliberately. Every other data path here is verified by something that shares no code with the thing it verifies, which is why the coordinate transforms and the orbital propagation can be trusted rather than merely believed. The narration path is the exception: the model is told not to invent, and nothing checks that it obeyed. Closing that gap is the most valuable single piece of work left in the repository, and it is also cleanly separable, which is what makes it a fair test of a coding agent rather than a demonstration arranged to succeed.
 
-The brief handed to Bob is [`BOB-TASK.md`](BOB-TASK.md), written before any of the work started: the module signature, the three classes of claim to check, the tolerance rule, the retry behaviour, eight test cases, and the constraint that its tests compute a real sky rather than fabricating one.
+The brief handed to Bob was written before any of the work started: the module signature, the three classes of claim to check, the tolerance rule, the retry behaviour, eight test cases, and the constraint that its tests compute a real sky rather than fabricating one.
 
 ### How it went (BOB-TASK: the grounding guard)
 
