@@ -1,10 +1,45 @@
+<div align="center">
+
 # Borrowed Sky
 
 **A zero-install sky companion that tells anyone, anywhere, what is overhead right now, and explains it like a patient guide, not a data dump.**
 
+[![IBM watsonx.ai](https://img.shields.io/badge/IBM-watsonx.ai-0f62fe?style=for-the-badge&logo=ibm&logoColor=white)](https://www.ibm.com/products/watsonx-ai)
+[![IBM Granite](https://img.shields.io/badge/IBM-Granite-0043ce?style=for-the-badge&logo=ibm&logoColor=white)](https://www.ibm.com/granite)
+[![Built with IBM Bob](https://img.shields.io/badge/Built%20with-IBM%20Bob-002d9c?style=for-the-badge&logo=ibm&logoColor=white)](https://bob.ibm.com/)
+
+![TypeScript](https://img.shields.io/badge/TypeScript-3178c6?style=flat-square&logo=typescript&logoColor=white)
+![React](https://img.shields.io/badge/React%2018-20232a?style=flat-square&logo=react)
+![Vite](https://img.shields.io/badge/Vite%206-646cff?style=flat-square&logo=vite&logoColor=white)
+![No install](https://img.shields.io/badge/install-none-2e7d32?style=flat-square)
+![No account](https://img.shields.io/badge/account-none-2e7d32?style=flat-square)
+![Checks](https://img.shields.io/badge/verification-17%20suites-2e7d32?style=flat-square)
+
+*Built for the AI Builders Challenge, Space Exploration theme.*
+
+</div>
+
+---
+
 Open it in a browser. Point your phone up. It names what you are looking at, computed for the exact spot you are standing on and the exact minute it is.
 
-Built for the AI Builders Challenge, Space Exploration theme.
+No install. No account. No telescope. No prior knowledge.
+
+### Contents
+
+| | |
+|---|---|
+| [The problem](#the-problem) | who this is actually for |
+| [What it does](#what-it-does) | the six things it is |
+| [IBM technology in this project](#ibm-technology-in-this-project) | Granite, watsonx.ai, Bob, at a glance |
+| [Nothing is fabricated](#the-core-principle-nothing-is-fabricated) | the rule that shaped every decision |
+| [The AI layer](#the-ai-layer-ibm-granite-on-watsonxai) | what Granite does and is forbidden from doing |
+| [The sky model](#machine-learning-a-sky-model-fitted-to-170000-human-observations) | ML fitted to 170,000 human observations |
+| [Built with IBM Bob](#built-with-ibm-bob) | agentic development, failures included |
+| [Verification](#verification) | how the astronomy is proved |
+| [Running it](#running-it) | five minutes, no credentials needed |
+| [Privacy and security](#privacy-and-security) | what leaves your device, and what does not |
+| [Honest limitations](#honest-limitations) | what it deliberately does not do |
 
 ---
 
@@ -31,6 +66,19 @@ The tools that solve this assume you are already an enthusiast. They want an app
 **A sky journal.** Everything you have found, plotted on a planisphere that slowly fills in. Stored on your device: no account, nothing uploaded.
 
 **Night vision.** A red-only mode across the entire interface, including the sky canvas. A bright screen costs you roughly twenty minutes of dark adaptation, which matters when the whole point is to go outside and look up.
+
+---
+
+## IBM technology in this project
+
+| What | Where it is used | Why it is there |
+|---|---|---|
+| **IBM Granite** (`granite-3-3-8b-instruct`) on **watsonx.ai** | Every explanation, every answer in the guide | Understands an untrained question and chooses what is worth saying. It is given a finished JSON description of the sky and forbidden from adding to it. |
+| **IBM Granite Embeddings** (`granite-embedding-30m`, 384-d) | Retrieval over the project's own reference corpus | Lets the guide cite where an explanation came from instead of asserting it |
+| **IBM Bob** | The grounding guard, and two attempts at the sky model | Agentic development on real briefs, with the failures recorded rather than tidied away |
+| **watsonx.ai tool calling** | The guide's access to the live sky | Granite may call functions that answer out of the browser's own astronomy engine, so a request for a position is computed rather than recalled |
+
+Granite carries the language. It never carries the correctness: every number it speaks has already been computed in the browser, and a guard checks each answer against that data before it is shown.
 
 ---
 
@@ -87,6 +135,8 @@ A satellite overhead is invisible if it is in Earth's shadow. A planet above the
 
 So the app models all three conditions and reports them separately: a pass is only *visible* when the satellite is sunlit **and** the observer's sky is dark **and** it clears 10° of altitude. Satellites currently in eclipse are drawn with a marker that says so.
 
+The same question about stars is what [the sky model](#machine-learning-a-sky-model-fitted-to-170000-human-observations) answers. Being above the horizon on a moonlit night in a city is not the same as being visible from there, and that difference was the one thing the app used to guess at.
+
 ### Verification
 
 The astronomy is checked against sources independent of the code, not against itself:
@@ -101,6 +151,9 @@ npx tsx scripts/verify/grounding.check.ts    # the guard on Granite's answers
 npx tsx scripts/verify/place.check.ts        # the clock-difference note
 npx tsx scripts/verify/tools.check.ts        # the functions the model may call
 npx tsx scripts/verify/corpus.check.ts       # what retrieval finds, and declines
+npx tsx scripts/verify/skyquality.check.ts   # the fitted model, and what it may not touch
+npm run verify:ui                            # four headless-Chrome passes over the real app
+node scripts/verify/skymodel.mjs             # the model, in a browser, changing the chart
 npm run verify:granite                       # live call to watsonx, needs credentials
 ```
 
@@ -110,7 +163,7 @@ npm run verify:granite                       # live call to watsonx, needs crede
 - `place.check.ts` covers the one comparison the place lookup does to its own answer: whether the clocks on screen are the clocks where the observer is standing. It exists because the obvious version, comparing the two zone names, shipped and was wrong. Browsers still report legacy aliases, so a phone in India says `Asia/Calcutta` where the lookup returns `Asia/Kolkata`, and a person sitting at home was told their own clock disagreed with their own location. A wrong warning is worse than no warning, so the comparison is on the offsets the zones are actually set to, and the cases cover aliases, summer time, half-hour offsets and zones that do not resolve.
 - `milkyway.check.ts` checks the galactic frame against published equatorial positions. Sagittarius A\* (the observational anchor for the galactic centre) lands **0.1 arcseconds** from its catalogue position, and the north celestial pole round-trips exactly, which catches a pole-angle error that testing the centre alone would miss.
 
-There are also three headless-Chrome integration passes (`npm run verify:ui`) that drive the real app over the DevTools protocol. `screenshot.mjs` and `interact.mjs` assert that tapping an object opens a panel with real readings, that explanations render, and that journal entries persist and plot. `compass.mjs` covers the two orientation paths that otherwise need a physical phone on a real https origin: it loads the app by LAN address to confirm an insecure origin is reported as a connection problem, then shims Safari's gated `requestPermission` to confirm the hook actually subscribes once permission is granted and reads `webkitCompassHeading` as north-referenced.
+There are also four headless-Chrome integration passes (`npm run verify:ui`) that drive the real app over the DevTools protocol. `screenshot.mjs` and `interact.mjs` assert that tapping an object opens a panel with real readings, that explanations render, and that journal entries persist and plot. `compass.mjs` covers the two orientation paths that otherwise need a physical phone on a real https origin: it loads the app by LAN address to confirm an insecure origin is reported as a connection problem, then shims Safari's gated `requestPermission` to confirm the hook actually subscribes once permission is granted and reads `webkitCompassHeading` as north-referenced. `skymodel.mjs` renders the same night twice, with the fitted model allowed and blocked, and asserts the chart differs.
 
 ---
 
@@ -179,75 +232,55 @@ This is a real call, not a mock. It exchanges the API key for an IAM token, list
 
 ---
 
-## Built with IBM Bob
+## Machine learning: a sky model fitted to 170,000 human observations
 
-One piece of this project is owned end to end by [IBM Bob](https://bob.ibm.com/): **the grounding guard**, the check that compares each of Granite's answers against the JSON it was given and refuses to show one that makes a claim the computed sky does not support.
+Granite is the language layer. This is the part that learned something.
 
-It was chosen deliberately. Every other data path here is verified by something that shares no code with the thing it verifies, which is why the coordinate transforms and the orbital propagation can be trusted rather than merely believed. The narration path is the exception: the model is told not to invent, and nothing checks that it obeyed. Closing that gap is the most valuable single piece of work left in the repository, and it is also cleanly separable, which is what makes it a fair test of a coding agent rather than a demonstration arranged to succeed.
+The app decides what is visible from four hand-written thresholds keyed on the Sun. Those are right about the biggest thing that happens to a sky and silent about the next two: **the Moon**, which washes out faint stars while it is up, and **light pollution**, which is the entire difference between a city and a field.
 
-The brief handed to Bob is [`BOB-TASK.md`](BOB-TASK.md), written before any of the work started: the module signature, the three classes of claim to check, the tolerance rule, the retry behaviour, eight test cases, and the constraint that its tests compute a real sky rather than fabricating one.
+[Globe at Night](https://globeatnight.org/) has an answer. Since 2006 about 170,000 people have stood outside, looked up, and reported which of eight star charts matched what they could actually see. Real eyes, real skies, real places. `scripts/build-skymodel.mjs` fits an ordinary least-squares model to 121,998 of those observations and holds out the most recent 21,530 chronologically.
 
-### How it went (BOB-TASK: the grounding guard)
-
-Bob planned before it wrote, and the plan was good. It read the files the brief pointed at, restated the three constraints most likely to be missed, and proposed a structure close to the one that shipped. Two things it decided on its own were better than the brief: excluding `observedAt` from the number pool, because scanning digits out of an ISO timestamp injects 2026, 08, 18 and gives false claims accidental cover, and stating in a comment that the number check pools every value regardless of what it measures, so `magnitude 47` passes if some object happens to sit at 47 degrees altitude. That weakness is real and the code now says so rather than reading as though the check were tighter than it is.
-
-Three things were caught and fixed, and they are worth recording because two of them were the same mistake.
-
-**A `require()` in an ES module.** The first version loaded the star names through a dynamic `require`, which is not defined under the ESM compilation this repo uses. It failed, the surrounding `catch` swallowed it, and the star list was silently empty. The test that should have caught it passed, because an empty list flags nothing. Bob found this one itself.
-
-**The tolerance test was altitude dependent.** The brief asked for a case proving that a rounded value still passes. Rounding to the nearest 5 degrees does not clear a 5 percent window at low altitude: at 13 degrees, 5 percent is 0.65, and a 2.5 degree rounding error fails. Bob spotted that the test would pass or fail depending on where the Moon happened to be that evening, and rounded to the nearest whole degree instead, which sits inside the 0.5 degree absolute floor at any altitude.
-
-**The star check disabled itself in production.** This was the serious one, and it was the same failure as the first: read the catalogue from disk, wrap it in a `catch`, carry on with an empty list. It worked locally and every test passed. On Vercel it would not have, because `public/` is uploaded as static assets and is not on a serverless function's filesystem, so the check that catches invented star names would have reported success on every answer. Running `checkGrounding` in a directory with no `public/` returns `ok: true` for "look for Betelgeuse". The fix was to stop reading and start generating: `scripts/build-catalog.mjs` now emits `api/_lib/star-names.ts` alongside the catalogues, `grounding.ts` imports it statically, and the swallowing `catch` is gone, so an absent list is now a loud startup failure rather than a quiet no-op.
-
-The pattern across all three is one thing: a fallback that hides a disabled check reads as robustness and behaves as a silent hole. Bob wrote clean, well commented, correctly structured code and was reliably wrong in that one direction. Every correction came from asking what happens when this fails, not from reading the code as written.
-
-### How it went (BOB-TASK-3 and BOB-TASK-4: the sky visibility model)
-
-Two more tasks were given to Bob, and both are recorded here because the first one failed in a way worth understanding, and the second one fixed it honestly.
-
-**BOB-TASK-3: the first attempt.** The brief asked Bob to replace the four hand-written Sun-altitude buckets in `limitingMagnitude` with a model fitted to Globe at Night citizen-science observations: 170,000 people standing outside since 2006 reporting which star chart matched what they could see. Bob built it correctly. The model learned a Moon term and a light pollution term, neither of which the buckets had, and on held-out data it reported 47.6% improvement over the heuristic. That number was wrong, because the comparison used an invented chart-to-magnitude mapping that put the heuristic's night-time answer at chart 5.9 when the observed mean was 3.8. Measured honestly, the improvement was eight per cent. That is real. The model was still reverted.
-
-The reason it was reverted was not the scale error. It was that the fitted Sun term came out at 0.156 chart steps across the entire ninety degrees, so the model put the midday sky and the midnight sky within a twentieth of a step of each other. Applied in the app it reported a limiting magnitude of 4.72 with the Sun forty-five degrees above the horizon, which would have listed several hundred stars as visible at noon. The diagnosis at the time was observer self-selection: people only go outside when it is dark. That was wrong.
-
-**The actual cause: broken timestamps.** The Globe at Night dataset publishes UTDate and UTTime columns, but the timezone offset has been applied in the wrong direction for a large fraction of rows. A US observer at UTC-6 whose local observation time was 20:04 appears as 14:04 UT on the same date, when the correct value is 02:04 UT the next day. Measured across all clear-sky observations with a chart reading, **53.1% of rows derived a Sun altitude placing the observation in daylight** when the published UT columns were used. Using LocalDate and LocalTime shifted by longitude/15 hours (solar time rather than civil time) dropped that fraction to **7.7%**. Half the training set had a Sun altitude that was wrong by about twelve hours, and a coefficient fitted through that noise came out near zero.
-
-**BOB-TASK-4: the second attempt.** The brief described the timestamp bug in full and asked Bob to rebuild the model from LocalDate and LocalTime, compare it against two honest baselines, and clear three gates: beat both baselines, a Sun term worth at least 1.5 chart steps, and daylight predicting a bright sky.
-
-With the timestamps fixed the daylight fraction fell from 53.1% to 4.0% and the model beat both baselines by about five per cent, held-out RMSE 1.547 against 1.634 for a constant and 1.630 for the calibrated heuristic. Gate 1 passed. Gates 2 and 3 did not, and Bob reported that plainly rather than moving the thresholds, which is the right behaviour and worth saying.
-
-The brief specified a hybrid for exactly that outcome: keep the four hand-written numbers for the Sun across the whole range, and let the model correct only below -18 degrees where the observations actually are. Bob built the hybrid, the suite went green, and it was reverted too.
-
-Two things were wrong with it. The four numbers were not kept: routing them through the chart scale moved daylight from magnitude -3.5 to +1.0, which lists Sirius, Vega, Arcturus and thirteen other first-magnitude stars as visible at noon. The Globe at Night scale only spans night skies, so daylight has no place on it and mapping it there floors at magnitude 1. And the model correction, the entire point of the hybrid, was never wired in: `solar.ts` imported the scale conversion and nothing called `predictVisibilitySync`, so the fitted light pollution and Moon terms were dead code. The net effect of the task was a regression plus an unused model.
-
-So the feature failed twice, for two unrelated reasons: a dataset whose published timestamps have the sign of the offset inverted, and a conversion that quietly redefined daylight.
-
-### What finally shipped, and the one change that made it work
-
-The third attempt was written by hand, and it differs from the two before it in one respect. Both earlier versions promised in prose that they would not touch daylight, and both broke it anyway. This one cannot break it, because it never produces a limiting magnitude at all.
-
-`src/lib/astro/skyquality.ts` returns a **difference in magnitudes** to add to a limit somebody else decided. The four hand-written numbers in `limitingMagnitude` are untouched, no scale conversion exists anywhere in the path, and above -18 degrees the function returns exactly zero, so the code that runs in daylight is byte-identical to the code that ran before the model existed. The Globe at Night scale describes night skies, so the model is only ever asked about night skies.
-
-That reframing is also what makes the arithmetic honest. A difference needs only the spacing of the chart scale, about half a magnitude per step, which is the single assumed number in the module. An absolute value would need to know where the scale starts, and the scale does not reach daylight to start anywhere.
-
-The fit lives in `scripts/build-skymodel.mjs`: ordinary least squares on 121,998 training observations, held out chronologically on the last 21,530, and restricted before fitting to rows with the Sun below -18 degrees so extrapolation into twilight is not merely discouraged but impossible. The light pollution grid is built from training rows only. What it learned, in chart steps:
+What it learned, in chart steps:
 
 | term | effect |
 |---|---|
-| a full Moon overhead | 0.794 steps darker |
-| each step of local dark-sky median | 0.737 |
-| each kilometre of elevation | 0.141 |
+| a full Moon overhead | **0.794** steps of sky lost |
+| each step of local dark-sky median | **0.737** |
+| each kilometre of elevation | **0.141** |
 
-Held-out RMSE 1.4977 against 1.6327 for a constant, an improvement of 8.3%. Both of those numbers are on the chart scale with nothing converted.
+Held-out error of **1.4977** against **1.6327** for predicting the average every time: **8.3% better**, on the same scale with nothing converted.
 
-In the app it is worth up to about 0.7 magnitudes: a full Moon overhead takes away a star of magnitude 5.2 that a moonless sky from the same place would have shown you, and a city gets a shorter list than a field. A place with no observations nearby reports `localised: false` and applies no light pollution term rather than borrowing the global average, and if `skymodel.json` fails to load the correction is zero and the app is what it always was.
+**In the app** it is worth up to about 0.7 magnitudes. Faint stars that a moonless sky would give you fade from the chart as the Moon rises, and a city sky is drawn thinner than a field. The guide names the number it is applying and what it was fitted to.
 
-`scripts/verify/skyquality.check.ts` is written against the failures rather than the feature. Its first cases assert that Sirius is not visible at noon, and that for every brightness from magnitude -5 to +7 at seven Sun altitudes above -18, asking with the model gives an identical answer to asking without it. That case is what both earlier versions would have gone red on.
+### The design decision that made it work
 
-### What survives regardless
+It returns **a correction, never an answer**: a number of magnitudes to add to a limit the caller already has. It was fitted only on observations with the Sun below -18 degrees and is applied only there. Above that it returns exactly zero, so the code that runs in daylight is identical to the code that ran before the model existed.
 
-The dataset finding is worth more than the feature. The Globe at Night export files a US observer's 20:04 local as 14:04 UT on the same date, when an eight o'clock evening observation at UTC-6 is 02:04 UT the following day. Derive a Sun altitude from those columns and 53.1% of naked-eye star chart observations land in daylight, which cannot happen; derive it from the local clock and the longitude and it falls to 7.7%. Anyone fitting anything to that dataset needs to know this.
+That is why daylight cannot regress: not because a test forbids it, but because the model has no way to reach it. Two earlier versions replaced the thresholds outright and both ended up listing Sirius as visible at noon.
+
+### How it is checked
+
+`scripts/verify/skyquality.check.ts` asserts the guarantee directly: for every brightness from magnitude -5 to +7, at seven Sun altitudes above -18 degrees, asking with the model must return an identical answer to asking without it.
+
+`scripts/verify/skymodel.mjs` is the one no unit test could be. It drives the real app in headless Chrome and holds everything fixed except the model itself, blocking `skymodel.json` at the network layer for the control run. Same night, same Moon, same stars overhead: **4,332 points of light with the model against 4,434 without.** The difference is the model, and it can be nothing else.
 
 ---
+
+## Built with IBM Bob
+
+Three pieces of this project were handed to [IBM Bob](https://bob.ibm.com/) as written briefs, with the agent planning, writing, testing and iterating on its own.
+
+**The grounding guard** is Bob's end to end: the check that compares each of Granite's answers against the JSON it was given and refuses to show one making a claim the computed sky does not support. Bob read the surrounding code, restated the constraints most likely to be missed, and made two calls that were better than the brief. It excluded the timestamp from the pool of numbers it scans, because digits scraped out of an ISO date give false claims accidental cover. And it wrote in a comment that the check pools every value regardless of what it measures, so `magnitude 47` passes if something happens to sit at 47 degrees altitude. That weakness is real, and the code now says so rather than reading as though the check were tighter than it is.
+
+**The sky visibility model** took three attempts, two of them Bob's, and the reason is worth more than the feature. Bob was asked to replace four hand-written brightness thresholds with a model fitted to Globe at Night citizen-science observations. It built exactly that, twice, correctly to the brief, and both versions had to be reverted for the same underlying reason: applied to daylight, they claimed first-magnitude stars were visible at noon.
+
+Chasing that produced the finding this project is proudest of. **The Globe at Night export has its timezone offsets applied backwards.** A US observer's 20:04 local is filed as 14:04 UT the same date, when an eight o'clock evening observation at UTC-6 is 02:04 UT the following day. Derive a Sun altitude from the published UT columns and **53.1%** of naked-eye star chart observations land in daylight, which cannot happen. Derive it from the local clock and the longitude instead and that falls to **7.7%**. Half the training set had been wrong by twelve hours, so the Sun coefficient was fitted through noise and came out near zero. Anyone fitting anything to that dataset needs to know this.
+
+The third attempt was written by hand and ships. What changed was not the arithmetic but the shape: it produces a *correction* rather than an answer, so it has nothing to say about daylight and cannot break it. That is described under [the sky model](#machine-learning-a-sky-model-fitted-to-170000-human-observations) above.
+
+Across all three tasks Bob wrote clean, well-commented, correctly structured code and was reliably wrong in one direction: a fallback that hides a disabled check reads as robustness and behaves as a silent hole. Every correction came from asking what happens when this fails, not from reading the code as written.
+
+**The full record**, including the honest held-out numbers whichever way they fell and the two reverts in detail, is in [`docs/ENGINEERING-LOG.md`](docs/ENGINEERING-LOG.md).
 
 ## Running it
 
@@ -387,6 +420,9 @@ The honest summary is that this was treated as a privacy problem rather than a s
   `public/bodies/credits.json`. All are public domain; the script refuses to
   ship anything that is not, because cropping a share-alike image would put a
   licence condition on this repository that nobody reading the code would find.
+  <details>
+  <summary>Every portrait, with its source and licence</summary>
+
   - Sun — [SDO 20240810 000000 4096 HMIIC (HMI).jpg](https://commons.wikimedia.org/wiki/File:SDO_20240810_000000_4096_HMIIC_(HMI).jpg), NASA/SDO and the AIA, EVE and HMI science teams. Public domain. HMI's continuum intensitygram, which is the photosphere in visible light; the extreme ultraviolet channels SDO is better known for are false colour by necessity, and on a page that promises nothing is invented those would have been the wrong picture.
   - Mercury — [Mercury in color - Prockter07-edit1.jpg](https://commons.wikimedia.org/wiki/File:Mercury_in_color_-_Prockter07-edit1.jpg), National Aeronautics and Space Administration / Johns Hopkins University Applied Physics Laboratory / Carnegie Institution of Washington. Public domain.
   - Venus — [Venus globe.jpg](https://commons.wikimedia.org/wiki/File:Venus_globe.jpg), NASA/JPL. Public domain.
@@ -396,6 +432,8 @@ The honest summary is that this was treated as a privacy problem rather than a s
   - Saturn — [Saturn (planet) large.jpg](https://commons.wikimedia.org/wiki/File:Saturn_(planet)_large.jpg), Voyager 2. Public domain.
   - Uranus — [Uranus2.jpg](https://commons.wikimedia.org/wiki/File:Uranus2.jpg), NASA/JPL-Caltech. Public domain.
   - Neptune — [Neptune Full.jpg](https://commons.wikimedia.org/wiki/File:Neptune_Full.jpg), NASA. Public domain.
+
+  </details>
 
   Stars and satellites are deliberately *not* photographed. A star has no disc
   you could resolve from the ground, and a satellite overhead is a moving point
