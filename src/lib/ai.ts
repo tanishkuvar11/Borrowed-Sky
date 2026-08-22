@@ -357,6 +357,41 @@ export async function askGuide(options: {
   let transcript: unknown[] = [];
   const used: string[] = [];
 
+  /*
+   * A deadline on the whole exchange, rounds included.
+   *
+   * There was none, and a fetch with no timeout does not fail: it waits. Every
+   * refusal this endpoint can make is handled a few lines below, but a request
+   * that never comes back makes none of them, so the guide sat asking with a
+   * spinner and no way out. That is the failure a person is most likely to
+   * meet, because it is what a stalled connection and an overloaded upstream
+   * both look like from here.
+   *
+   * Generous on purpose. A healthy answer takes seconds and three rounds of
+   * tool calls take a few more, so this is not a latency budget and should
+   * never fire on a working endpoint. It is a promise that the question ends.
+   */
+  const DEADLINE_MS = 30_000;
+  const deadline = new AbortController();
+  let expired = false;
+  const timer = setTimeout(() => {
+    expired = true;
+    deadline.abort();
+  }, DEADLINE_MS);
+
+  /*
+   * The caller's own signal still cancels, and the two are told apart on the
+   * way out: a caller aborting means the component went away and the answer is
+   * no longer wanted, which must not be answered by the narrator, while the
+   * deadline expiring means nobody is coming and the narrator is exactly right.
+   */
+  const onCallerAbort = () => deadline.abort();
+  signal?.addEventListener('abort', onCallerAbort, { once: true });
+  const stopWaiting = () => {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', onCallerAbort);
+  };
+
   try {
     for (let round = 0; round < MAX_ROUNDS; round++) {
       const res = await fetch('api/ask', {
@@ -370,7 +405,7 @@ export async function askGuide(options: {
           ...(sources?.length ? { sources } : {}),
           ...(transcript.length ? { transcript } : {}),
         }),
-        signal,
+        signal: deadline.signal,
       });
 
       if (!res.ok) return fallback(res, skyContext, tone, question, used);
@@ -424,12 +459,21 @@ export async function askGuide(options: {
       note: 'The AI guide did not settle on an answer, so this is the built-in narrator.',
     };
   } catch (err) {
+    if (expired) {
+      return {
+        text: narrateLocally(skyContext, tone, question),
+        source: 'local',
+        note: 'The AI guide did not answer in time, so this is the built-in narrator.',
+      };
+    }
     if (err instanceof DOMException && err.name === 'AbortError') throw err;
     return {
       text: narrateLocally(skyContext, tone, question),
       source: 'local',
       note: 'No connection to the AI guide, so this is the built-in narrator.',
     };
+  } finally {
+    stopWaiting();
   }
 }
 
