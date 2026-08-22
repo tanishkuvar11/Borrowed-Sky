@@ -17,6 +17,8 @@ import {
   type Tone,
 } from '../lib/ai';
 import type { ObserverSite, SkyBody, SkyConditions } from '../lib/astro/types';
+import { skyQualityInput } from '../lib/astro/solar';
+import { skyQuality } from '../lib/astro/skyquality';
 import type { TonightTimeline } from '../lib/astro/events';
 import { createSkyToolset } from '../lib/astro/tools';
 import { retrieve } from '../lib/corpus';
@@ -68,6 +70,39 @@ export interface GuideViewProps {
   tleSet: TleSet | null;
   tone: Tone;
   onToneChange: (tone: Tone) => void;
+}
+
+/**
+ * What the fitted sky model is doing tonight, in a sentence.
+ *
+ * The model earns its place by changing the chart, but a thinner field is not
+ * self-explanatory: somebody looking at it has no way to know a model touched
+ * it, or why. This says so, next to the conditions it is a correction to, and
+ * it reports the size of the correction rather than describing it in adjectives
+ * so that the claim stays checkable.
+ *
+ * It also says when it is doing nothing, which is most of the time. Silence
+ * would read as a broken feature; "only after astronomical dark" reads as the
+ * boundary it actually is.
+ */
+function skyQualityNote(site: ObserverSite, conditions: SkyConditions): string {
+  const { adjustment, localised } = skyQuality(skyQualityInput(site, conditions));
+
+  if (conditions.sunAltitude >= -18) {
+    return 'No correction yet. The model only speaks once the Sun is 18° down.';
+  }
+
+  const size = Math.abs(adjustment).toFixed(1);
+  const source = localised
+    ? 'the Moon and the lights near you'
+    : 'the Moon alone, with no observations reported near here';
+
+  if (Math.abs(adjustment) < 0.05) {
+    return `About a typical dark sky, judged on ${source}.`;
+  }
+  return adjustment < 0
+    ? `${size} magnitudes of sky lost to ${source}.`
+    : `${size} magnitudes better than average, on ${source}.`;
 }
 
 export function GuideView({
@@ -239,6 +274,15 @@ export function GuideView({
                     {conditions.moonAltitude > 0
                       ? `${Math.round(conditions.moonAltitude)}° up`
                       : 'below the horizon'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="engrave">Your sky</dt>
+                  <dd>
+                    {skyQualityNote(site, conditions)}{' '}
+                    <span className="context-note__source">
+                      Fitted to 122,000 Globe at Night observations.
+                    </span>
                   </dd>
                 </div>
               </dl>

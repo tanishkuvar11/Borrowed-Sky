@@ -2825,6 +2825,17 @@ button {
   font-feature-settings: 'lnum' 1, 'tnum' 1;
   color: var(--starlight-soft);
 }
+/*
+ * Where a number came from, set quieter than the number itself. It belongs on
+ * the page because a fitted correction that does not say what it was fitted to
+ * is just an assertion, but it is provenance rather than a reading and should
+ * not compete with one.
+ */
+.context-note__source {
+  display: block;
+  margin-top: 0.15rem;
+  opacity: 0.62;
+}
 .chat__suggestions {
   display: flex;
   flex-wrap: wrap;
