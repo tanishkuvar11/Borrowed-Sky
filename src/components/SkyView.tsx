@@ -395,15 +395,7 @@ export function SkyView({
       */}
       {conditions && (
         <div className="sky-view__brief" ref={deckRef}>
-          <GuidePlaque
-            site={site}
-            now={now}
-            bodies={bodies}
-            conditions={conditions}
-            timeline={timeline}
-            tone={tone}
-            onOpenGuide={onOpenGuide}
-          />
+          <GuidePlaque onOpenGuide={onOpenGuide} />
         </div>
       )}
 
