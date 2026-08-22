@@ -47,9 +47,17 @@ const MOONLIT = 1790538051572;
 const MOONLESS = 1792262451603;
 
 const RUNS = [
-  { name: 'moonlit', at: MOONLIT, model: true, note: 'Moon 82 degrees up, 98% lit' },
-  { name: 'moonlit-no-model', at: MOONLIT, model: false, note: 'the same night, model blocked' },
-  { name: 'moonless', at: MOONLESS, model: true, note: 'Moon below the horizon' },
+  { name: 'moonlit', at: MOONLIT, model: true, settingOff: false, note: 'Moon 82 degrees up, 98% lit' },
+  { name: 'moonlit-no-model', at: MOONLIT, model: false, settingOff: false, note: 'the same night, model blocked' },
+  { name: 'moonless', at: MOONLESS, model: true, settingOff: false, note: 'Moon below the horizon' },
+  /*
+   * The setting switched off while the model file is still reachable.
+   * Gate 1 of the spec requires this run to land at the same point count as
+   * moonlit-no-model, because both must be taking the same code path:
+   * reach === null, the correction never applied. If the numbers differ,
+   * the toggle and the blocked-file path are not the same path.
+   */
+  { name: 'moonlit-setting-off', at: MOONLIT, model: true, settingOff: true, note: 'model allowed to load, setting switched off' },
 ];
 
 const profile = join(tmpdir(), `bs-chrome-sm-${Date.now()}`);
@@ -227,6 +235,9 @@ async function main() {
           '  window.Date = F;',
           '  try {',
           `    localStorage.setItem('borrowed-sky:site', ${JSON.stringify(JSON.stringify(SITE))});`,
+          moment.settingOff
+            ? `    localStorage.setItem('borrowed-sky:skymodel', 'off');`
+            : '',
           '  } catch {}',
           '})();',
         ].join('\n'),
@@ -287,12 +298,13 @@ async function main() {
     const withModel = results.moonlit;
     const without = results['moonlit-no-model'];
     const dark = results.moonless;
+    const settingOff = results['moonlit-setting-off'];
 
     console.log('\nwhat this proves');
     check(
       'the browser actually fetched the model',
-      withModel.modelStatus === 200 && dark.modelStatus === 200,
-      `${withModel.modelStatus} and ${dark.modelStatus}`,
+      withModel.modelStatus === 200 && dark.modelStatus === 200 && settingOff.modelStatus === 200,
+      `${withModel.modelStatus}, ${dark.modelStatus}, and ${settingOff.modelStatus}`,
     );
     check('and the control ran without it', without.modelStatus === null, `${without.modelStatus}`);
     check(
@@ -300,7 +312,7 @@ async function main() {
       withModel.clock === without.clock,
       withModel.clock,
     );
-    check('every frame drew a sky at all', withModel.points > 0 && without.points > 0 && dark.points > 0);
+    check('every frame drew a sky at all', withModel.points > 0 && without.points > 0 && dark.points > 0 && settingOff.points > 0);
     /*
      * Without this the count below is meaningless: a canvas that came back a
      * different size carries a different number of samples, and the comparison
@@ -328,6 +340,18 @@ async function main() {
       'and it is a correction rather than a blackout',
       removed / without.points < 0.6,
       `${((removed / without.points) * 100).toFixed(1)}% of the field`,
+    );
+
+    /*
+     * Gate 1: the setting-off path and the blocked-file path must be exactly
+     * the same path, so they must produce the same count. An approximate match
+     * is not good enough: both cases route through reach === null, and if the
+     * numbers differ something has diverged between the two routes.
+     */
+    check(
+      'setting off produces the same field as the blocked-file control',
+      settingOff.points === without.points,
+      `${settingOff.points} (setting off) vs ${without.points} (file blocked)`,
     );
 
     console.log('\nfor the eye, not the assertion');

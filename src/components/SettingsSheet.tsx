@@ -13,16 +13,20 @@ export function SettingsSheet({
   site,
   tone,
   nightVision,
+  skyModel,
   onTone,
   onNightVision,
+  onSkyModel,
   onChangeSite,
   onClose,
 }: {
   site: ObserverSite;
   tone: Tone;
   nightVision: boolean;
+  skyModel: boolean;
   onTone: (tone: Tone) => void;
   onNightVision: (on: boolean) => void;
+  onSkyModel: (on: boolean) => void;
   onChangeSite: () => void;
   onClose: () => void;
 }) {
@@ -88,6 +92,24 @@ export function SettingsSheet({
         <p className="provenance">
           A bright screen costs you about twenty minutes of dark adaptation. This turns the whole
           display red, sky included.
+        </p>
+
+        <div className="hairline" />
+
+        <span className="engrave">Sky model</span>
+        <div className="dialog__row">
+          <button
+            className={skyModel ? 'pill is-on' : 'pill'}
+            onClick={() => onSkyModel(!skyModel)}
+            aria-pressed={skyModel}
+          >
+            {skyModel ? 'Correction on' : 'Correction off'}
+          </button>
+        </div>
+        <p className="provenance">
+          The chart normally allows for moonlight and local light pollution, fitted to 170,000 Globe
+          at Night observations. Switching it off draws every star the older thresholds would have
+          shown.
         </p>
       </div>
     </div>

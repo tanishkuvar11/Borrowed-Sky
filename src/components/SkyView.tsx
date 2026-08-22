@@ -65,6 +65,7 @@ export interface SkyViewProps {
   loadingCatalog: boolean;
   catalogError: string | null;
   nightVision: boolean;
+  skyModel: boolean;
   orientation: Orientation;
   followCompass: boolean;
   onFollowCompass: (on: boolean) => void;
@@ -89,6 +90,7 @@ export function SkyView({
   loadingCatalog,
   catalogError,
   nightVision,
+  skyModel,
   orientation,
   followCompass,
   onFollowCompass,
@@ -334,6 +336,7 @@ export function SkyView({
           showGrid={showGrid}
           obstacles={obstacles}
           nightVision={nightVision}
+          skyModel={skyModel}
           onSelect={setSelectedId}
           onPan={handlePan}
           onZoom={handleZoom}

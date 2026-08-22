@@ -212,6 +212,7 @@ export interface SkyCanvasProps {
   landmarkFade?: number;
   /** Draw the whole scene on a red-only ramp to preserve dark adaptation. */
   nightVision: boolean;
+  skyModel: boolean;
   onSelect: (id: string | null) => void;
   onPan: (deltaAzimuth: number, deltaAltitude: number) => void;
   onZoom: (factor: number) => void;
@@ -404,6 +405,7 @@ export function SkyCanvas({
   landmarkAzimuth = null,
   landmarkFade = 1,
   nightVision,
+  skyModel,
   onSelect,
   onPan,
   onZoom,
@@ -430,6 +432,7 @@ export function SkyCanvas({
     landmarkAzimuth,
     landmarkFade,
     nightVision,
+    skyModel,
   });
   stateRef.current = {
     catalog,
@@ -448,6 +451,7 @@ export function SkyCanvas({
     landmarkAzimuth,
     landmarkFade,
     nightVision,
+    skyModel,
   };
 
   useEffect(() => {
@@ -626,8 +630,8 @@ export function SkyCanvas({
        * different skies that the model scores the same should share a cached
        * scene, and a Moon climbing through a city sky should rebuild one.
        */
-      const reach = eyeReach(s.site, s.conditions);
-      key += `|${reach === null ? 'n' : reach.toFixed(2)}`;
+      const reach = s.skyModel ? eyeReach(s.site, s.conditions) : null;
+      key += `|${s.skyModel ? (reach === null ? 'n' : reach.toFixed(2)) : 'off'}`;
       key += `|${s.landmarkAzimuth ?? 'n'}|${(s.landmarkFade ?? 1).toFixed(2)}`;
       for (let i = 0; i < 12; i++) key += `|${view[i].toFixed(3)}`;
 

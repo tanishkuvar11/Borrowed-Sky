@@ -132,12 +132,19 @@ export default function App() {
   const [nightVision, setNightVision] = useState(
     () => localStorage.getItem('borrowed-sky:vision') === 'night',
   );
+  const [skyModel, setSkyModel] = useState(
+    () => localStorage.getItem('borrowed-sky:skymodel') !== 'off',
+  );
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     document.documentElement.dataset.vision = nightVision ? 'night' : 'normal';
     localStorage.setItem('borrowed-sky:vision', nightVision ? 'night' : 'normal');
   }, [nightVision]);
+
+  useEffect(() => {
+    localStorage.setItem('borrowed-sky:skymodel', skyModel ? 'on' : 'off');
+  }, [skyModel]);
 
   useEffect(() => {
     if (!toast) return;
@@ -289,6 +296,7 @@ export default function App() {
             loadingCatalog={sky.loadingCatalog}
             catalogError={sky.catalogError}
             nightVision={nightVision}
+            skyModel={skyModel}
             orientation={orientation}
             followCompass={followCompass}
             onFollowCompass={setFollowCompass}
@@ -421,8 +429,10 @@ export default function App() {
           site={site}
           tone={tone}
           nightVision={nightVision}
+          skyModel={skyModel}
           onTone={setTone}
           onNightVision={setNightVision}
+          onSkyModel={setSkyModel}
           onChangeSite={clear}
           onClose={() => setSheet('none')}
         />

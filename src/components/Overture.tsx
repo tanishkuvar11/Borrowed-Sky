@@ -308,6 +308,7 @@ export function Overture({
             showGrid={false}
             chrome={false}
             nightVision={false}
+            skyModel={true}
             onSelect={() => {}}
             onPan={() => {}}
             onZoom={() => {}}
