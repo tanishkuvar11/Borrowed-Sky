@@ -32,7 +32,7 @@ import {
   type ConstellationFigure,
   type StarCatalog,
 } from '../lib/astro/starfield';
-import { toObserver } from '../lib/astro/solar';
+import { nakedEyeLimit, skyQualityInput, toObserver } from '../lib/astro/solar';
 import { compassPoint } from '../lib/astro/satellites';
 import {
   buildDust,
@@ -621,6 +621,13 @@ export function SkyCanvas({
       key += `|${(s.conditions?.sunAltitude ?? 0).toFixed(2)}`;
       key += `|${(s.conditions?.moonAltitude ?? 0).toFixed(1)}`;
       key += `|${(s.conditions?.moonIlluminatedFraction ?? 0).toFixed(2)}`;
+      /*
+       * The fitted reach, in the key by its value rather than its inputs. Two
+       * different skies that the model scores the same should share a cached
+       * scene, and a Moon climbing through a city sky should rebuild one.
+       */
+      const reach = eyeReach(s.site, s.conditions);
+      key += `|${reach === null ? 'n' : reach.toFixed(2)}`;
       key += `|${s.landmarkAzimuth ?? 'n'}|${(s.landmarkFade ?? 1).toFixed(2)}`;
       for (let i = 0; i < 12; i++) key += `|${view[i].toFixed(3)}`;
 
@@ -662,7 +669,20 @@ export function SkyCanvas({
             drawConstellations(g, s.constellations, view, cx, cy, scale, s.conditions, s.chrome);
           }
           if (s.catalog) {
-            drawStarField(g, s.catalog, view, cx, cy, scale, radius, camera.fov, s.conditions, s.chrome, dpr);
+            drawStarField(
+              g,
+              s.catalog,
+              view,
+              cx,
+              cy,
+              scale,
+              radius,
+              camera.fov,
+              s.conditions,
+              s.chrome,
+              dpr,
+              reach,
+            );
           }
           drawGround(g, horBasis, cx, cy, scale, width, height);
           drawScenery(
@@ -2095,6 +2115,49 @@ function starVisibility(conditions: SkyConditions | null): number {
 }
 
 /**
+ * The magnitude the eye actually reaches tonight, from here.
+ *
+ * The chart limit above is about how dense the field should look. This is a
+ * different question and the only one the fitted model answers: of the stars
+ * drawn, which could a person standing outside actually catch. A full Moon
+ * overhead pulls it down by most of a magnitude, a city pulls it down further,
+ * and the sky visibly thins as the Moon rises.
+ *
+ * Null outside astronomical night, and the field then renders exactly as it did
+ * before any of this existed. That is the same boundary the model itself keeps,
+ * for the same reason: below -18 degrees is the only sky it was fitted on.
+ */
+const EYE_REACH_SUN_ALTITUDE = -18;
+
+function eyeReach(site: ObserverSite, conditions: SkyConditions | null): number | null {
+  if (!conditions || conditions.sunAltitude >= EYE_REACH_SUN_ALTITUDE) return null;
+  return nakedEyeLimit(conditions.darkness, skyQualityInput(site, conditions));
+}
+
+/**
+ * How much to hold a star back for being beyond the eye's reach.
+ *
+ * Softened over a magnitude rather than cut at one, because a threshold drawn
+ * literally is a ring of missing stars with a visible edge, and no sky has one.
+ * Quantised into a few steps so the field can still be drawn as a handful of
+ * filled paths rather than five thousand separate ones.
+ */
+const REACH_TIERS = 4;
+const REACH_SOFTNESS = 1.2;
+const REACH_FLOOR = 0.22;
+
+function reachTier(mag: number, reach: number | null): number {
+  if (reach === null) return 0;
+  const past = Math.max(0, Math.min(1, (mag - reach) / REACH_SOFTNESS));
+  return Math.min(REACH_TIERS - 1, Math.round(past * (REACH_TIERS - 1)));
+}
+
+/** Tier 0 is untouched, so a sky the model says nothing about is unchanged. */
+function tierAlpha(tier: number): number {
+  return 1 - (1 - REACH_FLOOR) * (tier / (REACH_TIERS - 1));
+}
+
+/**
  * The star field: every dot, and nothing that moves.
  *
  * This half goes into the cached scene. Five thousand stars is what makes the
@@ -2115,12 +2178,20 @@ function drawStarField(
   conditions: SkyConditions | null,
   chrome: boolean,
   dpr: number,
+  /** Magnitude the eye reaches tonight, or null outside astronomical night. */
+  reach: number | null,
 ) {
   const chartLimit = chartLimitFor(catalog, fov, chrome);
   const pixelScale = Math.max(0.75, Math.min(1.6, radius / 320));
   const visibility = starVisibility(conditions);
 
-  const buckets: number[][] = palette.starColors.map(() => []);
+  /*
+   * One list per colour per reach tier. Tier is a function of magnitude alone,
+   * so a star lands in the same list every rebuild and the whole field is still
+   * a couple of dozen filled paths.
+   */
+  const buckets: number[][] = [];
+  for (let i = 0; i < palette.starColors.length * REACH_TIERS; i++) buckets.push([]);
   const vectors = catalog.vectors;
 
   for (let i = 0; i < catalog.count; i++) {
@@ -2138,7 +2209,7 @@ function drawStarField(
     if (Z <= 0) continue; // behind the viewer
 
     const k = scale / (1 + Z);
-    buckets[catalog.colorBucket[i]].push(
+    buckets[catalog.colorBucket[i] * REACH_TIERS + reachTier(mag, reach)].push(
       cx + (view[0] * x + view[1] * y + view[2] * z) * k,
       cy - (view[3] * x + view[4] * y + view[5] * z) * k,
       starRadius(mag, chartLimit, pixelScale),
@@ -2148,13 +2219,31 @@ function drawStarField(
   ctx.save();
   // Faintest first, so the depth layer sits behind the chart rather than
   // speckling over it.
-  drawDeepField(ctx, catalog, view, cx, cy, scale, pixelScale, chartLimit, dpr, visibility * 0.72);
+  /*
+   * The depth layer is every star past the chart limit, which is to say the
+   * faintest thing drawn, so on a moonlit or a city night it is entirely beyond
+   * the eye and thins as a whole. It composites as one cached bitmap under a
+   * single alpha, so this costs nothing.
+   */
+  const deepTier = reach === null ? 0 : reachTier(chartLimit + REACH_SOFTNESS, reach);
+  drawDeepField(
+    ctx,
+    catalog,
+    view,
+    cx,
+    cy,
+    scale,
+    pixelScale,
+    chartLimit,
+    dpr,
+    visibility * 0.72 * tierAlpha(deepTier),
+  );
 
-  ctx.globalAlpha = visibility;
   for (let b = 0; b < buckets.length; b++) {
     const list = buckets[b];
     if (!list.length) continue;
-    ctx.fillStyle = palette.starColors[b];
+    ctx.globalAlpha = visibility * tierAlpha(b % REACH_TIERS);
+    ctx.fillStyle = palette.starColors[Math.floor(b / REACH_TIERS)];
     ctx.beginPath();
     for (let i = 0; i < list.length; i += 3) {
       const px = list[i];

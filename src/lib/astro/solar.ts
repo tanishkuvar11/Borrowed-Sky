@@ -206,15 +206,20 @@ export function computeConditions(when: Date, site: ObserverSite): SkyConditions
  * how bright it is, how high it is, and how dark the sky is. Used to keep the
  * app from telling someone to look at Neptune.
  */
-export function nakedEyeVisible(
-  body: SkyBody,
-  darkness: DarknessLevel,
-  /** Optional. Supplying it lets the fitted night correction apply. */
-  sky?: SkyQualityInput,
-): boolean {
-  if (body.altitude < 5) return false;
-  if (body.kind === 'moon' || body.kind === 'sun') return true;
-
+/**
+ * The faintest thing an unaided eye could pick out, in magnitudes.
+ *
+ * Four hand-written numbers keyed on the Sun, plus an optional correction for
+ * the Moon and the local sky. The four are the whole answer whenever `sky` is
+ * absent, and they are also the whole answer in daylight and twilight even when
+ * it is present, because the correction is zero everywhere above -18 degrees.
+ * That is what makes it impossible for the fitted model to change what this app
+ * says about a daytime sky. See src/lib/astro/skyquality.ts.
+ *
+ * Extracted so the chart and the tools read one number rather than two copies
+ * of it that can drift apart.
+ */
+export function nakedEyeLimit(darkness: DarknessLevel, sky?: SkyQualityInput): number {
   const limit =
     darkness === 'day'
       ? -3.5
@@ -224,16 +229,19 @@ export function nakedEyeVisible(
           ? 3.5
           : 5.5;
 
-  /*
-   * The Moon and the local sky, when the caller knows them.
-   *
-   * Added rather than substituted, and only in genuine darkness, where the
-   * model was fitted. Callers that pass nothing get the four numbers above
-   * exactly as they have always been, which is what makes it impossible for
-   * this to change what the app says in daylight.
-   */
-  const correction = sky ? skyQuality(sky).adjustment : 0;
-  return body.magnitude <= limit + correction;
+  return limit + (sky ? skyQuality(sky).adjustment : 0);
+}
+
+export function nakedEyeVisible(
+  body: SkyBody,
+  darkness: DarknessLevel,
+  /** Optional. Supplying it lets the fitted night correction apply. */
+  sky?: SkyQualityInput,
+): boolean {
+  if (body.altitude < 5) return false;
+  if (body.kind === 'moon' || body.kind === 'sun') return true;
+
+  return body.magnitude <= nakedEyeLimit(darkness, sky);
 }
 
 /**
