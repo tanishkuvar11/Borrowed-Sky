@@ -3383,3 +3383,87 @@ button {
     display: none;
   }
 }
+
+/* --- frozen clock banner -------------------------------------------------- */
+
+/*
+ * The instrument held at a setting.
+ *
+ * This banner is what makes a pinned sky honest. Without it, the app can show
+ * a sky from next week while the observer stands under a different one, with no
+ * indication. The banner is not a warning -- a warning implies that something
+ * has gone wrong, and pointing at a meteor shower in advance is not an error.
+ * It reads as a precision instrument's own readout: "Held at [moment]", the
+ * way a calibrated reference says which standard it is locked to.
+ *
+ * Positioned just below the topbar scrim, across the full width. Fixed in
+ * place rather than toast: the state it reports is continuous, not transient,
+ * and a message that fades would leave somebody walking around under the wrong
+ * sky with no way to know.
+ */
+.frozen-clock {
+  position: fixed;
+  top: var(--topbar-h);
+  left: 0;
+  right: 0;
+  z-index: 13;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.38rem clamp(0.75rem, 3vw, 1.5rem);
+  border-bottom: var(--rule) solid var(--brass-hairline);
+  background:
+    linear-gradient(180deg, rgb(var(--glass-lift-rgb) / 0.72) 0%, rgb(var(--glass-body-rgb) / 0.88) 100%);
+  backdrop-filter: blur(12px);
+  pointer-events: auto;
+}
+
+.frozen-clock__label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.frozen-clock__key {
+  font-family: var(--font-display);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--brass);
+  flex: none;
+}
+
+.frozen-clock__time {
+  font-family: var(--font-data);
+  font-size: var(--t-small);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+  color: var(--starlight);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.frozen-clock__dismiss {
+  flex: none;
+  font-family: var(--font-display);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.32rem 0.75rem;
+  border-radius: 999px;
+  border: var(--rule) solid var(--brass-hairline);
+  background: linear-gradient(180deg, rgb(var(--glass-lift-rgb) / 0.45) 0%, rgb(var(--glass-body-rgb) / 0.6) 100%);
+  color: var(--brass-bright);
+  white-space: nowrap;
+  transition: border-color 220ms var(--ease), color 220ms var(--ease);
+}
+.frozen-clock__dismiss:hover {
+  border-color: var(--brass-dim);
+  color: var(--starlight);
+}

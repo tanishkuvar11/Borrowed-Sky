@@ -8,6 +8,7 @@ import { JournalView } from './components/JournalView';
 import { OrientationSheet, orientationState } from './components/OrientationSheet';
 import { SettingsSheet } from './components/SettingsSheet';
 import { Diagnostics, diagnosticsRequested } from './components/Diagnostics';
+import { FrozenClockBanner } from './components/FrozenClockBanner';
 import {
   IconBack,
   IconCompassRose,
@@ -192,6 +193,9 @@ export default function App() {
     <div className="app">
       {/* Only when the URL asks for it. See Diagnostics for why it exists. */}
       {diagnosticsRequested() && <Diagnostics />}
+
+      {/* Only when a ?at= parameter has held the clock at a specific instant. */}
+      {sky.pinnedInstant && <FrozenClockBanner pinnedInstant={sky.pinnedInstant} site={site} />}
 
       <header className="topbar">
         {/*

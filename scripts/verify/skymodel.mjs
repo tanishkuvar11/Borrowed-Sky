@@ -46,10 +46,17 @@ const SITE = { latitude: 18.52, longitude: 73.86, elevation: 560, source: 'gps' 
 const MOONLIT = 1790538051572;
 const MOONLESS = 1792262451603;
 
+/*
+ * The ISO form of MOONLIT, used by the ?at= run instead of the Date override.
+ * Both routes must arrive at the same instant; having this computed from the
+ * same source constant as the integer form is what keeps them in sync.
+ */
+const MOONLIT_ISO = new Date(MOONLIT).toISOString();
+
 const RUNS = [
-  { name: 'moonlit', at: MOONLIT, model: true, settingOff: false, note: 'Moon 82 degrees up, 98% lit' },
-  { name: 'moonlit-no-model', at: MOONLIT, model: false, settingOff: false, note: 'the same night, model blocked' },
-  { name: 'moonless', at: MOONLESS, model: true, settingOff: false, note: 'Moon below the horizon' },
+  { name: 'moonlit', at: MOONLIT, model: true, settingOff: false, useAtParam: false, note: 'Moon 82 degrees up, 98% lit' },
+  { name: 'moonlit-no-model', at: MOONLIT, model: false, settingOff: false, useAtParam: false, note: 'the same night, model blocked' },
+  { name: 'moonless', at: MOONLESS, model: true, settingOff: false, useAtParam: false, note: 'Moon below the horizon' },
   /*
    * The setting switched off while the model file is still reachable.
    * Gate 1 of the spec requires this run to land at the same point count as
@@ -57,7 +64,17 @@ const RUNS = [
    * reach === null, the correction never applied. If the numbers differ,
    * the toggle and the blocked-file path are not the same path.
    */
-  { name: 'moonlit-setting-off', at: MOONLIT, model: true, settingOff: true, note: 'model allowed to load, setting switched off' },
+  { name: 'moonlit-setting-off', at: MOONLIT, model: true, settingOff: true, useAtParam: false, note: 'model allowed to load, setting switched off' },
+  /*
+   * The same instant reached through ?at= rather than through the Date override.
+   *
+   * Two routes to the same moment must produce the same sky. If they do not,
+   * one of them is wrong: either the URL parameter is not being read, or it is
+   * being read but not reaching the sky computation. The Date override cannot
+   * be present here; the point is that the app freezes itself from the URL
+   * without any help from outside.
+   */
+  { name: 'moonlit-via-at', at: MOONLIT, model: true, settingOff: false, useAtParam: true, note: 'the same instant, via ?at= rather than Date override' },
 ];
 
 const profile = join(tmpdir(), `bs-chrome-sm-${Date.now()}`);
@@ -92,13 +109,20 @@ function rpc(socket, method, params = {}, sessionId) {
  * are much brighter than their own surroundings instead, which is what a star
  * is and what a wash of moonlight is not. Sampled on a grid rather than every
  * pixel, because a few thousand samples settle this and a million is slow.
+ *
+ * The band starts below the topbar and anything pinned under it. The ?at=
+ * run draws a banner naming the moment it is held at, the other runs do not,
+ * and a band that included it was counting that banner's edges as sky: the
+ * same instant reached by two routes came out 36 points apart and drifted
+ * between executions. Compare only the part of the canvas every run draws
+ * the same way.
  */
 const COUNT_POINTS = `(() => {
   const c = document.querySelector('canvas');
   if (!c) return null;
   const g = c.getContext('2d', { willReadFrequently: true });
   const w = c.width, h = c.height;
-  const top = Math.floor(h * 0.08), bottom = Math.floor(h * 0.5);
+  const top = Math.floor(h * 0.22), bottom = Math.floor(h * 0.5);
   const img = g.getImageData(0, top, w, bottom - top).data;
   const W = w, H = bottom - top;
   const lum = (x, y) => {
@@ -183,7 +207,18 @@ async function main() {
       await call('Emulation.setDeviceMetricsOverride', {
         width: 430,
         height: 932,
-        deviceScaleFactor: 2,
+        /*
+         * One, deliberately. The app sizes its canvas backing store from
+         * devicePixelRatio at mount, and whether it sees the overridden ratio
+         * or the default one is a race against when Chrome applies the
+         * override. Runs were coming back at different pixel counts, which
+         * makes every total below measure the viewport rather than the sky:
+         * one execution compared 40916 samples against 127160 and reported a
+         * difference that was entirely the canvas. At a ratio of one there is
+         * nothing to race, and the first assertion pins the size so a future
+         * drift fails loudly rather than quietly changing what is counted.
+         */
+        deviceScaleFactor: 1,
         mobile: true,
       });
 
@@ -218,32 +253,58 @@ async function main() {
       }
 
       /*
-       * The clock, stopped, before a line of the app runs. The app rebuilds its
-       * conditions every second from a fresh Date, so stubbing after load would
-       * race the first paint; installed on new document it cannot.
+       * The clock is stopped in two different ways depending on the run.
+       *
+       * Most runs override window.Date before any app code runs, which is the
+       * blunt-instrument approach that works for everything else in this file.
+       * The ?at= run must not use it: the whole claim being tested is that the
+       * URL parameter alone is enough to freeze the clock, so any Date override
+       * alongside it would prove nothing.
        */
-      await call('Page.addScriptToEvaluateOnNewDocument', {
-        source: [
-          '(() => {',
-          `  const T = ${moment.at};`,
-          '  const R = Date;',
-          '  function F(...a) { return a.length === 0 ? new R(T) : new R(...a); }',
-          '  F.prototype = R.prototype;',
-          '  F.now = () => T;',
-          '  F.parse = R.parse;',
-          '  F.UTC = R.UTC;',
-          '  window.Date = F;',
-          '  try {',
-          `    localStorage.setItem('borrowed-sky:site', ${JSON.stringify(JSON.stringify(SITE))});`,
-          moment.settingOff
-            ? `    localStorage.setItem('borrowed-sky:skymodel', 'off');`
-            : '',
-          '  } catch {}',
-          '})();',
-        ].join('\n'),
-      });
+      if (moment.useAtParam) {
+        /*
+         * Only the site goes into localStorage. The instant is in the URL; the
+         * app must read it from there without any help from outside.
+         */
+        await call('Page.addScriptToEvaluateOnNewDocument', {
+          source: [
+            '(() => {',
+            '  try {',
+            `    localStorage.setItem('borrowed-sky:site', ${JSON.stringify(JSON.stringify(SITE))});`,
+            /*
+             * Stated, not inherited. Every run shares one Chrome profile and
+             * therefore one localStorage, and this run follows the one that
+             * switches the model off. Writing nothing meant running with it
+             * still off, which looked exactly like a broken ?at= parameter.
+             */
+            `    localStorage.setItem('borrowed-sky:skymodel', 'on');`,
+            '  } catch {}',
+            '})();',
+          ].join('\n'),
+        });
+      } else {
+        await call('Page.addScriptToEvaluateOnNewDocument', {
+          source: [
+            '(() => {',
+            `  const T = ${moment.at};`,
+            '  const R = Date;',
+            '  function F(...a) { return a.length === 0 ? new R(T) : new R(...a); }',
+            '  F.prototype = R.prototype;',
+            '  F.now = () => T;',
+            '  F.parse = R.parse;',
+            '  F.UTC = R.UTC;',
+            '  window.Date = F;',
+            '  try {',
+            `    localStorage.setItem('borrowed-sky:site', ${JSON.stringify(JSON.stringify(SITE))});`,
+            `    localStorage.setItem('borrowed-sky:skymodel', '${moment.settingOff ? 'off' : 'on'}');`,
+            '  } catch {}',
+            '})();',
+          ].join('\n'),
+        });
+      }
 
-      await call('Page.navigate', { url: APP });
+      const url = moment.useAtParam ? `${APP}?at=${encodeURIComponent(MOONLIT_ISO)}` : APP;
+      await call('Page.navigate', { url });
       await sleep(7000);
 
       // Past the landing page and into the instrument.
@@ -276,6 +337,9 @@ async function main() {
         await sleep(300);
       }
 
+      const canvas = await evalPage(
+        `(() => { const c = document.querySelector('canvas'); return c ? c.width + 'x' + c.height : 'none'; })()`,
+      );
       const clock = await evalPage(`new Date().toISOString()`);
       const stats = await evalPage(COUNT_POINTS);
       const { data } = await call('Page.captureScreenshot', { format: 'png' });
@@ -283,11 +347,12 @@ async function main() {
       await writeFile(path, Buffer.from(data, 'base64'));
 
       browser.removeEventListener('message', onMessage);
-      results[moment.name] = { ...stats, modelStatus, clock, path };
+      results[moment.name] = { ...stats, modelStatus, clock, canvas, path };
 
       console.log(`\n${moment.name} (${moment.note})`);
       console.log(`  clock in page   ${clock}`);
       console.log(`  skymodel.json   ${modelStatus}`);
+      console.log(`  canvas          ${canvas}`);
       console.log(`  bright points   ${stats && stats.points} of ${stats && stats.samples} samples`);
       console.log(`  mean luminance  ${stats && stats.meanLuminance.toFixed(2)}`);
       console.log(`  captured        ${path}`);
@@ -299,8 +364,16 @@ async function main() {
     const without = results['moonlit-no-model'];
     const dark = results.moonless;
     const settingOff = results['moonlit-setting-off'];
+    const viaAt = results['moonlit-via-at'];
 
     console.log('\nwhat this proves');
+    /*
+     * First, because every count below is meaningless without it. Runs that
+     * did not render at the same size were not measuring the same thing, and
+     * no amount of agreement between their totals would mean anything.
+     */
+    const sizes = [...new Set(Object.values(results).map((r) => r.canvas))];
+    check('every run rendered at the same canvas size', sizes.length === 1, sizes.join(' and '));
     check(
       'the browser actually fetched the model',
       withModel.modelStatus === 200 && dark.modelStatus === 200 && settingOff.modelStatus === 200,
@@ -312,7 +385,7 @@ async function main() {
       withModel.clock === without.clock,
       withModel.clock,
     );
-    check('every frame drew a sky at all', withModel.points > 0 && without.points > 0 && dark.points > 0 && settingOff.points > 0);
+    check('every frame drew a sky at all', withModel.points > 0 && without.points > 0 && dark.points > 0 && settingOff.points > 0 && viaAt.points > 0);
     /*
      * Without this the count below is meaningless: a canvas that came back a
      * different size carries a different number of samples, and the comparison
@@ -352,6 +425,26 @@ async function main() {
       'setting off produces the same field as the blocked-file control',
       settingOff.points === without.points,
       `${settingOff.points} (setting off) vs ${without.points} (file blocked)`,
+    );
+
+    /*
+     * Two routes to the same instant must produce the same sky.
+     *
+     * The Date override and the ?at= URL parameter are both ways of telling the
+     * app which moment to compute for; if they agree on the sky, neither one
+     * is taking a shortcut. The sample counts must also agree, because a
+     * different canvas size would make the comparison measure the viewport
+     * rather than the star field.
+     */
+    check(
+      '?at= and the Date override measured over the same canvas',
+      viaAt.samples === withModel.samples,
+      `${viaAt.samples} and ${withModel.samples} samples`,
+    );
+    check(
+      '?at= and the Date override reach the same sky',
+      viaAt.points === withModel.points,
+      `${viaAt.points} (?at=) vs ${withModel.points} (Date override)`,
     );
 
     console.log('\nfor the eye, not the assertion');

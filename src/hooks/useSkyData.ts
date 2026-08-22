@@ -16,6 +16,7 @@ import {
   type StarCatalog,
 } from '../lib/astro/starfield';
 import { computeConditions, computeSolarSystem } from '../lib/astro/solar';
+import { requestedInstant } from '../lib/instant';
 import {
   loadTleSet,
   satellitesAboveHorizon,
@@ -37,6 +38,14 @@ export interface SkyData {
   timeline: TonightTimeline | null;
   tleSet: TleSet | null;
   now: Date;
+  /**
+   * The instant the URL pinned the app to, or null on the ordinary live clock.
+   *
+   * Present so the interface can say which of the two it is showing. A sky
+   * computed for a moment three weeks away, with nothing on screen admitting
+   * it, is the one kind of wrong this app is built not to be.
+   */
+  pinnedInstant: Date | null;
   catalogError: string | null;
   satelliteError: string | null;
   loadingCatalog: boolean;
@@ -53,7 +62,13 @@ export function useSkyData(site: ObserverSite | null): SkyData {
   const [satelliteError, setSatelliteError] = useState<string | null>(null);
   const [tleNonce, setTleNonce] = useState(0);
 
-  const [now, setNow] = useState(() => new Date());
+  /*
+   * Read once, at mount. The parameter is not going to change underneath the
+   * app, and re-reading it every tick would make the clock depend on the URL
+   * bar rather than on the moment the page was opened.
+   */
+  const [pinnedInstant] = useState(() => requestedInstant());
+  const [now, setNow] = useState(() => pinnedInstant ?? new Date());
   const [timeline, setTimeline] = useState<TonightTimeline | null>(null);
 
   // --- catalogues: once ---
@@ -119,9 +134,11 @@ export function useSkyData(site: ObserverSite | null): SkyData {
 
   // --- clock ---
   useEffect(() => {
+    // A pinned instant is a held instrument, so nothing advances it.
+    if (pinnedInstant) return;
     const interval = setInterval(() => setNow(new Date()), POSITION_REFRESH_MS);
     return () => clearInterval(interval);
-  }, []);
+  }, [pinnedInstant]);
 
   // --- positions: every tick ---
   const bodies = useMemo<SkyBody[]>(() => {
@@ -172,6 +189,7 @@ export function useSkyData(site: ObserverSite | null): SkyData {
     timeline,
     tleSet,
     now,
+    pinnedInstant,
     catalogError,
     satelliteError,
     loadingCatalog,
