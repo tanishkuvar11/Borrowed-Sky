@@ -135,6 +135,32 @@ function toContextObject(body: SkyBody): ContextObject {
 }
 
 /** Naked-eye limiting magnitude for the current sky brightness. */
+/*
+ * Four numbers chosen by hand, and what happened when they were replaced.
+ *
+ * A model was fitted to 170,000 Globe at Night observations, which are people
+ * standing outside since 2006 reporting which star chart matched what they
+ * could see. It learned a light pollution term and a Moon term, both of which
+ * this has never had, and on held-out data it was about eight per cent better
+ * than predicting a constant. That part was real.
+ *
+ * It was reverted because of what it did at the other end. Globe at Night
+ * observers go outside when it is already dark, so the data holds almost no
+ * twilight and no daylight at all, and the fitted Sun term came out at 0.156
+ * chart steps across the entire ninety degrees. The model put the midday sky
+ * and the midnight sky within a twentieth of a step of each other: applied
+ * here it reported a limiting magnitude of 4.72 with the Sun forty five degrees
+ * up, which would have listed several hundred stars as visible at noon.
+ *
+ * The lesson is not that the model was bad. It is that the data covered the
+ * night and the app is used in the daytime too, and a fit is only evidence
+ * where the observations are. These four numbers are crude everywhere and
+ * wrong nowhere, which for this particular job is the better trade.
+ *
+ * If it is tried again: keep this for the Sun, and let a model correct it for
+ * the Moon and for light pollution once the sky is genuinely dark, which is the
+ * only region the data can speak about.
+ */
 function limitingMagnitude(darkness: string): number {
   if (darkness === 'day') return -3.5;
   if (darkness === 'civil-twilight') return 1.5;
