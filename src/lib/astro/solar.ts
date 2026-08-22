@@ -20,6 +20,7 @@ import {
 } from 'astronomy-engine';
 
 import type { ObserverSite, SkyBody, SkyConditions, DarknessLevel } from './types.js';
+import { skyQuality, type SkyQualityInput } from './skyquality.js';
 
 const KM_PER_AU = 149_597_870.7;
 
@@ -205,7 +206,12 @@ export function computeConditions(when: Date, site: ObserverSite): SkyConditions
  * how bright it is, how high it is, and how dark the sky is. Used to keep the
  * app from telling someone to look at Neptune.
  */
-export function nakedEyeVisible(body: SkyBody, darkness: DarknessLevel): boolean {
+export function nakedEyeVisible(
+  body: SkyBody,
+  darkness: DarknessLevel,
+  /** Optional. Supplying it lets the fitted night correction apply. */
+  sky?: SkyQualityInput,
+): boolean {
   if (body.altitude < 5) return false;
   if (body.kind === 'moon' || body.kind === 'sun') return true;
 
@@ -217,5 +223,35 @@ export function nakedEyeVisible(body: SkyBody, darkness: DarknessLevel): boolean
         : darkness === 'nautical-twilight'
           ? 3.5
           : 5.5;
-  return body.magnitude <= limit;
+
+  /*
+   * The Moon and the local sky, when the caller knows them.
+   *
+   * Added rather than substituted, and only in genuine darkness, where the
+   * model was fitted. Callers that pass nothing get the four numbers above
+   * exactly as they have always been, which is what makes it impossible for
+   * this to change what the app says in daylight.
+   */
+  const correction = sky ? skyQuality(sky).adjustment : 0;
+  return body.magnitude <= limit + correction;
+}
+
+/**
+ * The inputs the night correction needs, gathered from what the app already has.
+ *
+ * Here rather than at each call site so the two places that ask about
+ * visibility cannot drift into asking slightly different questions.
+ */
+export function skyQualityInput(
+  site: ObserverSite,
+  conditions: SkyConditions,
+): SkyQualityInput {
+  return {
+    sunAltitudeDegrees: conditions.sunAltitude,
+    moonAltitudeDegrees: conditions.moonAltitude,
+    moonIlluminatedFraction: conditions.moonIlluminatedFraction,
+    latitude: site.latitude,
+    longitude: site.longitude,
+    elevationMetres: site.elevation,
+  };
 }

@@ -53,6 +53,7 @@ import {
   computeConditions,
   computeSolarSystem,
   nakedEyeVisible,
+  skyQualityInput,
   toObserver,
 } from './solar.js';
 import {
@@ -446,9 +447,10 @@ function toolWhatIsUp(args: Record<string, unknown>, ctx: SkyToolContext): ToolR
   const onlyVisible = args.only_visible !== false;
 
   const conditions = computeConditions(at, ctx.site);
+  const sky = skyQualityInput(ctx.site, conditions);
   const bodies = bodiesAt(at, ctx)
     .filter((b) => b.altitude > 0 && b.kind !== 'sun')
-    .filter((b) => !onlyVisible || nakedEyeVisible(b, conditions.darkness))
+    .filter((b) => !onlyVisible || nakedEyeVisible(b, conditions.darkness, sky))
     .sort((a, b) => a.magnitude - b.magnitude);
 
   return {
@@ -484,6 +486,7 @@ function toolIdentify(args: Record<string, unknown>, ctx: SkyToolContext): ToolR
   const altitude = heightToAltitude(typeof args.height === 'string' ? args.height : undefined);
   const at = new Date();
   const conditions = computeConditions(at, ctx.site);
+  const sky = skyQualityInput(ctx.site, conditions);
 
   /*
    * Everything the eye could pick out, ranked by how far it is from where the
@@ -497,7 +500,7 @@ function toolIdentify(args: Record<string, unknown>, ctx: SkyToolContext): ToolR
 
   for (const body of bodiesAt(at, ctx)) {
     if (body.altitude <= 0 || body.kind === 'sun') continue;
-    if (!nakedEyeVisible(body, conditions.darkness)) continue;
+    if (!nakedEyeVisible(body, conditions.darkness, sky)) continue;
     candidates.push({
       object: describe(body),
       degreesAway: Math.round(separation(wanted, body) * 10) / 10,

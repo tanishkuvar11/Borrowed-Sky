@@ -13,8 +13,9 @@
     "typecheck": "tsc -b --force",
     "catalog": "node scripts/build-catalog.mjs",
     "corpus": "node scripts/build-corpus.mjs",
+    "skymodel": "node scripts/build-skymodel.mjs",
     "verify": "npm run typecheck && npm run verify:astro",
-    "verify:astro": "tsx scripts/verify/catalog.check.ts && tsx scripts/verify/frames.check.ts && tsx scripts/verify/satellites.check.ts && tsx scripts/verify/events.check.ts && tsx scripts/verify/milkyway.check.ts && tsx scripts/verify/grounding.check.ts && tsx scripts/verify/place.check.ts && tsx scripts/verify/aim.check.ts && tsx scripts/verify/guard.check.ts && tsx scripts/verify/tools.check.ts && tsx scripts/verify/corpus.check.ts && tsx scripts/verify/facts.check.ts",
+    "verify:astro": "tsx scripts/verify/catalog.check.ts && tsx scripts/verify/frames.check.ts && tsx scripts/verify/satellites.check.ts && tsx scripts/verify/events.check.ts && tsx scripts/verify/milkyway.check.ts && tsx scripts/verify/grounding.check.ts && tsx scripts/verify/place.check.ts && tsx scripts/verify/aim.check.ts && tsx scripts/verify/guard.check.ts && tsx scripts/verify/tools.check.ts && tsx scripts/verify/corpus.check.ts && tsx scripts/verify/facts.check.ts && tsx scripts/verify/skyquality.check.ts",
     "verify:granite": "tsx scripts/verify/granite.check.ts",
     "verify:ui": "node scripts/verify/screenshot.mjs && node scripts/verify/interact.mjs && node scripts/verify/compass.mjs && node scripts/verify/overture.mjs"
   },

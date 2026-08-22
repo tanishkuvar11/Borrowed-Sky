@@ -11,6 +11,8 @@
 
 import { compassPoint, heightInWords, SATELLITE_FACTS } from './astro/satellites';
 import { BODY_FACTS } from './astro/solar';
+import { skyQualityInput } from './astro/solar';
+import { skyQuality } from './astro/skyquality';
 import type { ObserverSite, SkyBody, SkyConditions } from './astro/types';
 import type { SkyToolset } from './astro/tools';
 import type { Passage } from './corpus';
@@ -189,7 +191,16 @@ export function buildSkyContext(options: {
   focusFact?: string;
 }): SkyContext {
   const { now, site, bodies, conditions, timeline, focus, focusFact } = options;
-  const limit = limitingMagnitude(conditions.darkness);
+  /*
+   * The four numbers, plus what the model knows about tonight.
+   *
+   * The correction is zero outside astronomical night and zero where nobody has
+   * reported an observation, so this is the same limit the app has always used
+   * except on a dark night in a place the data has seen.
+   */
+  const limit =
+    limitingMagnitude(conditions.darkness) +
+    skyQuality(skyQualityInput(site, conditions)).adjustment;
 
   const above = bodies.filter((b) => b.altitude > 3 && b.kind !== 'sun');
   const visible = above.filter((b) => b.magnitude <= limit || b.kind === 'moon');

@@ -219,9 +219,33 @@ The brief specified a hybrid for exactly that outcome: keep the four hand-writte
 
 Two things were wrong with it. The four numbers were not kept: routing them through the chart scale moved daylight from magnitude -3.5 to +1.0, which lists Sirius, Vega, Arcturus and thirteen other first-magnitude stars as visible at noon. The Globe at Night scale only spans night skies, so daylight has no place on it and mapping it there floors at magnitude 1. And the model correction, the entire point of the hybrid, was never wired in: `solar.ts` imported the scale conversion and nothing called `predictVisibilitySync`, so the fitted light pollution and Moon terms were dead code. The net effect of the task was a regression plus an unused model.
 
-So the feature failed three times, for three unrelated reasons: an unfair baseline hiding a broken Sun term, a dataset whose published timestamps have the sign of the offset inverted, and a conversion that quietly redefined daylight. The heuristic is still there, with the finding written above it.
+So the feature failed twice, for two unrelated reasons: a dataset whose published timestamps have the sign of the offset inverted, and a conversion that quietly redefined daylight.
 
-What survives is the finding itself, which is worth more than the feature would have been. The Globe at Night export files a US observer's 20:04 local as 14:04 UT on the same date, when an eight o'clock evening observation at UTC-6 is 02:04 UT the following day. Derive a Sun altitude from those columns and 53.1% of naked-eye star chart observations land in daylight, which cannot happen; derive it from the local clock and the longitude and it falls to 7.7%. Anyone fitting anything to that dataset needs to know this, and it is recorded here because the code it was found in no longer exists.
+### What finally shipped, and the one change that made it work
+
+The third attempt was written by hand, and it differs from the two before it in one respect. Both earlier versions promised in prose that they would not touch daylight, and both broke it anyway. This one cannot break it, because it never produces a limiting magnitude at all.
+
+`src/lib/astro/skyquality.ts` returns a **difference in magnitudes** to add to a limit somebody else decided. The four hand-written numbers in `limitingMagnitude` are untouched, no scale conversion exists anywhere in the path, and above -18 degrees the function returns exactly zero, so the code that runs in daylight is byte-identical to the code that ran before the model existed. The Globe at Night scale describes night skies, so the model is only ever asked about night skies.
+
+That reframing is also what makes the arithmetic honest. A difference needs only the spacing of the chart scale, about half a magnitude per step, which is the single assumed number in the module. An absolute value would need to know where the scale starts, and the scale does not reach daylight to start anywhere.
+
+The fit lives in `scripts/build-skymodel.mjs`: ordinary least squares on 121,998 training observations, held out chronologically on the last 21,530, and restricted before fitting to rows with the Sun below -18 degrees so extrapolation into twilight is not merely discouraged but impossible. The light pollution grid is built from training rows only. What it learned, in chart steps:
+
+| term | effect |
+|---|---|
+| a full Moon overhead | 0.794 steps darker |
+| each step of local dark-sky median | 0.737 |
+| each kilometre of elevation | 0.141 |
+
+Held-out RMSE 1.4977 against 1.6327 for a constant, an improvement of 8.3%. Both of those numbers are on the chart scale with nothing converted.
+
+In the app it is worth up to about 0.7 magnitudes: a full Moon overhead takes away a star of magnitude 5.2 that a moonless sky from the same place would have shown you, and a city gets a shorter list than a field. A place with no observations nearby reports `localised: false` and applies no light pollution term rather than borrowing the global average, and if `skymodel.json` fails to load the correction is zero and the app is what it always was.
+
+`scripts/verify/skyquality.check.ts` is written against the failures rather than the feature. Its first cases assert that Sirius is not visible at noon, and that for every brightness from magnitude -5 to +7 at seven Sun altitudes above -18, asking with the model gives an identical answer to asking without it. That case is what both earlier versions would have gone red on.
+
+### What survives regardless
+
+The dataset finding is worth more than the feature. The Globe at Night export files a US observer's 20:04 local as 14:04 UT on the same date, when an eight o'clock evening observation at UTC-6 is 02:04 UT the following day. Derive a Sun altitude from those columns and 53.1% of naked-eye star chart observations land in daylight, which cannot happen; derive it from the local clock and the longitude and it falls to 7.7%. Anyone fitting anything to that dataset needs to know this.
 
 ---
 
