@@ -187,7 +187,7 @@ It was chosen deliberately. Every other data path here is verified by something 
 
 The brief handed to Bob is [`BOB-TASK.md`](BOB-TASK.md), written before any of the work started: the module signature, the three classes of claim to check, the tolerance rule, the retry behaviour, eight test cases, and the constraint that its tests compute a real sky rather than fabricating one.
 
-### How it went
+### How it went (BOB-TASK: the grounding guard)
 
 Bob planned before it wrote, and the plan was good. It read the files the brief pointed at, restated the three constraints most likely to be missed, and proposed a structure close to the one that shipped. Two things it decided on its own were better than the brief: excluding `observedAt` from the number pool, because scanning digits out of an ISO timestamp injects 2026, 08, 18 and gives false claims accidental cover, and stating in a comment that the number check pools every value regardless of what it measures, so `magnitude 47` passes if some object happens to sit at 47 degrees altitude. That weakness is real and the code now says so rather than reading as though the check were tighter than it is.
 
@@ -200,6 +200,28 @@ Three things were caught and fixed, and they are worth recording because two of 
 **The star check disabled itself in production.** This was the serious one, and it was the same failure as the first: read the catalogue from disk, wrap it in a `catch`, carry on with an empty list. It worked locally and every test passed. On Vercel it would not have, because `public/` is uploaded as static assets and is not on a serverless function's filesystem, so the check that catches invented star names would have reported success on every answer. Running `checkGrounding` in a directory with no `public/` returns `ok: true` for "look for Betelgeuse". The fix was to stop reading and start generating: `scripts/build-catalog.mjs` now emits `api/_lib/star-names.ts` alongside the catalogues, `grounding.ts` imports it statically, and the swallowing `catch` is gone, so an absent list is now a loud startup failure rather than a quiet no-op.
 
 The pattern across all three is one thing: a fallback that hides a disabled check reads as robustness and behaves as a silent hole. Bob wrote clean, well commented, correctly structured code and was reliably wrong in that one direction. Every correction came from asking what happens when this fails, not from reading the code as written.
+
+### How it went (BOB-TASK-3 and BOB-TASK-4: the sky visibility model)
+
+Two more tasks were given to Bob, and both are recorded here because the first one failed in a way worth understanding, and the second one fixed it honestly.
+
+**BOB-TASK-3: the first attempt.** The brief asked Bob to replace the four hand-written Sun-altitude buckets in `limitingMagnitude` with a model fitted to Globe at Night citizen-science observations: 170,000 people standing outside since 2006 reporting which star chart matched what they could see. Bob built it correctly. The model learned a Moon term and a light pollution term, neither of which the buckets had, and on held-out data it reported 47.6% improvement over the heuristic. That number was wrong, because the comparison used an invented chart-to-magnitude mapping that put the heuristic's night-time answer at chart 5.9 when the observed mean was 3.8. Measured honestly, the improvement was eight per cent. That is real. The model was still reverted.
+
+The reason it was reverted was not the scale error. It was that the fitted Sun term came out at 0.156 chart steps across the entire ninety degrees, so the model put the midday sky and the midnight sky within a twentieth of a step of each other. Applied in the app it reported a limiting magnitude of 4.72 with the Sun forty-five degrees above the horizon, which would have listed several hundred stars as visible at noon. The diagnosis at the time was observer self-selection: people only go outside when it is dark. That was wrong.
+
+**The actual cause: broken timestamps.** The Globe at Night dataset publishes UTDate and UTTime columns, but the timezone offset has been applied in the wrong direction for a large fraction of rows. A US observer at UTC-6 whose local observation time was 20:04 appears as 14:04 UT on the same date, when the correct value is 02:04 UT the next day. Measured across all clear-sky observations with a chart reading, **53.1% of rows derived a Sun altitude placing the observation in daylight** when the published UT columns were used. Using LocalDate and LocalTime shifted by longitude/15 hours (solar time rather than civil time) dropped that fraction to **7.7%**. Half the training set had a Sun altitude that was wrong by about twelve hours, and a coefficient fitted through that noise came out near zero.
+
+**BOB-TASK-4: the second attempt.** The brief described the timestamp bug in full and asked Bob to rebuild the model from LocalDate and LocalTime, compare it against two honest baselines, and clear three gates: beat both baselines, a Sun term worth at least 1.5 chart steps, and daylight predicting a bright sky.
+
+With the timestamps fixed the daylight fraction fell from 53.1% to 4.0% and the model beat both baselines by about five per cent, held-out RMSE 1.547 against 1.634 for a constant and 1.630 for the calibrated heuristic. Gate 1 passed. Gates 2 and 3 did not, and Bob reported that plainly rather than moving the thresholds, which is the right behaviour and worth saying.
+
+The brief specified a hybrid for exactly that outcome: keep the four hand-written numbers for the Sun across the whole range, and let the model correct only below -18 degrees where the observations actually are. Bob built the hybrid, the suite went green, and it was reverted too.
+
+Two things were wrong with it. The four numbers were not kept: routing them through the chart scale moved daylight from magnitude -3.5 to +1.0, which lists Sirius, Vega, Arcturus and thirteen other first-magnitude stars as visible at noon. The Globe at Night scale only spans night skies, so daylight has no place on it and mapping it there floors at magnitude 1. And the model correction, the entire point of the hybrid, was never wired in: `solar.ts` imported the scale conversion and nothing called `predictVisibilitySync`, so the fitted light pollution and Moon terms were dead code. The net effect of the task was a regression plus an unused model.
+
+So the feature failed three times, for three unrelated reasons: an unfair baseline hiding a broken Sun term, a dataset whose published timestamps have the sign of the offset inverted, and a conversion that quietly redefined daylight. The heuristic is still there, with the finding written above it.
+
+What survives is the finding itself, which is worth more than the feature would have been. The Globe at Night export files a US observer's 20:04 local as 14:04 UT on the same date, when an eight o'clock evening observation at UTC-6 is 02:04 UT the following day. Derive a Sun altitude from those columns and 53.1% of naked-eye star chart observations land in daylight, which cannot happen; derive it from the local clock and the longitude and it falls to 7.7%. Anyone fitting anything to that dataset needs to know this, and it is recorded here because the code it was found in no longer exists.
 
 ---
 
