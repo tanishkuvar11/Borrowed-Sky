@@ -19,7 +19,7 @@
 
 No install, no account, no sign-in. It asks for your location and shows you your own sky.
 
-*Built for the AI Builders Challenge, Space Exploration theme.*
+*Built for the **AI Builders Challenge with IBM Bob**, Space Exploration theme.*
 
 </div>
 
@@ -39,9 +39,9 @@ No install. No account. No telescope. No prior knowledge.
 | [What it does](#what-it-does) | the six things it is |
 | [IBM technology in this project](#ibm-technology-in-this-project) | Granite, watsonx.ai, Bob, at a glance |
 | [Nothing is fabricated](#the-core-principle-nothing-is-fabricated) | the rule that shaped every decision |
+| [Built with IBM Bob](#built-with-ibm-bob) | the three briefs Bob owned, and what came out of them |
 | [The AI layer](#the-ai-layer-ibm-granite-on-watsonxai) | what Granite does and is forbidden from doing |
 | [The sky model](#machine-learning-a-sky-model-fitted-to-170000-human-observations) | ML fitted to 170,000 human observations |
-| [Built with IBM Bob](#built-with-ibm-bob) | agentic development, failures included |
 | [Verification](#verification) | how the astronomy is proved |
 | [Running it](#running-it) | five minutes, no credentials needed |
 | [Privacy and security](#privacy-and-security) | what leaves your device, and what does not |
@@ -80,10 +80,30 @@ The tools that fix this assume you are already an enthusiast: an install, a capa
 |---|---|---|
 | **IBM Granite** (`granite-3-3-8b-instruct`) on **watsonx.ai** | Every explanation, every answer in the guide | Understands an untrained question and chooses what is worth saying. It is given a finished JSON description of the sky and forbidden from adding to it. |
 | **IBM Granite Embeddings** (`granite-embedding-30m`, 384-d) | Retrieval over the project's own reference corpus | Lets the guide cite where an explanation came from instead of asserting it |
-| **IBM Bob** | The grounding guard, and two attempts at the sky model | Agentic development on real briefs, with the failures recorded rather than tidied away |
+| **IBM Bob** | The grounding guard, the sky model's controls, and two goes at the model itself | Agentic development against written briefs with acceptance criteria, planning and testing on its own |
 | **watsonx.ai tool calling** | The guide's access to the live sky | Granite may call functions that answer out of the browser's own astronomy engine, so a request for a position is computed rather than recalled |
 
 Granite carries the language. It never carries the correctness: every number it speaks has already been computed in the browser, and a guard checks each answer against that data before it is shown.
+
+---
+
+## Built with IBM Bob
+
+Three briefs handed to [IBM Bob](https://bob.ibm.com/) to plan, write, test and iterate on its own.
+
+| brief | outcome |
+|---|---|
+| **The grounding guard** | Shipped. The check that gates every Granite answer against the computed sky and refuses to show an unsupported claim. |
+| **The sky model** | Two attempts against Globe at Night data. Neither shipped, and diagnosing why produced the finding below. |
+| **The model's controls** | Shipped. An on/off switch and a pinned-instant link, both with exact-equality proofs. |
+
+Bob made two calls better than the brief. It kept timestamps out of the pool of numbers the guard scans, because digits scraped from an ISO date give false claims accidental cover. And it documented that the guard pools every value regardless of what that value measures, so the check reads as exactly as tight as it is.
+
+> **The finding this project is proudest of.** The Globe at Night export has its timezone offsets applied backwards. Derive a Sun altitude from the published UT columns and **53.1%** of naked-eye star chart observations land in daylight, which cannot happen. Derive it from the local clock and the longitude and that falls to **7.7%**. Half the training set was wrong by twelve hours, so the Sun coefficient was fitted through noise and came out near zero. Anyone fitting anything to that dataset needs to know.
+
+The version that ships was written outside Bob. What changed was not the arithmetic but the shape.
+
+The development record in full: **[docs/ENGINEERING-LOG.md](docs/ENGINEERING-LOG.md)**
 
 ---
 
@@ -196,26 +216,6 @@ Held-out error **1.4977**, against **1.6327** for guessing the average every tim
 In the app it is worth up to about 0.7 magnitudes. Faint stars fade as the Moon rises, a city sky draws thinner than a field, and Settings has a switch to turn it off and watch them come back.
 
 **How it is checked.** One check asserts that for every brightness from magnitude -5 to +7, at seven Sun altitudes above -18, asking with the model gives an identical answer to asking without it. Another drives the real app in headless Chrome and blocks the model file at the network layer for a control run: same night, same Moon, same stars overhead, **838 points of light with the model against 882 without**.
-
----
-
-## Built with IBM Bob
-
-Three briefs handed to [IBM Bob](https://bob.ibm.com/) to plan, write, test and iterate on its own.
-
-| brief | outcome |
-|---|---|
-| **The grounding guard** | Shipped. The check that gates every Granite answer against the computed sky and refuses to show an unsupported claim. |
-| **The sky model** | Two attempts against Globe at Night data. Neither shipped, and diagnosing why produced the finding below. |
-| **The model's controls** | Shipped. An on/off switch and a pinned-instant link, both with exact-equality proofs. |
-
-Bob made two calls better than the brief. It kept timestamps out of the pool of numbers the guard scans, because digits scraped from an ISO date give false claims accidental cover. And it documented that the guard pools every value regardless of what that value measures, so the check reads as exactly as tight as it is.
-
-> **The finding this project is proudest of.** The Globe at Night export has its timezone offsets applied backwards. Derive a Sun altitude from the published UT columns and **53.1%** of naked-eye star chart observations land in daylight, which cannot happen. Derive it from the local clock and the longitude and that falls to **7.7%**. Half the training set was wrong by twelve hours, so the Sun coefficient was fitted through noise and came out near zero. Anyone fitting anything to that dataset needs to know.
-
-The version that ships was written outside Bob. What changed was not the arithmetic but the shape.
-
-The development record in full: **[docs/ENGINEERING-LOG.md](docs/ENGINEERING-LOG.md)**
 
 ---
 
