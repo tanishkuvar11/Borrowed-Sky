@@ -206,16 +206,16 @@ Three briefs handed to [IBM Bob](https://bob.ibm.com/) to plan, write, test and 
 | brief | outcome |
 |---|---|
 | **The grounding guard** | Shipped. The check that gates every Granite answer against the computed sky and refuses to show an unsupported claim. |
-| **The sky model, twice** | Reverted twice. Both versions claimed first-magnitude stars were visible at noon. |
+| **The sky model** | Two attempts against Globe at Night data. Neither shipped, and diagnosing why produced the finding below. |
 | **The model's controls** | Shipped. An on/off switch and a pinned-instant link, both with exact-equality proofs. |
 
-Bob made two calls better than the brief. It kept timestamps out of the pool of numbers it scans, because digits scraped from an ISO date give false claims accidental cover. And it wrote down that the check pools every value regardless of what that value measures, so `magnitude 47` passes if something happens to sit at 47 degrees altitude. That weakness is real, and the code now says so rather than reading as though the check were tighter than it is.
+Bob made two calls better than the brief. It kept timestamps out of the pool of numbers the guard scans, because digits scraped from an ISO date give false claims accidental cover. And it documented that the guard pools every value regardless of what that value measures, so the check reads as exactly as tight as it is.
 
-> **The best thing here came out of the failures.** The Globe at Night export has its timezone offsets applied backwards. Derive a Sun altitude from the published UT columns and **53.1%** of naked-eye star chart observations land in daylight, which cannot happen. Derive it from the local clock and the longitude and that falls to **7.7%**. Half the training set was wrong by twelve hours, so the Sun coefficient was fitted through noise and came out near zero. Anyone fitting anything to that dataset needs to know.
+> **The finding this project is proudest of.** The Globe at Night export has its timezone offsets applied backwards. Derive a Sun altitude from the published UT columns and **53.1%** of naked-eye star chart observations land in daylight, which cannot happen. Derive it from the local clock and the longitude and that falls to **7.7%**. Half the training set was wrong by twelve hours, so the Sun coefficient was fitted through noise and came out near zero. Anyone fitting anything to that dataset needs to know.
 
-The third attempt was written outside Bob and ships. What changed was not the arithmetic but the shape.
+The version that ships was written outside Bob. What changed was not the arithmetic but the shape.
 
-Full record, reverts included: **[docs/ENGINEERING-LOG.md](docs/ENGINEERING-LOG.md)**
+The development record in full: **[docs/ENGINEERING-LOG.md](docs/ENGINEERING-LOG.md)**
 
 ---
 
@@ -259,17 +259,11 @@ The app asks for one thing about you. The design question was how little of it c
 
 **This is not authentication and does not pretend to be.** The origin allowlist stops another site putting this app's AI behind its own page. It does nothing about a caller that is not a browser, and [`guard.check.ts`](scripts/verify/guard.check.ts) asserts that hole deliberately, so a green tick cannot be read as a stronger claim than the code makes. Full reasoning: **[docs/DESIGN-NOTES.md](docs/DESIGN-NOTES.md)**
 
-## Honest limitations
+## What it does not do
 
-| | |
-|---|---|
-| The browser compass drifts | Less accurate than native, and on some Android browsers not north-referenced at all. The app detects that, says so, and offers a manual correction. |
-| Manual mode is a mode, not a breakage | Without orientation the sky is yours to drag, and every position in it is still computed for your exact place and time. |
-| The compass needs https | No browser hands motion sensors to an insecure origin. The app tells that apart from absent hardware. |
-| No AR overlay, deliberately | Locking labels to a camera image needs precision the browser cannot deliver. A flaky AR mode would undermine the part that works. |
-| Star positions are geometric | Refraction is applied to the Sun, Moon and planets, not to 5,000 stars, where it shifts things under 0.6 degrees near the horizon. |
-| Times are in your device's timezone | And the app says so if you enter coordinates from the far side of the world. |
-| Passes cover the ISS and Tiangong | A full search over every bright satellite would be too slow on a cheap phone. Others still appear live when overhead. |
+No AR camera overlay: locking labels to a live image needs sensor precision the browser cannot deliver, and a flaky AR mode would undermine the part that works. Pass predictions cover the ISS and Tiangong, since a full search over every bright satellite would be too slow on a cheap phone. And the browser compass is less precise than a native one, so where it drifts the app says so and offers a correction rather than claiming an accuracy it does not have.
+
+The rest, including what each trade-off cost and why: **[docs/DESIGN-NOTES.md](docs/DESIGN-NOTES.md)**
 
 ---
 
