@@ -45,3 +45,15 @@ export function requestedInstant(): Date | null {
 
   return new Date(ms);
 }
+
+/**
+ * A Date as `datetime-local` wants it: the wall clock, with no zone marker.
+ *
+ * toISOString is UTC and would show somebody in Kolkata a time five and a half
+ * hours from the one they are living in, so the offset is subtracted first and
+ * the trailing zone dropped.
+ */
+export function toLocalInputValue(when: Date): string {
+  const local = new Date(when.getTime() - when.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}

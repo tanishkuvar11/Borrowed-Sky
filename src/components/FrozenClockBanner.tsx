@@ -21,9 +21,11 @@ import type { ObserverSite } from '../lib/astro/types';
 export function FrozenClockBanner({
   pinnedInstant,
   site,
+  onReturnToLive,
 }: {
   pinnedInstant: Date;
   site: ObserverSite;
+  onReturnToLive: () => void;
 }) {
   /*
    * Full date and time rather than just the time, because the pinned instant
@@ -42,25 +44,13 @@ export function FrozenClockBanner({
     timeZone: site.timezone,
   }).format(pinnedInstant);
 
-  function returnToLive() {
-    /*
-     * Strip only the ?at= parameter and navigate. A full reload is the
-     * simplest path to a clean live clock: the frozen state is entirely in
-     * the URL, and reloading without the parameter leaves no trace of it.
-     */
-    const params = new URLSearchParams(window.location.search);
-    params.delete('at');
-    const query = params.toString();
-    window.location.href = window.location.pathname + (query ? `?${query}` : '');
-  }
-
   return (
     <div className="frozen-clock" role="status" aria-live="polite">
       <span className="frozen-clock__label">
         <span className="frozen-clock__key">Held at</span>
         <span className="frozen-clock__time">{label}</span>
       </span>
-      <button className="frozen-clock__dismiss" onClick={returnToLive}>
+      <button className="frozen-clock__dismiss" onClick={onReturnToLive}>
         Return to live sky
       </button>
     </div>

@@ -3401,6 +3401,26 @@ button {
  * and a message that fades would leave somebody walking around under the wrong
  * sky with no way to know.
  */
+/*
+ * The moment picker in the settings sheet. Native, because a date and time
+ * control is the one widget every phone already does better than a page can,
+ * and somebody choosing a night to look at should get their own platform's.
+ */
+.dialog__datetime {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.45rem 0.6rem;
+  color: var(--starlight);
+  background: rgba(8, 12, 24, 0.55);
+  border: var(--rule) solid var(--brass-engrave);
+  border-radius: 0.25rem;
+  font-size: var(--t-small);
+}
+.dialog__datetime::-webkit-calendar-picker-indicator {
+  filter: invert(0.75) sepia(0.4) saturate(3) hue-rotate(5deg);
+  cursor: pointer;
+}
+
 .frozen-clock {
   position: fixed;
   top: var(--topbar-h);

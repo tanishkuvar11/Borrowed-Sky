@@ -195,7 +195,13 @@ export default function App() {
       {diagnosticsRequested() && <Diagnostics />}
 
       {/* Only when a ?at= parameter has held the clock at a specific instant. */}
-      {sky.pinnedInstant && <FrozenClockBanner pinnedInstant={sky.pinnedInstant} site={site} />}
+      {sky.pinnedInstant && (
+        <FrozenClockBanner
+          pinnedInstant={sky.pinnedInstant}
+          site={site}
+          onReturnToLive={() => sky.pinInstant(null)}
+        />
+      )}
 
       <header className="topbar">
         {/*
@@ -434,6 +440,8 @@ export default function App() {
           tone={tone}
           nightVision={nightVision}
           skyModel={skyModel}
+          pinnedInstant={sky.pinnedInstant}
+          onPinInstant={sky.pinInstant}
           onTone={setTone}
           onNightVision={setNightVision}
           onSkyModel={setSkyModel}

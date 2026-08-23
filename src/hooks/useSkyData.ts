@@ -46,6 +46,8 @@ export interface SkyData {
    * it, is the one kind of wrong this app is built not to be.
    */
   pinnedInstant: Date | null;
+  /** Hold the app at a moment, or pass null to go back to the live clock. */
+  pinInstant: (when: Date | null) => void;
   catalogError: string | null;
   satelliteError: string | null;
   loadingCatalog: boolean;
@@ -67,7 +69,7 @@ export function useSkyData(site: ObserverSite | null): SkyData {
    * app, and re-reading it every tick would make the clock depend on the URL
    * bar rather than on the moment the page was opened.
    */
-  const [pinnedInstant] = useState(() => requestedInstant());
+  const [pinnedInstant, setPinnedInstant] = useState(() => requestedInstant());
   const [now, setNow] = useState(() => pinnedInstant ?? new Date());
   const [timeline, setTimeline] = useState<TonightTimeline | null>(null);
 
@@ -132,6 +134,27 @@ export function useSkyData(site: ObserverSite | null): SkyData {
     };
   }, [tleNonce]);
 
+  /*
+   * Move the app to a moment, or back to now.
+   *
+   * The URL is rewritten rather than navigated to. Navigating would work and
+   * was the first version, but this app opens on its landing page every time,
+   * so choosing a moment bounced the person back out to the overture and made
+   * them click their way in again to see what they had asked for. Rewriting
+   * keeps them where they are, and `replaceState` means the address bar still
+   * carries the moment, so a held sky is still a link somebody can send.
+   */
+  const pinInstant = useCallback((when: Date | null) => {
+    setPinnedInstant(when);
+    setNow(when ?? new Date());
+
+    const params = new URLSearchParams(window.location.search);
+    if (when) params.set('at', when.toISOString());
+    else params.delete('at');
+    const query = params.toString();
+    window.history.replaceState(null, '', window.location.pathname + (query ? `?${query}` : ''));
+  }, []);
+
   // --- clock ---
   useEffect(() => {
     // A pinned instant is a held instrument, so nothing advances it.
@@ -190,6 +213,7 @@ export function useSkyData(site: ObserverSite | null): SkyData {
     tleSet,
     now,
     pinnedInstant,
+    pinInstant,
     catalogError,
     satelliteError,
     loadingCatalog,

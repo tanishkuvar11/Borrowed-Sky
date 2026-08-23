@@ -6,7 +6,10 @@
  * has to take up permanent space over the sky.
  */
 
+import { useState } from 'react';
+
 import type { Tone } from '../lib/ai';
+import { toLocalInputValue } from '../lib/instant';
 import type { ObserverSite } from '../lib/astro/types';
 
 export function SettingsSheet({
@@ -14,6 +17,8 @@ export function SettingsSheet({
   tone,
   nightVision,
   skyModel,
+  pinnedInstant,
+  onPinInstant,
   onTone,
   onNightVision,
   onSkyModel,
@@ -24,12 +29,23 @@ export function SettingsSheet({
   tone: Tone;
   nightVision: boolean;
   skyModel: boolean;
+  /** The moment the app is held at, or null on the live clock. */
+  pinnedInstant: Date | null;
+  onPinInstant: (when: Date | null) => void;
   onTone: (tone: Tone) => void;
   onNightVision: (on: boolean) => void;
   onSkyModel: (on: boolean) => void;
   onChangeSite: () => void;
   onClose: () => void;
 }) {
+  /*
+   * Seeded from wherever the app currently is, so opening this on a held sky
+   * offers that moment rather than making somebody find it again.
+   */
+  const [moment, setMoment] = useState(() => toLocalInputValue(pinnedInstant ?? new Date()));
+  const chosen = moment ? new Date(moment) : null;
+  const usable = chosen !== null && Number.isFinite(chosen.getTime());
+
   return (
     <div className="dialog" role="dialog" aria-label="Settings">
       <div className="dialog__scrim" onClick={onClose} />
@@ -92,6 +108,36 @@ export function SettingsSheet({
         <p className="provenance">
           A bright screen costs you about twenty minutes of dark adaptation. This turns the whole
           display red, sky included.
+        </p>
+
+        <div className="hairline" />
+
+        <span className="engrave">Another moment</span>
+        <div className="dialog__row">
+          <input
+            className="dialog__datetime readout"
+            type="datetime-local"
+            value={moment}
+            onChange={(e) => setMoment(e.target.value)}
+            aria-label="The date and time to show"
+          />
+          <button
+            className="pill"
+            disabled={!usable}
+            onClick={() => {
+              if (!chosen) return;
+              onPinInstant(chosen);
+              onClose();
+            }}
+          >
+            Show it
+          </button>
+        </div>
+        <p className="provenance">
+          The whole sky computed for a moment of your choosing, past or future: a meteor shower next
+          week, an eclipse you missed, the night you were born. Read in this device's clock, and the
+          address bar carries it, so a sky worth seeing is a link you can send. There is a way back to
+          now at the top of the screen.
         </p>
 
         <div className="hairline" />
