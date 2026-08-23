@@ -6,7 +6,7 @@ part of an agentic-development story is not that an agent wrote some code; it is
 where the agent was wrong, how that was caught, and what the failure taught.
 
 Three tasks were handed to [IBM Bob](https://bob.ibm.com/). One shipped as
-written. One shipped after correction. One failed twice and was rebuilt by hand,
+written. One shipped after correction. One failed twice and was rebuilt outside Bob,
 and the reason it failed turned out to be a bug in a published scientific
 dataset rather than anything about the agent.
 
@@ -59,7 +59,7 @@ So the feature failed twice, for two unrelated reasons: a dataset whose publishe
 
 ### What finally shipped, and the one change that made it work
 
-The third attempt was written by hand, and it differs from the two before it in one respect. Both earlier versions promised in prose that they would not touch daylight, and both broke it anyway. This one cannot break it, because it never produces a limiting magnitude at all.
+The third attempt was written outside Bob, and it differs from the two before it in one respect. Both earlier versions promised in prose that they would not touch daylight, and both broke it anyway. This one cannot break it, because it never produces a limiting magnitude at all.
 
 `src/lib/astro/skyquality.ts` returns a **difference in magnitudes** to add to a limit somebody else decided. The four hand-written numbers in `limitingMagnitude` are untouched, no scale conversion exists anywhere in the path, and above -18 degrees the function returns exactly zero, so the code that runs in daylight is byte-identical to the code that ran before the model existed. The Globe at Night scale describes night skies, so the model is only ever asked about night skies.
 
