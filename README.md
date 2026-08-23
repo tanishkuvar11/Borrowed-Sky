@@ -15,6 +15,10 @@
 ![No account](https://img.shields.io/badge/account-none-2e7d32?style=flat-square)
 ![Checks](https://img.shields.io/badge/verification-17%20suites-2e7d32?style=flat-square)
 
+### [Open the live app](https://borrowed-sky.vercel.app/)
+
+No install, no account, no sign-in. It asks for your location and shows you your own sky.
+
 *Built for the AI Builders Challenge, Space Exploration theme.*
 
 </div>
@@ -22,6 +26,8 @@
 ---
 
 Open it in a browser. Point your phone up. It names what you are looking at, computed for the exact spot you are standing on and the exact minute it is.
+
+Two links worth having open: the [live app](https://borrowed-sky.vercel.app/), and the same app [held at a moonlit night](https://borrowed-sky.vercel.app/?at=2026-09-27T19:40:51Z), where the fitted sky model has something to do.
 
 No install. No account. No telescope. No prior knowledge.
 
