@@ -61,3 +61,37 @@ A satellite overhead is invisible if it is in Earth's shadow. A planet above the
 So the app models all three conditions and reports them separately: a pass is only *visible* when the satellite is sunlit **and** the observer's sky is dark **and** it clears 10° of altitude. Satellites currently in eclipse are drawn with a marker that says so.
 
 The same question about stars is what [the sky model](#machine-learning-a-sky-model-fitted-to-170000-human-observations) answers. Being above the horizon on a moonlit night in a city is not the same as being visible from there, and that difference was the one thing the app used to guess at.
+
+
+---
+
+# Privacy, security and limitations, in full
+
+The README carries the summary. This is the reasoning behind each line of it.
+
+## Privacy and security
+
+The app asks for one thing about you, and the design question was how little of it can leave.
+
+- **Your position never leaves your device at full precision.** It is rounded to two decimal places, a little over a kilometre, at the one boundary where anything is sent. That is the difference between naming the town you are in and naming your street.
+- **The sky is computed where you are standing.** Positions, rise and set times, satellite passes and the star field are all worked out in your browser. Even the AI's lookups run there: the endpoint relays the model's request back to the page, the page answers it out of astronomy-engine, and the result goes back. No server ever works out a position about you.
+- **One request carries anything personal**, and it is a rounded coordinate sent to OpenStreetMap and Open-Meteo to put a name and a timezone on the place. The landing page says so in a sentence before you are asked for anything.
+- **Location arrives only through the browser's own permission prompt**, and is kept in `localStorage` on your device. Never a cookie, never a URL.
+- **The watsonx key is server-side only.** It is not in the client bundle, not in any `VITE_`-prefixed variable, and `.env` is not in the repository.
+- **The endpoints that spend something refuse before they spend it.** `/api/ask`, `/api/embed` and `/api/place` check an origin allowlist and a per-address rate limit ahead of the IAM exchange, so a request that will not be served costs nothing.
+
+What that is not: authentication. This is an app you open in a browser without an account, and a secret shipped to a browser is not a secret. The origin allowlist stops another site putting this app's AI behind its own page; it does not stop a caller that is not a browser, and [`scripts/verify/guard.check.ts`](scripts/verify/guard.check.ts) asserts that hole deliberately so a green tick cannot be read as a stronger claim than the code makes. The rate limit lives in one instance's memory, so on a serverless host the real ceiling is a multiple of the stated one.
+
+The honest summary is that this was treated as a privacy problem rather than a security one. The interesting work was minimising what leaves the device at all, not adding a login.
+
+## Honest limitations
+
+- **The browser compass drifts.** It is less accurate than a native app's, and on some Android browsers it is not north-referenced at all. The app detects this, says so, and offers a manual correction rather than pretending to a precision it does not have. Where Chromium exposes `AbsoluteOrientationSensor` it is preferred, since a reading from that is north-referenced by definition rather than by hope; iOS uses `webkitCompassHeading` for the same reason.
+- **Manual mode is a mode, not a breakage.** If orientation is unavailable for any reason, the sky is yours to drag and every position in it is still computed for your exact place and time. The compass only ever decides *which part* of that sky you are shown.
+- **The compass needs https.** Not a limitation the app can fix: no browser hands the motion sensors to an insecure origin. The app distinguishes that case from genuinely absent hardware so the message is actionable.
+- **An AR camera overlay is deliberately not implemented.** Locking labels onto a live camera image demands sensor precision the browser cannot reliably deliver. The stylized map is the product; a flaky AR mode would have undermined the thing that works.
+- **Star positions are geometric.** Atmospheric refraction is applied to the Sun, Moon and planets but not to the 5,000 catalogue stars, where it would cost a per-star trig call for a shift under 0.6° that only matters within a degree or two of the horizon.
+- **Times display in the device's timezone.** Correct for the ordinary case of standing where you are; if you type in coordinates on the far side of the world, the app tells you the times are still shown in your own timezone.
+- **Passes are predicted for the ISS and Tiangong.** A 24-hour pass search over every bright satellite would be too slow on a low-end phone; other tracked satellites still appear live on the map when they are overhead.
+
+---

@@ -53,27 +53,24 @@ Deeper detail lives beside the code: [running and deploying](docs/RUNNING.md) ·
 
 ## The problem
 
-About a third of the world cannot see the Milky Way from where they live. But the harder problem is not light pollution; it is that even under a perfect sky, most people have no idea what they are looking at, or that anything is happening at all.
+A third of the world cannot see the Milky Way from home. The harder problem is that even under a perfect sky, most people have no idea what they are looking at.
 
-The tools that solve this assume you are already an enthusiast. They want an app install, a capable device, and a user who already knows the name of the thing they are trying to find. That excludes exactly the people for whom a first look at the sky would matter most: kids in township schools, refugee camps, rural and low-resource communities.
+The tools that fix this assume you are already an enthusiast: an install, a capable phone, and a user who knows the name of the thing they are hunting. That excludes exactly the people a first look would matter most to.
 
-**Borrowed Sky is built for someone who has never used an astronomy tool, has no telescope, and does not know what a magnitude is.** No install. No account. No prior knowledge. It works on a cheap phone over a slow connection, and it tells you not just what is up there but *where to look* and *when to go outside*.
+**Borrowed Sky is for someone who has never used an astronomy tool and does not know what a magnitude is.** It says what is up there, where to look, and when to go outside.
 
 ---
 
 ## What it does
 
-**Live sky map.** A stylized star map that rotates as you turn, drawn from a real star catalogue, with the Milky Way lying where our galaxy actually lies and the afterglow sitting on the bearing the Sun actually set on. Tap anything to find out what it is. Where the compass is unavailable or refused, it becomes a drag-to-look map, clearly labelled as such and, never silently pretending to track.
-
-**A compass repeater.** A brass-framed heading strip under the sky, ruled at a fixed scale of its own so it stays readable however far the map is zoomed. It is also the proof that tracking is live: when the compass is driving, the card turns.
-
-**Tonight's sky.** A horizontal timeline of what actually becomes visible over the coming hours: planet windows, moonrise, and visible station passes. The twilight band behind it is a plot of the real Sun altitude, so the darkness you see on the strip is the darkness that is coming.
-
-**A guide you can ask.** "What's that bright one?" gets answered from the actual computed sky, with an *Explain like I'm 10* setting that changes the language rather than the facts.
-
-**A sky journal.** Everything you have found, plotted on a planisphere that slowly fills in. Stored on your device: no account, nothing uploaded.
-
-**Night vision.** A red-only mode across the entire interface, including the sky canvas. A bright screen costs you roughly twenty minutes of dark adaptation, which matters when the whole point is to go outside and look up.
+| | |
+|---|---|
+| **Live sky map** | Turns as you turn. Real catalogue, the Milky Way where the galaxy actually is, afterglow on the bearing the Sun actually set. Tap anything. |
+| **Compass repeater** | A brass heading strip, and the proof tracking is live: when the compass drives, the card turns. |
+| **Tonight** | What actually becomes visible over the coming hours, plotted over the real Sun altitude. |
+| **A guide you can ask** | *"What's that bright one?"* answered from the computed sky. *Explain like I'm 10* changes the words, never the facts. |
+| **Sky journal** | What you have found, filling in a planisphere. On your device, nothing uploaded. |
+| **Night vision** | Red-only, sky canvas included. A bright screen costs you twenty minutes of dark adaptation. |
 
 ---
 
@@ -92,26 +89,23 @@ Granite carries the language. It never carries the correctness: every number it 
 
 ## The core principle: nothing is fabricated
 
-The hard rule of the build, and it shaped every technical decision. **There is no mock data anywhere, including during development.** No placeholder sky. If a source is unavailable the app states the failure rather than filling the gap with a guess.
+**No mock data anywhere, including during development.** No placeholder sky. If a source is unavailable the app states the failure rather than filling the gap.
 
-| what | where it comes from |
+| what | from |
 |---|---|
-| 5,070 star positions and colours | HYG Database v4.1, J2000 astrometry; colours derived from each star's B-V index, not picked by hand |
-| The Milky Way | the real galactic frame from the IAU pole, so the band lies where the galaxy actually is |
-| The horizon afterglow | the Sun's computed azimuth and altitude, so it points where the Sun actually set |
+| 5,070 stars | HYG v4.1, J2000 astrometry. Colours from each star's B-V index, not picked by hand |
+| The Milky Way | the real galactic frame, from the IAU pole |
+| The afterglow | the Sun's computed azimuth, so it points where the Sun actually set |
 | Sun, Moon, planets | astronomy-engine, apparent positions with aberration and refraction |
 | Satellite passes | SGP4 on live Celestrak elements, searched numerically rather than looked up |
-| Explanations | a corpus built from NASA's public-domain science writing, retrieved by embedding and cited by source |
-| Granite | receives a finished description of the sky and adds nothing to it |
+| Explanations | NASA's public-domain writing, retrieved by embedding and cited |
+| Granite | receives a finished sky and adds nothing to it |
 
-**Three things are not computed, and each is fenced.** Place names are looked up, so the coordinate is rounded to ~1km before it leaves and nothing is invented when it fails. The foreground hills are drawn, so they are clipped strictly below the true horizon and can never sit in front of a real object. And the guide's explanations come from the corpus rather than memory, so retrieval refuses rather than degrading when it cannot match.
+**Three things are not computed, and each is fenced.** Place names are looked up, so the coordinate is rounded to about a kilometre first and nothing is invented when it fails. The foreground hills are drawn, so they are clipped strictly below the true horizon and can never sit in front of a real object. Explanations come from the corpus rather than memory, so retrieval refuses rather than degrading when it cannot match. Why each is fenced that way: **[docs/DESIGN-NOTES.md](docs/DESIGN-NOTES.md)**
 
-Why each of those is fenced the way it is: **[docs/DESIGN-NOTES.md](docs/DESIGN-NOTES.md)**
+### Visible is not the same as above the horizon
 
-### Visible is not the same as "above the horizon"
-
-A satellite overhead is invisible in Earth's shadow; a planet is invisible in a bright sky. A pass counts as *visible* only when the satellite is sunlit **and** the observer's sky is dark **and** it clears 10°. The same question about stars is what [the sky model](#machine-learning-a-sky-model-fitted-to-170000-human-observations) answers.
-
+A satellite overhead is invisible in Earth's shadow; a planet is invisible in a bright sky. A pass counts as *visible* only when the satellite is sunlit **and** the sky is dark **and** it clears 10 degrees. The same question about stars is what [the sky model](#machine-learning-a-sky-model-fitted-to-170000-human-observations) answers.
 
 ### Verification
 
@@ -169,17 +163,15 @@ Server (serverless functions)
 
 ## The AI layer: IBM Granite on watsonx.ai
 
-Narration runs on **IBM watsonx.ai** with **IBM Granite**. `api/ask.ts` tries `ibm/granite-3-3-8b-instruct` and walks a short list of Granite models if a project's region or plan does not offer it.
+Narration runs on **IBM watsonx.ai** with **IBM Granite**. `api/ask.ts` walks a short list of Granite models, since which ones a project can call depends on its region and plan.
 
-**Granite does language, never astronomy.** Every position, time, magnitude and phase is computed in the browser first; only a finished JSON description of that sky reaches the model. The system prompt enforces the division:
+**Granite does language, never astronomy.** Every position, time, magnitude and phase is computed in the browser first; only a finished JSON description of that sky reaches the model.
 
 > The JSON block you are given is the ONLY authoritative description of this observer's sky. Never state a position, altitude, direction, time, distance or brightness that is not present in that JSON. If you are asked something the JSON does not answer, say plainly that you cannot see it in tonight's data. Never guess.
 
-That leaves it the part no template covers: working out which object "that bright one" means, choosing which two of a dozen objects matter to someone with no telescope, saying *I can't see that in tonight's data* rather than reaching into training data, and switching between *Explain like I'm 10* and *Standard* without changing a number.
+That leaves it the part no template covers: working out which object *that bright one* means, choosing which two of a dozen matter to someone with no telescope, and saying *I can't see that in tonight's data* rather than reaching into training data.
 
-**When Granite is unavailable the app does not go quiet and does not guess.** A deterministic narrator assembles sentences from the same computed values, and the interface says which of the two spoke on every answer. Six failure modes are tested, including the endpoint hanging, and all six still answer from the computed sky.
-
-`npm run verify:granite` is a real call, not a mock: IAM exchange, model listing, then one grounded request against a live sky. Each stage fails with its own message, because a bad key, a wrong region and an unavailable model look identical from the app and need different fixes.
+**When Granite is unavailable the app does not go quiet and does not guess.** A deterministic narrator assembles sentences from the same computed values, and the interface names which of the two spoke. Six failure modes are tested, including the endpoint hanging; all six still answer from the computed sky.
 
 ---
 
@@ -187,51 +179,45 @@ That leaves it the part no template covers: working out which object "that brigh
 
 Granite is the language layer. This is the part that learned something.
 
-The app decides what is visible from four hand-written thresholds keyed on the Sun. Those are right about the biggest thing that happens to a sky and silent about the next two: **the Moon**, which washes out faint stars while it is up, and **light pollution**, which is the entire difference between a city and a field.
+The app decides what is visible from four hand-written thresholds keyed on the Sun. They are right about the biggest thing that happens to a sky and silent about the next two: **the Moon**, and **light pollution**.
 
-[Globe at Night](https://globeatnight.org/) has an answer. Since 2006 about 170,000 people have stood outside, looked up, and reported which of eight star charts matched what they could actually see. Real eyes, real skies, real places. `scripts/build-skymodel.mjs` fits an ordinary least-squares model to 121,998 of those observations and holds out the most recent 21,530 chronologically.
-
-What it learned, in chart steps:
+[Globe at Night](https://globeatnight.org/) has the data. Since 2006, about 170,000 people have stood outside and reported which of eight star charts matched what they could actually see. Least squares on 121,998 of them, held out chronologically on the most recent 21,530.
 
 | term | effect |
 |---|---|
-| a full Moon overhead | **0.794** steps of sky lost |
+| a full Moon overhead | **0.794** chart steps of sky lost |
 | each step of local dark-sky median | **0.737** |
 | each kilometre of elevation | **0.141** |
 
-Held-out error of **1.4977** against **1.6327** for predicting the average every time: **8.3% better**, on the same scale with nothing converted.
+Held-out error **1.4977**, against **1.6327** for guessing the average every time. **8.3% better**, on the same scale, with nothing converted.
 
-**In the app** it is worth up to about 0.7 magnitudes. Faint stars that a moonless sky would give you fade from the chart as the Moon rises, and a city sky is drawn thinner than a field. The guide names the number it is applying and what it was fitted to.
+**The decision that made it work.** It returns a *correction*, never an answer: magnitudes to add to a limit the caller already has. It was fitted only on observations with the Sun below -18 degrees and is applied only there. Above that it returns exactly zero, so daylight runs code identical to what ran before the model existed. Daylight cannot regress, because the model cannot reach it. Two earlier versions replaced the thresholds outright and both listed Sirius as visible at noon.
 
-### The design decision that made it work
+In the app it is worth up to about 0.7 magnitudes. Faint stars fade as the Moon rises, a city sky draws thinner than a field, and Settings has a switch to turn it off and watch them come back.
 
-It returns **a correction, never an answer**: a number of magnitudes to add to a limit the caller already has. It was fitted only on observations with the Sun below -18 degrees and is applied only there. Above that it returns exactly zero, so the code that runs in daylight is identical to the code that ran before the model existed.
-
-That is why daylight cannot regress: not because a test forbids it, but because the model has no way to reach it. Two earlier versions replaced the thresholds outright and both ended up listing Sirius as visible at noon.
-
-### How it is checked
-
-`scripts/verify/skyquality.check.ts` asserts the guarantee directly: for every brightness from magnitude -5 to +7, at seven Sun altitudes above -18 degrees, asking with the model must return an identical answer to asking without it.
-
-`scripts/verify/skymodel.mjs` is the one no unit test could be. It drives the real app in headless Chrome and holds everything fixed except the model itself, blocking `skymodel.json` at the network layer for the control run. Same night, same Moon, same stars overhead: **4,332 points of light with the model against 4,434 without.** The difference is the model, and it can be nothing else.
+**How it is checked.** One check asserts that for every brightness from magnitude -5 to +7, at seven Sun altitudes above -18, asking with the model gives an identical answer to asking without it. Another drives the real app in headless Chrome and blocks the model file at the network layer for a control run: same night, same Moon, same stars overhead, **838 points of light with the model against 882 without**.
 
 ---
 
 ## Built with IBM Bob
 
-Three pieces of this project were handed to [IBM Bob](https://bob.ibm.com/) as written briefs, with the agent planning, writing, testing and iterating on its own.
+Three briefs handed to [IBM Bob](https://bob.ibm.com/) to plan, write, test and iterate on its own.
 
-**The grounding guard** is Bob's end to end: the check that compares each of Granite's answers against the JSON it was given and refuses to show one making a claim the computed sky does not support. Bob read the surrounding code, restated the constraints most likely to be missed, and made two calls that were better than the brief. It excluded the timestamp from the pool of numbers it scans, because digits scraped out of an ISO date give false claims accidental cover. And it wrote in a comment that the check pools every value regardless of what it measures, so `magnitude 47` passes if something happens to sit at 47 degrees altitude. That weakness is real, and the code now says so rather than reading as though the check were tighter than it is.
+| brief | outcome |
+|---|---|
+| **The grounding guard** | Shipped. The check that gates every Granite answer against the computed sky and refuses to show an unsupported claim. |
+| **The sky model, twice** | Reverted twice. Both versions claimed first-magnitude stars were visible at noon. |
+| **The model's controls** | Shipped. An on/off switch and a pinned-instant link, both with exact-equality proofs. |
 
-**The sky visibility model** took three attempts, two of them Bob's, and the reason is worth more than the feature. Bob was asked to replace four hand-written brightness thresholds with a model fitted to Globe at Night citizen-science observations. It built exactly that, twice, correctly to the brief, and both versions had to be reverted for the same underlying reason: applied to daylight, they claimed first-magnitude stars were visible at noon.
+Bob made two calls better than the brief. It kept timestamps out of the pool of numbers it scans, because digits scraped from an ISO date give false claims accidental cover. And it wrote down that the check pools every value regardless of what that value measures, so `magnitude 47` passes if something happens to sit at 47 degrees altitude. That weakness is real, and the code now says so rather than reading as though the check were tighter than it is.
 
-Chasing that produced the finding this project is proudest of. **The Globe at Night export has its timezone offsets applied backwards.** A US observer's 20:04 local is filed as 14:04 UT the same date, when an eight o'clock evening observation at UTC-6 is 02:04 UT the following day. Derive a Sun altitude from the published UT columns and **53.1%** of naked-eye star chart observations land in daylight, which cannot happen. Derive it from the local clock and the longitude instead and that falls to **7.7%**. Half the training set had been wrong by twelve hours, so the Sun coefficient was fitted through noise and came out near zero. Anyone fitting anything to that dataset needs to know this.
+> **The best thing here came out of the failures.** The Globe at Night export has its timezone offsets applied backwards. Derive a Sun altitude from the published UT columns and **53.1%** of naked-eye star chart observations land in daylight, which cannot happen. Derive it from the local clock and the longitude and that falls to **7.7%**. Half the training set was wrong by twelve hours, so the Sun coefficient was fitted through noise and came out near zero. Anyone fitting anything to that dataset needs to know.
 
-The third attempt was written by hand and ships. What changed was not the arithmetic but the shape: it produces a *correction* rather than an answer, so it has nothing to say about daylight and cannot break it. That is described under [the sky model](#machine-learning-a-sky-model-fitted-to-170000-human-observations) above.
+The third attempt was written by hand. What changed was not the arithmetic but the shape.
 
-Across all three tasks Bob wrote clean, well-commented, correctly structured code and was reliably wrong in one direction: a fallback that hides a disabled check reads as robustness and behaves as a silent hole. Every correction came from asking what happens when this fails, not from reading the code as written.
+Full record, reverts included: **[docs/ENGINEERING-LOG.md](docs/ENGINEERING-LOG.md)**
 
-**The full record**, including the honest held-out numbers whichever way they fell and the two reverts in detail, is in [`docs/ENGINEERING-LOG.md`](docs/ENGINEERING-LOG.md).
+---
 
 ## Running it
 
@@ -250,38 +236,40 @@ Full setup, watsonx credentials and Vercel deployment: **[docs/RUNNING.md](docs/
 
 ## Addressing the Space Exploration theme
 
-The challenge asks for tools that translate complex space data into clear insights, and for space education and public engagement.
+Three genuinely complex sources, a star catalogue in J2000 equatorial coordinates, a planetary ephemeris, and SGP4 orbital elements, turned into a sentence a ten-year-old can act on:
 
-Borrowed Sky takes three genuinely complex data sources (a star catalogue in J2000 equatorial coordinates, a planetary ephemeris, and SGP4 orbital elements) and turns them into a sentence a ten-year-old can act on: *go outside at 7:42, look low in the west, that moving point is a space station with people aboard it.*
+> *Go outside at 7:42, look low in the west. That moving point is a space station with people aboard it.*
 
-The translation is the product. And it is aimed at people who are currently on the wrong side of the line: no telescope, no app store, no background knowledge, possibly a borrowed phone. Hence the name.
+The translation is the product, and it is aimed at people on the wrong side of the line: no telescope, no app store, no background knowledge, possibly a borrowed phone. Hence the name.
 
 ---
 
 ## Privacy and security
 
-The app asks for one thing about you, and the design question was how little of it can leave.
+The app asks for one thing about you. The design question was how little of it can leave.
 
-- **Your position never leaves your device at full precision.** It is rounded to two decimal places, a little over a kilometre, at the one boundary where anything is sent. That is the difference between naming the town you are in and naming your street.
-- **The sky is computed where you are standing.** Positions, rise and set times, satellite passes and the star field are all worked out in your browser. Even the AI's lookups run there: the endpoint relays the model's request back to the page, the page answers it out of astronomy-engine, and the result goes back. No server ever works out a position about you.
-- **One request carries anything personal**, and it is a rounded coordinate sent to OpenStreetMap and Open-Meteo to put a name and a timezone on the place. The landing page says so in a sentence before you are asked for anything.
-- **Location arrives only through the browser's own permission prompt**, and is kept in `localStorage` on your device. Never a cookie, never a URL.
-- **The watsonx key is server-side only.** It is not in the client bundle, not in any `VITE_`-prefixed variable, and `.env` is not in the repository.
-- **The endpoints that spend something refuse before they spend it.** `/api/ask`, `/api/embed` and `/api/place` check an origin allowlist and a per-address rate limit ahead of the IAM exchange, so a request that will not be served costs nothing.
+| | |
+|---|---|
+| Your position | Rounded to about a kilometre before it ever leaves. The town, not the street. |
+| The sky | Computed in your browser. Even the AI's lookups run there, so no server works out a position about you. |
+| What leaves | One request: a rounded coordinate, for a place name and a timezone. The landing page says so before you are asked. |
+| Where it is kept | `localStorage`, via the browser's own permission prompt. Never a cookie, never a URL. |
+| The watsonx key | Server-side only. Not in the bundle, not in any `VITE_` variable. |
+| Endpoints that spend | Check origin and rate limit *before* the IAM exchange, so a refused request costs nothing. |
 
-What that is not: authentication. This is an app you open in a browser without an account, and a secret shipped to a browser is not a secret. The origin allowlist stops another site putting this app's AI behind its own page; it does not stop a caller that is not a browser, and [`scripts/verify/guard.check.ts`](scripts/verify/guard.check.ts) asserts that hole deliberately so a green tick cannot be read as a stronger claim than the code makes. The rate limit lives in one instance's memory, so on a serverless host the real ceiling is a multiple of the stated one.
-
-The honest summary is that this was treated as a privacy problem rather than a security one. The interesting work was minimising what leaves the device at all, not adding a login.
+**This is not authentication and does not pretend to be.** The origin allowlist stops another site putting this app's AI behind its own page. It does nothing about a caller that is not a browser, and [`guard.check.ts`](scripts/verify/guard.check.ts) asserts that hole deliberately, so a green tick cannot be read as a stronger claim than the code makes. Full reasoning: **[docs/DESIGN-NOTES.md](docs/DESIGN-NOTES.md)**
 
 ## Honest limitations
 
-- **The browser compass drifts.** It is less accurate than a native app's, and on some Android browsers it is not north-referenced at all. The app detects this, says so, and offers a manual correction rather than pretending to a precision it does not have. Where Chromium exposes `AbsoluteOrientationSensor` it is preferred, since a reading from that is north-referenced by definition rather than by hope; iOS uses `webkitCompassHeading` for the same reason.
-- **Manual mode is a mode, not a breakage.** If orientation is unavailable for any reason, the sky is yours to drag and every position in it is still computed for your exact place and time. The compass only ever decides *which part* of that sky you are shown.
-- **The compass needs https.** Not a limitation the app can fix: no browser hands the motion sensors to an insecure origin. The app distinguishes that case from genuinely absent hardware so the message is actionable.
-- **An AR camera overlay is deliberately not implemented.** Locking labels onto a live camera image demands sensor precision the browser cannot reliably deliver. The stylized map is the product; a flaky AR mode would have undermined the thing that works.
-- **Star positions are geometric.** Atmospheric refraction is applied to the Sun, Moon and planets but not to the 5,000 catalogue stars, where it would cost a per-star trig call for a shift under 0.6° that only matters within a degree or two of the horizon.
-- **Times display in the device's timezone.** Correct for the ordinary case of standing where you are; if you type in coordinates on the far side of the world, the app tells you the times are still shown in your own timezone.
-- **Passes are predicted for the ISS and Tiangong.** A 24-hour pass search over every bright satellite would be too slow on a low-end phone; other tracked satellites still appear live on the map when they are overhead.
+| | |
+|---|---|
+| The browser compass drifts | Less accurate than native, and on some Android browsers not north-referenced at all. The app detects that, says so, and offers a manual correction. |
+| Manual mode is a mode, not a breakage | Without orientation the sky is yours to drag, and every position in it is still computed for your exact place and time. |
+| The compass needs https | No browser hands motion sensors to an insecure origin. The app tells that apart from absent hardware. |
+| No AR overlay, deliberately | Locking labels to a camera image needs precision the browser cannot deliver. A flaky AR mode would undermine the part that works. |
+| Star positions are geometric | Refraction is applied to the Sun, Moon and planets, not to 5,000 stars, where it shifts things under 0.6 degrees near the horizon. |
+| Times are in your device's timezone | And the app says so if you enter coordinates from the far side of the world. |
+| Passes cover the ISS and Tiangong | A full search over every bright satellite would be too slow on a cheap phone. Others still appear live when overhead. |
 
 ---
 
