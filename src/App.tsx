@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Overture } from './components/Overture';
 import { SkyView } from './components/SkyView';
@@ -130,6 +130,31 @@ export default function App() {
   const [view, setView] = useState<View>('sky');
   const [tone, setTone] = useState<Tone>('standard');
   const [sheet, setSheet] = useState<'none' | 'settings' | 'compass'>('none');
+
+  /*
+   * Offer the compass the moment there is a sky to point at.
+   *
+   * Tracking is the default and always has been: `followCompass` starts true,
+   * and on Android the listener attaches by itself and the first reading
+   * promotes it to live without anybody touching anything. iOS is the case
+   * that stalls. Safari will not hand a web page the motion sensors without an
+   * explicit tap, so the app sat in manual with the offer hidden behind a
+   * button somebody had to go looking for, and the compass is the whole reason
+   * to hold a phone up at the sky.
+   *
+   * So the sheet opens itself, once, on the one status where a tap is the only
+   * thing standing between the person and a tracking sky. Not on `waiting`,
+   * which resolves on its own within a second or two, and popping a dialog in
+   * front of that would be a dialog for nothing.
+   */
+  const compassOffered = useRef(false);
+  useEffect(() => {
+    if (!entered || !site) return;
+    if (compassOffered.current) return;
+    if (orientation.status !== 'needs-permission') return;
+    compassOffered.current = true;
+    setSheet('compass');
+  }, [entered, site, orientation.status]);
   const [nightVision, setNightVision] = useState(
     () => localStorage.getItem('borrowed-sky:vision') === 'night',
   );

@@ -199,6 +199,9 @@ async function main() {
     /** Opens the compass dialog behind the header rose and reads it back. */
     const openRose = async () => {
       await evalPage(`(() => {
+        // The app may have opened this itself, in which case the rose is
+        // behind a scrim and clicking it would close what we came to read.
+        if (document.querySelector('.dialog__panel')) return true;
         const rose = document.querySelector('.rose:not(.rose--plain)');
         if (!rose) throw new Error('no compass rose in header');
         rose.click();
@@ -331,6 +334,22 @@ async function main() {
       'and says so in a word, not only in a colour',
       (await tagWord()).toLowerCase() === 'off',
       await tagWord(),
+    );
+
+    /*
+     * The offer arrives without being asked for.
+     *
+     * Tracking is the default everywhere, and on Android it simply happens: the
+     * listener attaches and the first reading makes it live. Safari will not
+     * hand a web page the motion sensors without a tap, so on iOS the app opens
+     * this sheet itself the moment there is a sky to point at, rather than
+     * leaving the one thing worth holding a phone up for behind a button
+     * somebody has to go and find.
+     */
+    check(
+      'the compass offer opens by itself where a tap is the only thing missing',
+      /compass tracking/i.test(await dialogText()),
+      (await dialogText()).slice(0, 52).replace(/\s+/g, ' '),
     );
 
     await openRose();
