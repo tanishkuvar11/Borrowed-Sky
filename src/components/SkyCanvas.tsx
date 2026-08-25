@@ -279,9 +279,23 @@ interface SkyPalette {
 
 const DAY_PALETTE: SkyPalette = {
   skyTop: [7, 7, 15],
-  skyTopDay: [24, 44, 96],
+  /*
+   * Daylight, lifted.
+   *
+   * These two were a dusk blue, so the app said "the Sun is up" over a sky
+   * that looked like an hour after sunset. Everywhere else this project
+   * refuses to show one thing and state another, and a daytime sky is not a
+   * detail somebody has to squint at to notice.
+   *
+   * Not a real daylight blue, though, and that is the compromise rather than
+   * an oversight. The whole interface is light on dark: brass rules, starlight
+   * labels, faint markers. Paint a true sky behind that and the labels wash
+   * out and the fainter objects go with them. This is as far up as the type
+   * survives, which reads as day without costing the instrument its legibility.
+   */
+  skyTopDay: [46, 78, 140],
   skyBottom: [16, 12, 32],
-  skyBottomDay: [86, 96, 150],
+  skyBottomDay: [120, 140, 185],
   grid: 'rgba(201, 162, 39, 0.13)',
   // Opaque on purpose: the ground has to stop the galactic band dead, or the
   // sky appears to continue through the earth.
@@ -332,9 +346,11 @@ const DAY_PALETTE: SkyPalette = {
 
 const NIGHT_PALETTE: SkyPalette = {
   skyTop: [8, 1, 1],
-  skyTopDay: [46, 6, 4],
+  // Lifted by the same proportion as the daylight palette above, so red mode
+  // tells the same story about the time of day as the ordinary one.
+  skyTopDay: [88, 12, 8],
   skyBottom: [16, 3, 2],
-  skyBottomDay: [78, 14, 10],
+  skyBottomDay: [112, 22, 15],
   grid: 'rgba(255, 106, 77, 0.13)',
   ground: 'rgb(5, 0, 0)',
   horizonHaze: 'rgba(8, 1, 1, 0.6)',
@@ -2288,6 +2304,17 @@ function drawStarHighlights(
   const pixelScale = Math.max(0.75, Math.min(1.6, radius / 320));
   const visibility = starVisibility(conditions);
 
+  /*
+   * How much the sky is working against the type.
+   *
+   * A star's name is a pale warm grey, which separates cleanly from a night
+   * sky and sinks into a daylit one. Rather than darken the sky back down, or
+   * keep a second colour for daytime, the label carries its own contrast: no
+   * halo at all at night, where there is nothing to separate from, and its
+   * strongest at noon.
+   */
+  const glare = 1 - darknessFactor(conditions);
+
   const bright: { x: number; y: number; r: number; index: number; airmass: number }[] = [];
   const vectors = catalog.vectors;
 
@@ -2381,7 +2408,12 @@ function drawStarHighlights(
     const w = ctx.measureText(name).width;
     if (claimLabel(lx, star.y - 6, w, 12)) {
       ctx.fillStyle = palette.starLabel;
+      if (glare > 0.02) {
+        ctx.shadowColor = `rgba(4, 8, 22, ${(0.85 * glare).toFixed(3)})`;
+        ctx.shadowBlur = 4;
+      }
       ctx.fillText(name, lx, star.y);
+      ctx.shadowBlur = 0;
     }
   }
   ctx.restore();
