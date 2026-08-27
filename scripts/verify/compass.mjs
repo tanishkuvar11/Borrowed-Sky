@@ -463,19 +463,29 @@ async function main() {
       return POINTS[point.toUpperCase()];
     };
 
-    const setScreenAngle = (angle) =>
+    /*
+     * Both ends are pinned, including the one that looks like a default.
+     *
+     * Headless Chrome reports its own screen.orientation, and it says
+     * landscape even while a portrait viewport is being emulated. Leaving the
+     * upright case to whatever the host happened to report made the baseline
+     * move when the correction below changed, which is a test measuring the
+     * machine it runs on rather than the code it is checking.
+     */
+    const setScreenAngle = (angle, type) =>
       evalPage(
         `(() => {
           Object.defineProperty(screen, 'orientation', {
-            value: { angle: ${angle}, type: 'landscape-primary' },
+            value: { angle: ${angle}, type: '${type}' },
             configurable: true,
           });
           return screen.orientation.angle;
         })()`,
       );
 
+    await setScreenAngle(0, 'portrait-primary');
     const upright = await headingPointedUp();
-    await setScreenAngle(90);
+    await setScreenAngle(90, 'landscape-primary');
     const rotated = await headingPointedUp();
 
     const turned = (((rotated - upright) % 360) + 360) % 360;

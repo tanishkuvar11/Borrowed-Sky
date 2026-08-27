@@ -124,9 +124,10 @@ export function Diagnostics() {
         angle: (() => {
           const modern = screen.orientation?.angle;
           const legacy = (window as unknown as { orientation?: number }).orientation;
+          const type = screen.orientation?.type ?? '?';
           const used =
             typeof modern === 'number'
-              ? `${modern} (screen.orientation)`
+              ? `${modern} ${type}`
               : typeof legacy === 'number'
                 ? `${((-legacy % 360) + 360) % 360} (window.orientation ${legacy})`
                 : '0 (NEITHER AVAILABLE)';
@@ -180,6 +181,7 @@ export function Diagnostics() {
     ['screen', sample.angle],
     ['euler', sample.euler],
     ['heading', sample.trueHeading],
+    ['trusted', sample.absolute === 'ios compass' && sample.trueHeading.includes('/- -') ? 'NO (accuracy negative)' : 'yes'],
     ['dial', document.querySelector('.horizon__point')?.textContent?.trim() ?? '-'],
   ];
 

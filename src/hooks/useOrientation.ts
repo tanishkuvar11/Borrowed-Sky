@@ -139,12 +139,38 @@ function reportStatus(status: OrientationStatus) {
  */
 function screenAngleDegrees(): number {
   const modern = screen.orientation?.angle;
-  if (typeof modern === 'number') return modern;
+  if (typeof modern === 'number') return correctForNaturalOrientation(modern);
 
   const legacy = (window as unknown as { orientation?: number }).orientation;
   if (typeof legacy === 'number') return ((-legacy % 360) + 360) % 360;
 
   return 0;
+}
+
+/**
+ * Put the screen angle in the frame the sensor actually reports in.
+ *
+ * `screen.orientation.angle` counts from the device's *natural* orientation,
+ * and a tablet's natural orientation is landscape. The orientation events
+ * count from the body frame, which is portrait-up on every Apple device. On a
+ * phone the two agree and this is a no-op; on an iPad they are ninety degrees
+ * apart, and the diagnostics panel showed exactly that: a tablet held upright,
+ * reporting an angle of 90.
+ *
+ * Which case applies is readable from the pair. A device whose natural
+ * orientation is landscape reports a portrait `type` at a 90 or 270 angle;
+ * one whose natural orientation is portrait reports portrait at 0 or 180.
+ */
+function correctForNaturalOrientation(angle: number): number {
+  const type = screen.orientation?.type ?? '';
+  const quarterTurned = angle === 90 || angle === 270;
+  const naturallyLandscape = type.startsWith('portrait')
+    ? quarterTurned
+    : type.startsWith('landscape')
+      ? !quarterTurned
+      : false;
+
+  return naturallyLandscape ? (angle + 270) % 360 : angle;
 }
 
 /** Screen-space "up" expressed in device axes, for the current screen rotation. */
@@ -463,9 +489,30 @@ export function useOrientation(): OrientationReading & {
       let alphaDeg = event.alpha ?? 0;
       let absolute = event.absolute === true;
 
-      // iOS never sets `absolute`, but does expose a true compass heading.
-      if (typeof ios.webkitCompassHeading === 'number' && !Number.isNaN(ios.webkitCompassHeading)) {
-        alphaDeg = 360 - ios.webkitCompassHeading;
+      /*
+       * iOS never sets `absolute`, but does expose a true compass heading.
+       *
+       * It also says when that heading is worthless, and this used to take the
+       * number without asking. `webkitCompassAccuracy` is the deviation in
+       * degrees from true north, and a negative value is iOS reporting that
+       * the magnetometer is uncalibrated and the heading means nothing. An
+       * iPad in that state reports a heading of exactly zero, so the sky was
+       * drawn confidently facing north whichever way the tablet was pointed,
+       * in both orientations, which reads as a rotation bug and is not one.
+       *
+       * A missing accuracy is still trusted. Not every browser exposes it, and
+       * treating absent as invalid would throw away working compasses to catch
+       * a fault that only announces itself explicitly.
+       */
+      const accuracy =
+        typeof ios.webkitCompassAccuracy === 'number' ? ios.webkitCompassAccuracy : null;
+      const headingUsable =
+        typeof ios.webkitCompassHeading === 'number' &&
+        !Number.isNaN(ios.webkitCompassHeading) &&
+        !(accuracy !== null && accuracy < 0);
+
+      if (headingUsable) {
+        alphaDeg = 360 - (ios.webkitCompassHeading as number);
         absolute = true;
       }
       const alpha = alphaDeg * DEG;
@@ -485,9 +532,7 @@ export function useOrientation(): OrientationReading & {
           [-cB * sG, sB, cB * cG],
         ],
         absolute,
-        typeof ios.webkitCompassAccuracy === 'number' && ios.webkitCompassAccuracy >= 0
-          ? ios.webkitCompassAccuracy
-          : null,
+        accuracy !== null && accuracy >= 0 ? accuracy : null,
       );
     },
     [applyRotation],
