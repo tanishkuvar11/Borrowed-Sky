@@ -76,9 +76,18 @@ export interface SkyViewProps {
   onRecord: (body: SkyBody) => void;
   onOpenGuide: () => void;
   isLogged: (name: string) => boolean;
+  /**
+   * The bottom navigation, so labels can keep clear of it.
+   *
+   * It belongs to the app rather than to this view, and the canvas is full
+   * bleed underneath it, so without this the label placer cannot see the one
+   * piece of furniture that covers the bottom of the sky.
+   */
+  railRef: React.RefObject<HTMLElement | null>;
 }
 
 export function SkyView({
+  railRef,
   catalog,
   constellations,
   bodies,
@@ -132,7 +141,17 @@ export function SkyView({
   // The chart's labels cannot see the panels floating over it, so it is told.
   const asideRef = useRef<HTMLDivElement>(null);
   const deckRef = useRef<HTMLDivElement>(null);
-  const obstacles = useMemo(() => [asideRef, deckRef], []);
+  /*
+   * The bottom deck is furniture too.
+   *
+   * It holds the heading dial and the compass prompt, both of which sit over
+   * the sky, and neither was reserved. A constellation name placed underneath
+   * them is drawn and then covered, which costs a label and gains nothing: on
+   * a tablet in landscape, COMA BERENICES was printing straight through the
+   * cardinal mark and the brass rule.
+   */
+  const dialRef = useRef<HTMLDivElement>(null);
+  const obstacles = useMemo(() => [asideRef, deckRef, dialRef, railRef], [railRef]);
 
   // Where the view points when the compass is not driving it. Starts aimed at
   // the celestial equator's high point for this latitude, which is where most
@@ -406,7 +425,7 @@ export function SkyView({
         The horizon is the lowest thing the sky has, so it sits lowest, on the
         rail. Nothing floats under it.
       */}
-      <div className="sky-view__deck">
+      <div className="sky-view__deck" ref={dialRef}>
         {/*
           What to do about it, when the view is not following the phone.
 

@@ -415,6 +415,110 @@ async function main() {
     );
     await shot('compass-active');
 
+    /*
+     * A tablet held in landscape.
+     *
+     * Orientation events describe the device, not the page, so a rotated
+     * screen has to be corrected for. A phone hides this: it is used upright,
+     * so the correction is usually zero and being wrong about it costs
+     * nothing. A tablet lives in landscape, and there it is a ninety degree
+     * error in the heading.
+     *
+     * Beta near 180 is the device leaning right back, camera at the zenith,
+     * which is the whole use of this app. Near
+     * the zenith the look direction has almost no horizontal part left, so the
+     * heading leans on the screen's own up axis instead, and that axis is
+     * exactly the thing screen rotation moves.
+     *
+     * So: point it up, read the heading, rotate the screen, read it again. The
+     * two must differ by ninety degrees. If they agree, the app is not reading
+     * the rotation at all, which is the bug this exists for.
+     */
+    const POINTS = {
+      N: 0, NNE: 22.5, NE: 45, ENE: 67.5,
+      E: 90, ESE: 112.5, SE: 135, SSE: 157.5,
+      S: 180, SSW: 202.5, SW: 225, WSW: 247.5,
+      W: 270, WNW: 292.5, NW: 315, NNW: 337.5,
+    };
+
+    /*
+     * Read the dial, not the dialog.
+     *
+     * The dialog prints the compass heading of the device, which is a fact
+     * about the hardware and is the same whichever way the page is turned. The
+     * dial prints the bearing the chart is actually drawn to, which is the
+     * thing a rotated screen has to move and the thing somebody standing
+     * outside is looking at. Measuring the first would have called this fixed
+     * while the sky stayed ninety degrees out.
+     */
+    const headingPointedUp = async () => {
+      for (let i = 0; i < 14; i++) {
+        await evalPage('window.__emit(90, 180, 0)');
+        await sleep(60);
+      }
+      await sleep(700);
+      const point = await evalPage(
+        `document.querySelector('.horizon__point')?.innerText.trim() ?? ''`,
+      );
+      return POINTS[point.toUpperCase()];
+    };
+
+    const setScreenAngle = (angle) =>
+      evalPage(
+        `(() => {
+          Object.defineProperty(screen, 'orientation', {
+            value: { angle: ${angle}, type: 'landscape-primary' },
+            configurable: true,
+          });
+          return screen.orientation.angle;
+        })()`,
+      );
+
+    const upright = await headingPointedUp();
+    await setScreenAngle(90);
+    const rotated = await headingPointedUp();
+
+    const turned = (((rotated - upright) % 360) + 360) % 360;
+    /*
+     * A quarter turn, in whichever direction.
+     *
+     * That the rotation is read at all is the thing this can prove on a
+     * desktop, and it is the thing that was broken: without it the heading did
+     * not move by so much as a degree. Which way round it should turn is a
+     * question about a physical tablet, and asserting a sign from here would
+     * be inventing a fact rather than checking one. If somebody finds the sky
+     * mirrored on a real device, the fault is the sign in
+     * screenUpInDeviceFrame and this case will not catch it.
+     */
+    check(
+      'a rotated screen turns the heading by a quarter turn',
+      Math.abs(turned - 90) <= 12 || Math.abs(turned - 270) <= 12,
+      `${upright}\u00b0 upright, ${rotated}\u00b0 rotated, a difference of ${turned}\u00b0`,
+    );
+
+    /*
+     * And the same, on a browser with no screen.orientation at all.
+     *
+     * Safari came to that interface late, and iPadOS is where its absence
+     * matters. The legacy value it does expose counts the other way round, so
+     * this fails if the fallback forgets to negate it: the heading would come
+     * out ninety degrees wrong in the opposite direction and look like a fix.
+     */
+    await evalPage(
+      `(() => {
+        Object.defineProperty(screen, 'orientation', { value: undefined, configurable: true });
+        Object.defineProperty(window, 'orientation', { value: -90, configurable: true });
+        return true;
+      })()`,
+    );
+    const legacy = await headingPointedUp();
+    check(
+      'and the legacy iOS value is read, with its sign put right',
+      Math.abs((((legacy - rotated) % 360) + 360) % 360) <= 4 ||
+        Math.abs((((rotated - legacy) % 360) + 360) % 360) <= 4,
+      `${legacy}\u00b0 from window.orientation against ${rotated}\u00b0 from screen.orientation`,
+    );
+
     await call('Page.removeScriptToEvaluateOnNewDocument', { identifier });
 
     const errs = await evalPage(`JSON.stringify(window.__pageErrors || [])`);

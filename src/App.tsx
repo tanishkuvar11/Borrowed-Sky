@@ -147,6 +147,17 @@ export default function App() {
    * which resolves on its own within a second or two, and popping a dialog in
    * front of that would be a dialog for nothing.
    */
+  /*
+   * The bottom navigation, handed to the sky so labels keep clear of it.
+   *
+   * The canvas is full bleed and the rail sits over its bottom edge, so a star
+   * name placed there is drawn and then covered: Rigil Kentaurus was printing
+   * straight through the tab bar on a tablet in landscape. It lives out here
+   * rather than in SkyView, which is why it was the one piece of furniture the
+   * label placer could not see.
+   */
+  const railRef = useRef<HTMLElement>(null);
+
   const compassOffered = useRef(false);
   useEffect(() => {
     if (!entered || !site) return;
@@ -320,6 +331,7 @@ export default function App() {
       <main className={view === 'sky' ? 'app__main app__main--bleed' : 'app__main'}>
         {view === 'sky' && (
           <SkyView
+            railRef={railRef}
             catalog={sky.catalog}
             constellations={sky.constellations}
             bodies={sky.bodies}
@@ -421,7 +433,7 @@ export default function App() {
         </p>
       )}
 
-      <nav className="rail" aria-label="Views">
+      <nav className="rail" aria-label="Views" ref={railRef}>
         {VIEWS.slice(0, 2).map((item) => (
           <RailItem key={item.id} item={item} view={view} onSelect={setView} journal={journal} />
         ))}

@@ -3042,7 +3042,16 @@ button {
 
 /* --- wider screens ------------------------------------------------------- */
 
-@media (min-width: 760px) {
+/*
+ * Shape, not just width.
+ *
+ * This was keyed on width alone, so a tablet held upright took the wide
+ * layout: panels docked left and right of a frame that is taller than it is
+ * broad, leaving a column of dead space down the middle and the sky squeezed
+ * around it. A tall frame wants the phone arrangement however many pixels
+ * across it is, and 4:3 is the line between the two.
+ */
+@media (min-width: 760px) and (min-aspect-ratio: 4 / 3) {
   /*
    * On a wide frame the dossier docks to the right, opposite the object
    * column, so the two lists of readings bracket the sky instead of one of

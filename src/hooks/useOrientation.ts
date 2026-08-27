@@ -121,9 +121,35 @@ function reportStatus(status: OrientationStatus) {
   console.info(`[compass] ${status}: ${detail}`);
 }
 
+/**
+ * How far the page is rotated from the device's natural orientation.
+ *
+ * `screen.orientation` is the modern answer and the one to prefer. It is also
+ * the one Safari was late to, and a tablet is exactly where that matters: a
+ * phone is used upright, so a missing value costs nothing, while a tablet
+ * spends most of its life in landscape and a missing value there is a ninety
+ * degree error in the heading.
+ *
+ * The fallback is `window.orientation`, which iOS has had all along. It counts
+ * the other way round, so it is negated rather than used as it stands. That
+ * sign is the whole reason this is a function with a comment instead of a
+ * one-line default: using the legacy value directly would turn a compass that
+ * is ninety degrees out into one that is ninety degrees out the other way, and
+ * look like a fix.
+ */
+function screenAngleDegrees(): number {
+  const modern = screen.orientation?.angle;
+  if (typeof modern === 'number') return modern;
+
+  const legacy = (window as unknown as { orientation?: number }).orientation;
+  if (typeof legacy === 'number') return ((-legacy % 360) + 360) % 360;
+
+  return 0;
+}
+
 /** Screen-space "up" expressed in device axes, for the current screen rotation. */
 function screenUpInDeviceFrame(): [number, number, number] {
-  const angle = (screen.orientation?.angle ?? 0) * DEG;
+  const angle = screenAngleDegrees() * DEG;
   return [Math.sin(angle), Math.cos(angle), 0];
 }
 
