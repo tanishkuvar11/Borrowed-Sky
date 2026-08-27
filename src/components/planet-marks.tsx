@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 /**
  * Portraits of the bodies the app can show, from photographs.
  *
@@ -79,7 +81,27 @@ function PointMark({ size }: { size: number }) {
 function MoonMark({ size, illuminated }: { size: number; illuminated: number }) {
   const lit = Math.max(0, Math.min(1, illuminated));
   const rx = Math.abs(1 - 2 * lit) * 24;
-  const sweep = lit > 0.5 ? 0 : 1;
+
+  /*
+   * Which way the terminator bows, and it was the wrong way round.
+   *
+   * A full Moon drew as a black disc and a new Moon drew as a full one, with
+   * the correct fraction printed underneath it in words. The canvas version of
+   * this, in SkyCanvas, has had the sweep right all along, so the object
+   * column and the sky disagreed about the same night.
+   */
+  const sweep = lit > 0.5 ? 1 : 0;
+
+  /*
+   * An id of this mark's own.
+   *
+   * It was a fixed literal, and ids are document-global, so with
+   * more than one Moon on the page every reference to it resolved to whichever
+   * clip path the browser met first and all of them wore the same phase. Two
+   * Moons is not hypothetical here: the object column and the dossier can be
+   * open at once.
+   */
+  const clipId = useId();
 
   return (
     <svg
@@ -91,7 +113,7 @@ function MoonMark({ size, illuminated }: { size: number; illuminated: number }) 
       focusable="false"
     >
       <defs>
-        <clipPath id="moon-lit">
+        <clipPath id={clipId}>
           <path d={`M24 0 A 24 24 0 0 1 24 48 A ${rx} 24 0 0 ${sweep} 24 0 Z`} />
         </clipPath>
       </defs>
@@ -103,7 +125,7 @@ function MoonMark({ size, illuminated }: { size: number; illuminated: number }) 
         y="0"
         width="48"
         height="48"
-        clipPath="url(#moon-lit)"
+        clipPath={`url(#${clipId})`}
         preserveAspectRatio="xMidYMid meet"
       />
     </svg>
