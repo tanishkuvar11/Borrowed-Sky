@@ -34,11 +34,30 @@ interface Sample {
   sensorSource: string;
   absolute: string;
   sky: string;
+  /*
+   * The raw compass, and the screen rotation it has to be corrected by.
+   *
+   * These were the missing rows. Everything above describes how hard the
+   * device is working; none of it says what the compass is actually reporting,
+   * which is the only thing that matters when the sky points the wrong way.
+   */
+  angle: string;
+  euler: string;
+  trueHeading: string;
 }
 
 export function Diagnostics() {
   const [sample, setSample] = useState<Sample | null>(null);
-  const sensorRef = useRef({ count: 0, absolute: 'none', source: 'none' });
+  const sensorRef = useRef({
+    count: 0,
+    absolute: 'none',
+    source: 'none',
+    alpha: null as number | null,
+    beta: null as number | null,
+    gamma: null as number | null,
+    heading: null as number | null,
+    accuracy: null as number | null,
+  });
 
   useEffect(() => {
     /*
@@ -58,6 +77,13 @@ export function Diagnostics() {
           : e.absolute
             ? 'yes'
             : 'no (relative)';
+      sensorRef.current.alpha = e.alpha;
+      sensorRef.current.beta = e.beta;
+      sensorRef.current.gamma = e.gamma;
+      sensorRef.current.heading =
+        typeof e.webkitCompassHeading === 'number' ? e.webkitCompassHeading : null;
+      const acc = (e as { webkitCompassAccuracy?: number }).webkitCompassAccuracy;
+      sensorRef.current.accuracy = typeof acc === 'number' ? acc : null;
     };
     window.addEventListener('deviceorientation', onEvent);
     const hasAbsolute = 'ondeviceorientationabsolute' in window;
@@ -95,6 +121,27 @@ export function Diagnostics() {
         sensorSource: sensorRef.current.source,
         absolute: sensorRef.current.absolute,
         sky: `${window.innerWidth}x${window.innerHeight}`,
+        angle: (() => {
+          const modern = screen.orientation?.angle;
+          const legacy = (window as unknown as { orientation?: number }).orientation;
+          const used =
+            typeof modern === 'number'
+              ? `${modern} (screen.orientation)`
+              : typeof legacy === 'number'
+                ? `${((-legacy % 360) + 360) % 360} (window.orientation ${legacy})`
+                : '0 (NEITHER AVAILABLE)';
+          return used;
+        })(),
+        euler: (() => {
+          const r = sensorRef.current;
+          const n = (v: number | null) => (v === null ? '-' : v.toFixed(0));
+          return `a ${n(r.alpha)}  b ${n(r.beta)}  g ${n(r.gamma)}`;
+        })(),
+        trueHeading: (() => {
+          const r = sensorRef.current;
+          if (r.heading === null) return 'NONE (no webkitCompassHeading)';
+          return `${r.heading.toFixed(0)}  +/- ${r.accuracy === null ? '?' : r.accuracy}`;
+        })(),
       });
 
       windowStart = now;
@@ -130,6 +177,10 @@ export function Diagnostics() {
     ['viewport', `${sample.sky}   phone css: ${sample.phoneCss ? 'ON' : 'OFF'}`],
     ['sensor', `${sample.sensorHz} Hz   ${sample.sensorSource}`],
     ['north ref', sample.absolute],
+    ['screen', sample.angle],
+    ['euler', sample.euler],
+    ['heading', sample.trueHeading],
+    ['dial', document.querySelector('.horizon__point')?.textContent?.trim() ?? '-'],
   ];
 
   return (
