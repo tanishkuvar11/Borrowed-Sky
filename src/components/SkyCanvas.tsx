@@ -293,9 +293,9 @@ const DAY_PALETTE: SkyPalette = {
    * out and the fainter objects go with them. This is as far up as the type
    * survives, which reads as day without costing the instrument its legibility.
    */
-  skyTopDay: [46, 78, 140],
+  skyTopDay: [24, 44, 96],
   skyBottom: [16, 12, 32],
-  skyBottomDay: [120, 140, 185],
+  skyBottomDay: [86, 96, 150],
   grid: 'rgba(201, 162, 39, 0.13)',
   // Opaque on purpose: the ground has to stop the galactic band dead, or the
   // sky appears to continue through the earth.
@@ -346,11 +346,9 @@ const DAY_PALETTE: SkyPalette = {
 
 const NIGHT_PALETTE: SkyPalette = {
   skyTop: [8, 1, 1],
-  // Lifted by the same proportion as the daylight palette above, so red mode
-  // tells the same story about the time of day as the ordinary one.
-  skyTopDay: [88, 12, 8],
+  skyTopDay: [46, 6, 4],
   skyBottom: [16, 3, 2],
-  skyBottomDay: [112, 22, 15],
+  skyBottomDay: [78, 14, 10],
   grid: 'rgba(255, 106, 77, 0.13)',
   ground: 'rgb(5, 0, 0)',
   horizonHaze: 'rgba(8, 1, 1, 0.6)',
@@ -498,21 +496,7 @@ export function SkyCanvas({
      * glow, and neither has detail that a fraction of a pixel was carrying.
      */
     const MAX_RATIO = Math.min(window.devicePixelRatio || 1, 2);
-    /*
-     * How soft the sky is allowed to get in exchange for keeping up.
-     *
-     * This was one, meaning a retina device in trouble fell all the way to a
-     * quarter of its pixels, and on a tablet that is visible: the planets are
-     * photographs a few tens of pixels across, and at that ratio they block up
-     * and read as badly resized rather than small.
-     *
-     * Three quarters keeps a bit over half the pixels, which is most of the
-     * saving with much less of the cost to the one thing in this scene that
-     * carries real detail. A device that still cannot hold the frame rate at
-     * this floor is one this scene was never going to satisfy, and softening
-     * it further only makes it worse in both directions at once.
-     */
-    const MIN_RATIO = 1.5;
+    const MIN_RATIO = 1;
     let ratio = MAX_RATIO;
 
     const resize = () => {
@@ -2318,16 +2302,6 @@ function drawStarHighlights(
   const pixelScale = Math.max(0.75, Math.min(1.6, radius / 320));
   const visibility = starVisibility(conditions);
 
-  /*
-   * How much the sky is working against the type.
-   *
-   * A star's name is a pale warm grey, which separates cleanly from a night
-   * sky and sinks into a daylit one. Rather than darken the sky back down, or
-   * keep a second colour for daytime, the label carries its own contrast: no
-   * halo at all at night, where there is nothing to separate from, and its
-   * strongest at noon.
-   */
-  const glare = 1 - darknessFactor(conditions);
 
   const bright: { x: number; y: number; r: number; index: number; airmass: number }[] = [];
   const vectors = catalog.vectors;
@@ -2422,12 +2396,7 @@ function drawStarHighlights(
     const w = ctx.measureText(name).width;
     if (claimLabel(lx, star.y - 6, w, 12)) {
       ctx.fillStyle = palette.starLabel;
-      if (glare > 0.02) {
-        ctx.shadowColor = `rgba(4, 8, 22, ${(0.85 * glare).toFixed(3)})`;
-        ctx.shadowBlur = 4;
-      }
       ctx.fillText(name, lx, star.y);
-      ctx.shadowBlur = 0;
     }
   }
   ctx.restore();

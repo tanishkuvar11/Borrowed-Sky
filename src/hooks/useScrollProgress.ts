@@ -43,21 +43,8 @@ export function useScrollProgress(ref: RefObject<HTMLElement | null>): number {
       // bottom. Guard the zero case: a short page would divide by nothing.
       const travel = rect.height - window.innerHeight;
       const next = travel <= 0 ? 0 : Math.min(1, Math.max(0, -rect.top / travel));
-      /*
-       * How much scrolling is worth a redraw.
-       *
-       * Every change here rebuilds the whole scene: the camera has moved, so
-       * the cached frame is stale and five thousand stars are reprojected. At
-       * a twentieth of this the page was rebuilding on scroll noise finer than
-       * the movement it produced, which a phone absorbs and a tablet does not,
-       * having about two and a half times the pixels to fill.
-       *
-       * Measured on an 834 by 1194 frame, scrolled end to end: the ninety
-       * fifth percentile frame went from 83 ms to 50 ms. Wider than this the
-       * gain flattens and the sky starts to pan in visible steps, which trades
-       * a stutter for a judder.
-       */
-      if (Math.abs(next - last.current) < 0.002) return;
+      // Sub-pixel scroll noise would rerender for no visible change.
+      if (Math.abs(next - last.current) < 0.0005) return;
       last.current = next;
       setProgress(next);
     };
