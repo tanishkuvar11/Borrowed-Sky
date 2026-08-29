@@ -501,6 +501,28 @@ export function SkyCanvas({
     const MIN_RATIO = 1;
     let ratio = MAX_RATIO;
 
+    /*
+     * Frames to throw away before believing any of them.
+     *
+     * The first frames this canvas ever draws are the most expensive it will
+     * ever draw, and none of the cost is the sky: the star catalogue is still
+     * being walked into its buckets, every gradient and ramp cache is still
+     * empty, and React is still committing the rest of the screen around us.
+     * Measuring there and taking the median as the machine's verdict on itself
+     * meant a capable laptop opened sharp, spent its first two dozen frames
+     * paying startup costs, and got read as struggling — so the ladder dropped
+     * a rung or three at about the half-second mark and the sky visibly went
+     * soft in front of you. Climbing back is deliberately slow, six good runs
+     * per quarter rung, so that misread cost ten seconds of blur to undo.
+     *
+     * Also re-armed on every resize, including the ladder's own. Reallocating
+     * the backing store makes the next frame atypical too, and a rung should
+     * be judged on how it actually runs rather than on the cost of moving to
+     * it.
+     */
+    const WARMUP_FRAMES = 30;
+    let warmup = WARMUP_FRAMES;
+
     const resize = () => {
       dpr = ratio;
       const rect = canvas.getBoundingClientRect();
@@ -508,6 +530,7 @@ export function SkyCanvas({
       height = rect.height;
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
+      warmup = WARMUP_FRAMES;
     };
 
     resize();
@@ -529,6 +552,12 @@ export function SkyCanvas({
     let fastRuns = 0;
 
     const pace = (now: number) => {
+      if (warmup > 0) {
+        warmup -= 1;
+        lastFrameAt = now;
+        intervals.length = 0;
+        return;
+      }
       if (lastFrameAt) intervals.push(now - lastFrameAt);
       lastFrameAt = now;
       if (intervals.length < 24) return;

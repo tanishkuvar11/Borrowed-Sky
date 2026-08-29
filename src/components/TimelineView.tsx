@@ -156,7 +156,28 @@ export function TimelineView({
    * only a crowded one grows.
    */
   const lanesTop = Math.max(62, 44 + (rowEnds.length - 1) * MOMENT_ROW_HEIGHT);
-  const stripHeight = 210 + (lanesTop - 62);
+
+  /*
+   * The lanes are what makes the strip tall, so measure it from them rather
+   * than from a number that happened to fit the night it was written on. 210px
+   * was four lanes plus the clearance the 'now' label needs beneath them, and
+   * a fifth lane is not an exotic night: the Moon, two or three planets and a
+   * station pass all clearing the horizon is most of them. That fifth lane ran
+   * sixteen pixels past the bottom, where overflow-y: hidden on the frame cut
+   * it in half.
+   *
+   * Lane height and gap are the stylesheet values restated. Measuring the laid
+   * out lanes instead would mean a second pass over the strip to recover two
+   * numbers that are constants a few lines apart in the CSS.
+   */
+  const LANE_HEIGHT = 28;
+  const LANE_GAP = 6;
+  const LANE_FOOT = 18;
+  const stripHeight =
+    lanesTop +
+    lanes.length * LANE_HEIGHT +
+    Math.max(0, lanes.length - 1) * LANE_GAP +
+    LANE_FOOT;
 
   const gradient = timeline.sunTrack.length
     ? `linear-gradient(90deg, ${timeline.sunTrack

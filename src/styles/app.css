@@ -3078,9 +3078,6 @@ button {
     right: auto;
     max-width: 24rem;
   }
-  .strip__inner {
-    height: 240px;
-  }
 }
 
 /* --- the sky screen on a phone ------------------------------------------- */
