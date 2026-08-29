@@ -421,6 +421,23 @@ export async function askGuide(options: {
 
   try {
     for (let round = 0; round < MAX_ROUNDS; round++) {
+      /*
+       * The last round is asked without the functions, deliberately.
+       *
+       * A model that can call a function will keep calling functions, and the
+       * small Granites are especially prone to it: look something up, look the
+       * next thing up, look the first thing up again. Three rounds of that and
+       * the loop fell out of the bottom with a transcript full of good tool
+       * results and nothing written from them, which is the whole of 'the AI
+       * guide did not settle on an answer' — the guide had settled on plenty,
+       * it had just never been made to say any of it.
+       *
+       * Taking the functions away on the final pass turns that dead end into
+       * an answer. Everything already looked up is still in the transcript, so
+       * the model is not being asked to guess; it is being told that this is
+       * the turn where it writes the answer out of what it has.
+       */
+      const offerTools = tools && round < MAX_ROUNDS - 1;
       const res = await fetch('api/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -428,7 +445,7 @@ export async function askGuide(options: {
           skyContext,
           tone,
           question,
-          ...(tools ? { tools: tools.declarations } : {}),
+          ...(offerTools ? { tools: tools.declarations } : {}),
           ...(sources?.length ? { sources } : {}),
           ...(transcript.length ? { transcript } : {}),
         }),
