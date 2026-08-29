@@ -18,7 +18,6 @@ import {
   type Tone,
 } from '../lib/ai';
 import { compassPoint, heightInWords } from '../lib/astro/satellites';
-import { BODY_FACTS } from '../lib/astro/solar';
 import { funFactFor, type Fact } from '../lib/facts';
 import type { ObserverSite, SkyBody, SkyConditions } from '../lib/astro/types';
 import type { TonightTimeline } from '../lib/astro/events';
@@ -44,78 +43,6 @@ const KIND_LABEL: Record<string, string> = {
   sun: 'Star: our own',
   satellite: 'Satellite',
 };
-
-/**
- * The colour a spectral class actually looks to the eye.
- *
- * The leading letter is the temperature sequence, and it is the one part of a
- * spectral type a person can check by looking up at the thing. The rest of the
- * string is left alone rather than half translated.
- */
-const SPECTRAL_COLOUR: Record<string, string> = {
-  O: 'blue',
-  B: 'blue-white',
-  A: 'white',
-  F: 'yellow-white',
-  G: 'yellow',
-  K: 'orange',
-  M: 'red',
-};
-
-/**
- * What this thing is, before anything about where it is.
- *
- * The panel opened with a position: "MSAT-2 is forty degrees up in the west".
- * That answers the second question. Somebody who has just tapped an unfamiliar
- * point of light is asking what it is, and this app is built for the person
- * who does not already know, so that now comes first and the readings follow.
- *
- * Everything here comes from the same computed record the rest of the panel
- * prints. Where a fact is not known the sentence says less rather than
- * guessing: an unrecognised satellite is called a satellite, which is true and
- * useful, instead of being given a purpose it may not have.
- */
-export function identityLine(body: SkyBody): string | null {
-  if (body.kind === 'satellite') {
-    const known = /ISS|ZARYA/i.test(body.name)
-      ? 'The International Space Station, with people living aboard it'
-      : /CSS|TIANGONG/i.test(body.name)
-        ? 'The Tiangong space station, with people living aboard it'
-        : 'A satellite in orbit around the Earth, put there by people';
-    const height = body.heightKm ? `, about ${Math.round(body.heightKm)} km up` : '';
-    return `${known}${height}.`;
-  }
-
-  if (body.kind === 'star') {
-    const spectral = body.spectralType?.trim() ?? '';
-    const colour = SPECTRAL_COLOUR[spectral.charAt(0).toUpperCase()];
-
-    /*
-     * The luminosity class, read off the end rather than searched for.
-     *
-     * A first attempt tested for the numerals anywhere in the string, which
-     * called Antares an ordinary red star: its type is M1.5Iab, and a pattern
-     * that allowed only one letter after the I did not reach the b. Matching
-     * the whole trailing class instead handles Ia, Iab and Ib together, and
-     * keeps III from being read as an I with something after it.
-     */
-    const luminosity = /(I{1,3}|IV|V)(?:ab|a|b)?$/.exec(spectral)?.[1] ?? '';
-    const size =
-      luminosity === 'I' ? ' supergiant' : luminosity === 'II' || luminosity === 'III' ? ' giant' : '';
-
-    // "An orange giant" rather than "a orange giant".
-    const article = colour && /^[aeiou]/i.test(colour) ? 'An' : 'A';
-    const what = colour ? `${article} ${colour}${size} star` : 'A star';
-    const where = body.constellation ? ` in ${body.constellation}` : '';
-    const far =
-      body.distance && body.distance.unit === 'ly'
-        ? `, about ${Math.round(body.distance.value)} light years away`
-        : '';
-    return `${what}${where}${far}. A sun of its own, far outside the Solar System.`;
-  }
-
-  return BODY_FACTS[body.name] ?? null;
-}
 
 function formatDistance(body: SkyBody): string | null {
   if (!body.distance) return null;
@@ -262,8 +189,6 @@ export function ObjectSheet({
   const distance = formatDistance(body);
   const belowHorizon = body.altitude < 0;
 
-  const identity = identityLine(body);
-
   return (
     <aside className="sheet" role="dialog" aria-label={`About ${body.name}`}>
       <header className="sheet__head">
@@ -284,8 +209,6 @@ export function ObjectSheet({
           ✕
         </button>
       </header>
-
-      {identity && <p className="sheet__identity">{identity}</p>}
 
       <p className="sheet__where">
         {belowHorizon ? (

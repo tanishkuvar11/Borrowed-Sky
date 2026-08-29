@@ -144,7 +144,6 @@ npm run verify:ui   # 5 headless-Chrome passes over the real app
 | Timeline | Svalbard in midsummer, where the answer is "no darkness tonight" | four latitudes |
 | The sky model | held-out observations it never saw | **8.3%** better than a constant |
 | The guide, with watsonx failing | six ways it can fail, including hanging | answers from the computed sky every time |
-| Granite calling back into the app | a question only a lookup can answer | called `rise_set` and `where_is`, answered in **6s** |
 
 What each check covers and why several of them exist: **[docs/VERIFICATION.md](docs/VERIFICATION.md)**
 
