@@ -606,7 +606,32 @@ export function createSkyToolset(ctx: SkyToolContext): SkyToolset {
       let args: Record<string, unknown> = {};
       if (argumentsJson) {
         try {
-          const parsed = JSON.parse(argumentsJson);
+          /*
+           * Unwrapped, because the arguments arrive encoded twice.
+           *
+           * granite-4-h-small hands back `"{
+ \"name\": \"Tiangong\"
+}"`:
+           * the object serialised, and then that string serialised again. One
+           * parse of it yields a string rather than an object, which failed the
+           * typeof test below, so `args` stayed empty and every lookup ran with
+           * no arguments at all. The tool then refused for want of a name, the
+           * model read the refusal and tried again, and the rounds ran out — a
+           * guide that looked like it was answering nothing while it was in
+           * fact being asked nothing.
+           *
+           * Bounded, and each step is allowed to fail without discarding what
+           * the step before it produced. A string that is simply a string stops
+           * the loop rather than erroring it.
+           */
+          let parsed: unknown = JSON.parse(argumentsJson);
+          for (let depth = 0; depth < 3 && typeof parsed === 'string'; depth++) {
+            try {
+              parsed = JSON.parse(parsed);
+            } catch {
+              break;
+            }
+          }
           if (parsed && typeof parsed === 'object') args = parsed as Record<string, unknown>;
         } catch {
           /*
