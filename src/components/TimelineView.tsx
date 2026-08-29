@@ -112,12 +112,63 @@ export function TimelineView({
   const xFor = (date: Date) =>
     ((date.getTime() - timeline.from.getTime()) / 3_600_000) * PIXELS_PER_HOUR;
 
+  /*
+   * What a window actually occupies, which is not always its bar.
+   *
+   * A four-minute station pass is a ten-pixel bar carrying a two-hundred-pixel
+   * name, and that name is rendered *outside* the bar — see .bar--narrow, which
+   * hangs the label off one end. Packing lanes by the bars alone therefore put
+   * Jupiter into the lane beside Tiangong because their bars cleared each other
+   * by eight pixels, and printed the two names straight through one another.
+   *
+   * So each window is placed once, here, and the lane packer is given the span
+   * of everything that will be drawn for it rather than the span of its bar.
+   * The render below reads these back instead of deriving them a second time,
+   * because the packer and the renderer disagreeing about where a label sits is
+   * exactly the bug this is fixing.
+   */
+  const LABEL_CHAR_WIDTH = 9.5;
+  const LABEL_GAP = 6;
+  const NARROW_BAR = 76;
+
+  interface PlacedSpan {
+    span: TimelineSpan;
+    left: number;
+    barWidth: number;
+    narrow: boolean;
+    before: boolean;
+    from: number;
+    to: number;
+  }
+
+  const placed: PlacedSpan[] = timeline.spans.map((span) => {
+    const left = xFor(span.start);
+    const barWidth = Math.max(10, xFor(span.end) - left);
+    // A short pass is only a few pixels wide, so its name goes beside the bar
+    // rather than being clipped inside it...
+    const narrow = barWidth < NARROW_BAR;
+    // ...and on whichever side of it there is room. Late in the night a short
+    // pass sits near the end of the scrollable content, where a name hung off
+    // its right ran past the end and was clipped away entirely.
+    const before = narrow && left + barWidth > width - 120;
+    const labelWidth = span.name.length * LABEL_CHAR_WIDTH;
+    return {
+      span,
+      left,
+      barWidth,
+      narrow,
+      before,
+      from: narrow && before ? left - LABEL_GAP - labelWidth : left,
+      to: narrow && !before ? left + barWidth + LABEL_GAP + labelWidth : left + barWidth,
+    };
+  });
+
   // Give each object its own lane so overlapping windows stay readable.
-  const lanes: TimelineSpan[][] = [];
-  for (const span of timeline.spans) {
-    const lane = lanes.find((l) => l.every((s) => xFor(s.end) + 8 < xFor(span.start) || xFor(span.end) + 8 < xFor(s.start)));
-    if (lane) lane.push(span);
-    else lanes.push([span]);
+  const lanes: PlacedSpan[][] = [];
+  for (const item of placed) {
+    const lane = lanes.find((l) => l.every((o) => o.to + 8 < item.from || item.to + 8 < o.from));
+    if (lane) lane.push(item);
+    else lanes.push([item]);
   }
 
   /*
@@ -137,8 +188,15 @@ export function TimelineView({
    * are not equal: a label given more room than it needs drops to the next row
    * slightly earlier than it had to, which nobody can see, while one given too
    * little goes straight back to overlapping.
+   *
+   * Eight pixels a character was not generous, it was short. These are set in
+   * Unbounded — a wide display face — at eleven pixels with letter-spacing on
+   * top, where the real average advance is nearer nine and a half. 'Sky starts
+   * to brighten' was being booked at 181px against the 198px it actually takes,
+   * so Moonset was told there was room beside it on the row and landed close
+   * enough to read as part of the same phrase.
    */
-  const MOMENT_CHAR_WIDTH = 8;
+  const MOMENT_CHAR_WIDTH = LABEL_CHAR_WIDTH;
   const MOMENT_ROW_HEIGHT = 13;
   const rowEnds: number[] = [];
   const momentPlacements = timeline.moments.map((moment) => {
@@ -263,17 +321,7 @@ export function TimelineView({
           <div className="strip__lanes" style={{ top: lanesTop }}>
             {lanes.map((lane, laneIndex) => (
               <div className="strip__lane" key={laneIndex}>
-                {lane.map((span) => {
-                  const left = xFor(span.start);
-                  const barWidth = Math.max(10, xFor(span.end) - left);
-                  // A four-minute station pass is only a few pixels wide, so its
-                  // name goes beside the bar rather than being clipped inside it.
-                  const narrow = barWidth < 76;
-                  // ...and on whichever side of it there is room. Late in the
-                  // night a short pass sits near the end of the scrollable
-                  // content, where a name hung off its right ran past the end
-                  // and was clipped away entirely.
-                  const before = narrow && left + barWidth > width - 120;
+                {lane.map(({ span, left, barWidth, narrow, before }) => {
                   return (
                     <button
                       key={span.id}

@@ -544,8 +544,20 @@ export function SkyCanvas({
      * switch should not be able to talk the renderer into dropping quality,
      * and a run of consecutive verdicts is required on top of that. The
      * thresholds leave a wide dead band between them: stepping down at worse
-     * than about 42fps and up at better than about 55 means the two decisions
+     * than about 30fps and up at better than about 50 means the two decisions
      * cannot chase each other.
+     *
+     * Those two numbers used to be 42 and 55, and 42 was the wrong place to
+     * give up. Anything short of a locked 60 was read as trouble, so an
+     * ordinary laptop holding a perfectly comfortable 45 traded the whole
+     * sky's sharpness for frames nobody had asked for — on a screen whose
+     * entire subject is fine points of light, which is the one thing that
+     * does not survive being resampled. Softening is now reserved for a
+     * frame rate you can actually see stuttering.
+     *
+     * The climb-back moved with it. Coming up only below 17ms while going
+     * down above 22 left a machine sitting at 20 stranded: soft, and never
+     * fast enough by its own measure to earn its resolution back.
      */
     const intervals: number[] = [];
     let lastFrameAt = 0;
@@ -566,7 +578,7 @@ export function SkyCanvas({
       const median = sorted[sorted.length >> 1];
       intervals.length = 0;
 
-      if (median > 22 && ratio > MIN_RATIO) {
+      if (median > 34 && ratio > MIN_RATIO) {
         /*
          * Down at once, and by however much is needed.
          *
@@ -585,7 +597,7 @@ export function SkyCanvas({
         ratio = Math.max(MIN_RATIO, ratio - (over > 2.5 ? 0.75 : over > 1.6 ? 0.5 : 0.25));
         fastRuns = 0;
         resize();
-      } else if (median < 17 && ratio < MAX_RATIO) {
+      } else if (median < 20 && ratio < MAX_RATIO) {
         fastRuns += 1;
         // Slower to climb than to fall. Being briefly soft is a much smaller
         // fault than oscillating between sharp and soft every second.
