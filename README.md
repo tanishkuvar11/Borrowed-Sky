@@ -100,8 +100,6 @@ Bob made two calls better than the brief. It kept timestamps out of the pool of 
 
 > **The finding this project is proudest of.** The Globe at Night export has its timezone offsets applied backwards. Derive a Sun altitude from the published UT columns and **53.1%** of naked-eye star chart observations land in daylight, which cannot happen. Derive it from the local clock and the longitude and that falls to **7.7%**. Half the training set was wrong by twelve hours, so the Sun coefficient was fitted through noise and came out near zero. Anyone fitting anything to that dataset needs to know.
 
-The version that ships was written outside Bob. What changed was not the arithmetic but the shape.
-
 The development record in full: **[docs/ENGINEERING-LOG.md](docs/ENGINEERING-LOG.md)**
 
 ---

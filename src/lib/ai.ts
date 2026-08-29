@@ -140,9 +140,9 @@ function toContextObject(body: SkyBody): ContextObject {
 /*
  * Four numbers chosen by hand, and what happened when they were replaced.
  *
- * A model was fitted to 170,000 Globe at Night observations, which are people
- * standing outside since 2006 reporting which star chart matched what they
- * could see. It learned a light pollution term and a Moon term, both of which
+ * A model was fitted to 121,998 Globe at Night observations, with 21,530 more
+ * held back to test it, which are people standing outside since 2006 reporting
+ * which star chart matched what they could see. It learned a light pollution term and a Moon term, both of which
  * this has never had, and on held-out data it was about eight per cent better
  * than predicting a constant. That part was real.
  *

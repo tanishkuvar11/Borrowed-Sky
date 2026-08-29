@@ -153,7 +153,7 @@ export function SettingsSheet({
           </button>
         </div>
         <p className="provenance">
-          The chart normally allows for moonlight and local light pollution, fitted to 170,000 Globe
+          The chart normally allows for moonlight and local light pollution, fitted to 143,528 Globe
           at Night observations. Switching it off draws every star the older thresholds would have
           shown.
         </p>

@@ -60,7 +60,7 @@ A satellite overhead is invisible if it is in Earth's shadow. A planet above the
 
 So the app models all three conditions and reports them separately: a pass is only *visible* when the satellite is sunlit **and** the observer's sky is dark **and** it clears 10° of altitude. Satellites currently in eclipse are drawn with a marker that says so.
 
-The same question about stars is what [the sky model](#machine-learning-a-sky-model-fitted-to-170000-human-observations) answers. Being above the horizon on a moonlit night in a city is not the same as being visible from there, and that difference was the one thing the app used to guess at.
+The same question about stars is what [the sky model](../README.md#machine-learning-a-sky-model-fitted-to-143528-human-observations) answers. Being above the horizon on a moonlit night in a city is not the same as being visible from there, and that difference was the one thing the app used to guess at.
 
 
 ---
