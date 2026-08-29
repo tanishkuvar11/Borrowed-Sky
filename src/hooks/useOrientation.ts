@@ -506,10 +506,24 @@ export function useOrientation(): OrientationReading & {
        */
       const accuracy =
         typeof ios.webkitCompassAccuracy === 'number' ? ios.webkitCompassAccuracy : null;
+      /*
+       * How wrong the heading is allowed to admit to being.
+       *
+       * A negative accuracy is iOS saying the reading is invalid, and that was
+       * already refused. It also reports a number, and a tablet was seen
+       * reporting a heading of 262 with an accuracy of plus or minus 180: a
+       * value that spans the entire circle and therefore says nothing at all,
+       * while the app treated it as a true north reference and pointed the sky
+       * with it.
+       *
+       * Ninety is the line. A compass that cannot place north within a quadrant
+       * cannot orient a sky, and saying so leaves the person in manual mode,
+       * which is honest and usable, rather than in a confidently wrong one.
+       */
       const headingUsable =
         typeof ios.webkitCompassHeading === 'number' &&
         !Number.isNaN(ios.webkitCompassHeading) &&
-        !(accuracy !== null && accuracy < 0);
+        !(accuracy !== null && (accuracy < 0 || accuracy > 90));
 
       if (headingUsable) {
         alphaDeg = 360 - (ios.webkitCompassHeading as number);

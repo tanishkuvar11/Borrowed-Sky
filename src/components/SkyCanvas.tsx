@@ -498,26 +498,27 @@ export function SkyCanvas({
     const MAX_RATIO = Math.min(window.devicePixelRatio || 1, 2);
 
     /*
-     * How far down it may step, which depends on how far up it started.
+     * The ratios it is allowed to use, and why it is a list rather than a slide.
      *
-     * Stepping down trades sharpness for frame rate, and that trade is only
-     * worth making when there is real sharpness to spend. A retina screen at a
-     * ratio of two has pixels to spare: halving it saves three quarters of the
-     * fill and lands on a clean two-to-one mapping the eye reads as slightly
-     * soft.
+     * Stepping down trades sharpness for frame rate, and it used to do that by
+     * arithmetic: subtract a quarter, a half, three quarters. On a screen at a
+     * ratio of two that produces 1.75, 1.5, 1.25, none of which divide into two.
+     * The canvas is then drawn at one size and stretched to another by a
+     * fraction, and a fractional resample is the blurriest thing this renderer
+     * can do. A tablet sitting at 1.5 was drawing 1230 pixels across and
+     * showing them on 1640, and it was reported, correctly, as everything
+     * looking pixelated, text included, since the labels share that buffer.
      *
-     * A screen at 1.25, which is what Windows at 125 per cent gives you, has
-     * nothing to spare. Dropping it to one saves a third of the fill and
-     * smears every canvas pixel across one and a quarter screen pixels, and a
-     * fractional upscale like that is the blurriest thing this renderer can
-     * produce. It was reported as pixelated text, which is exactly what it is:
-     * the labels are drawn into the same buffer as the sky.
+     * So the ladder has two rungs and both of them map cleanly: full, and half.
+     * Half of two is one, which is an honest two-to-one and reads as slightly
+     * soft rather than smeared.
      *
-     * So a display that is barely above one is left alone. If it cannot hold
-     * the frame rate it keeps a sharp picture and a slower one, because the
-     * alternative was giving up the picture and most of the stutter as well.
+     * A display barely above one has no rung to fall to. Halving 1.25 would be
+     * 0.625, far worse than the stutter it was meant to cure, so those keep
+     * one rung and stay sharp at whatever rate they manage.
      */
-    const MIN_RATIO = MAX_RATIO <= 1.5 ? MAX_RATIO : 1;
+    const RATIOS = MAX_RATIO > 1.5 ? [MAX_RATIO, MAX_RATIO / 2] : [MAX_RATIO];
+    const MIN_RATIO = RATIOS[RATIOS.length - 1];
     let ratio = MAX_RATIO;
 
     const resize = () => {
@@ -571,8 +572,8 @@ export function SkyCanvas({
          * machine that is badly behind lands near the bottom immediately
          * instead of walking there.
          */
-        const over = median / 16.7;
-        ratio = Math.max(MIN_RATIO, ratio - (over > 2.5 ? 0.75 : over > 1.6 ? 0.5 : 0.25));
+        // Down a rung. There is only ever one below full, so this lands there.
+        ratio = MIN_RATIO;
         fastRuns = 0;
         resize();
       } else if (median < 17 && ratio < MAX_RATIO) {
@@ -581,7 +582,8 @@ export function SkyCanvas({
         // fault than oscillating between sharp and soft every second.
         if (fastRuns >= 6) {
           fastRuns = 0;
-          ratio = Math.min(MAX_RATIO, ratio + 0.25);
+          // Back up a rung, which is straight to full: the only step there is.
+          ratio = MAX_RATIO;
           resize();
         }
       } else {

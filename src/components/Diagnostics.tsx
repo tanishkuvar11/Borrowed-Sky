@@ -181,7 +181,12 @@ export function Diagnostics() {
     ['screen', sample.angle],
     ['euler', sample.euler],
     ['heading', sample.trueHeading],
-    ['trusted', sample.absolute === 'ios compass' && sample.trueHeading.includes('/- -') ? 'NO (accuracy negative)' : 'yes'],
+    ['trusted', (() => {
+      const m = /\/- (-?\d+)/.exec(sample.trueHeading);
+      if (!m) return sample.absolute === 'ios compass' ? 'no reading' : 'n/a';
+      const acc = Number(m[1]);
+      return acc < 0 ? 'NO (invalid)' : acc > 90 ? `NO (+/- ${acc} is the whole circle)` : 'yes';
+    })()],
     ['dial', document.querySelector('.horizon__point')?.textContent?.trim() ?? '-'],
   ];
 
