@@ -402,7 +402,16 @@ assert(
 assert(
   12,
   'the Sun can be named in an answer even when it is down',
-  checkGrounding('Saturn will be easier to see once the Sun is properly down.', ctx),
+  /*
+   * The other body in the sentence is taken from tonight's sky rather than
+   * named outright. It used to say Saturn, which is a fact about the calendar
+   * and not about the Sun: on a night when Saturn is below the horizon the
+   * guard refused the sentence for mentioning Saturn, and this case failed
+   * having tested nothing it meant to test. The subject here is whether the
+   * Sun may be spoken of while it is down, so everything else in the sentence
+   * has to be something the context already supports.
+   */
+  checkGrounding(`${knownName} will be easier to see once the Sun is properly down.`, ctx),
   true,
 );
 
