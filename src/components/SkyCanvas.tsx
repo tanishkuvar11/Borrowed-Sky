@@ -498,7 +498,21 @@ export function SkyCanvas({
      * glow, and neither has detail that a fraction of a pixel was carrying.
      */
     const MAX_RATIO = Math.min(window.devicePixelRatio || 1, 2);
-    const MIN_RATIO = 1;
+    /*
+     * How soft the sky is allowed to get in exchange for keeping up.
+     *
+     * This was one, meaning a retina device in trouble fell all the way to a
+     * quarter of its pixels, and on a tablet that is visible: the planets are
+     * photographs a few tens of pixels across, and at that ratio they block up
+     * and read as badly resized rather than small.
+     *
+     * Three quarters keeps a bit over half the pixels, which is most of the
+     * saving with much less of the cost to the one thing in this scene that
+     * carries real detail. A device that still cannot hold the frame rate at
+     * this floor is one this scene was never going to satisfy, and softening
+     * it further only makes it worse in both directions at once.
+     */
+    const MIN_RATIO = 1.5;
     let ratio = MAX_RATIO;
 
     const resize = () => {
