@@ -496,7 +496,28 @@ export function SkyCanvas({
      * glow, and neither has detail that a fraction of a pixel was carrying.
      */
     const MAX_RATIO = Math.min(window.devicePixelRatio || 1, 2);
-    const MIN_RATIO = 1;
+
+    /*
+     * How far down it may step, which depends on how far up it started.
+     *
+     * Stepping down trades sharpness for frame rate, and that trade is only
+     * worth making when there is real sharpness to spend. A retina screen at a
+     * ratio of two has pixels to spare: halving it saves three quarters of the
+     * fill and lands on a clean two-to-one mapping the eye reads as slightly
+     * soft.
+     *
+     * A screen at 1.25, which is what Windows at 125 per cent gives you, has
+     * nothing to spare. Dropping it to one saves a third of the fill and
+     * smears every canvas pixel across one and a quarter screen pixels, and a
+     * fractional upscale like that is the blurriest thing this renderer can
+     * produce. It was reported as pixelated text, which is exactly what it is:
+     * the labels are drawn into the same buffer as the sky.
+     *
+     * So a display that is barely above one is left alone. If it cannot hold
+     * the frame rate it keeps a sharp picture and a slower one, because the
+     * alternative was giving up the picture and most of the stutter as well.
+     */
+    const MIN_RATIO = MAX_RATIO <= 1.5 ? MAX_RATIO : 1;
     let ratio = MAX_RATIO;
 
     const resize = () => {
