@@ -41,11 +41,10 @@ No install. No account. No telescope. No prior knowledge.
 | [Nothing is fabricated](#the-core-principle-nothing-is-fabricated) | the rule that shaped every decision |
 | [Built with IBM Bob](#built-with-ibm-bob) | the three briefs Bob owned, and what came out of them |
 | [The AI layer](#the-ai-layer-ibm-granite-on-watsonxai) | what Granite does and is forbidden from doing |
-| [The sky model](#machine-learning-a-sky-model-fitted-to-170000-human-observations) | ML fitted to 170,000 human observations |
+| [The sky model](#machine-learning-a-sky-model-fitted-to-143528-human-observations) | ML fitted to 143,528 human observations |
 | [Verification](#verification) | how the astronomy is proved |
 | [Running it](#running-it) | five minutes, no credentials needed |
 | [Privacy and security](#privacy-and-security) | what leaves your device, and what does not |
-| [Honest limitations](#honest-limitations) | what it deliberately does not do |
 
 Deeper detail lives beside the code: [running and deploying](docs/RUNNING.md) · [verification](docs/VERIFICATION.md) · [design notes](docs/DESIGN-NOTES.md) · [engineering log](docs/ENGINEERING-LOG.md)
 
@@ -125,7 +124,7 @@ The development record in full: **[docs/ENGINEERING-LOG.md](docs/ENGINEERING-LOG
 
 ### Visible is not the same as above the horizon
 
-A satellite overhead is invisible in Earth's shadow; a planet is invisible in a bright sky. A pass counts as *visible* only when the satellite is sunlit **and** the sky is dark **and** it clears 10 degrees. The same question about stars is what [the sky model](#machine-learning-a-sky-model-fitted-to-170000-human-observations) answers.
+A satellite overhead is invisible in Earth's shadow; a planet is invisible in a bright sky. A pass counts as *visible* only when the satellite is sunlit **and** the sky is dark **and** it clears 10 degrees. The same question about stars is what [the sky model](#machine-learning-a-sky-model-fitted-to-143528-human-observations) answers.
 
 ### Verification
 
@@ -195,13 +194,19 @@ That leaves it the part no template covers: working out which object *that brigh
 
 ---
 
-## Machine learning: a sky model fitted to 170,000 human observations
+## Machine learning: a sky model fitted to 143,528 human observations
 
 Granite is the language layer. This is the part that learned something.
 
-The app decides what is visible from four hand-written thresholds keyed on the Sun. They are right about the biggest thing that happens to a sky and silent about the next two: **the Moon**, and **light pollution**.
+**The gap.** Visibility came from four hand-written thresholds keyed on the Sun. They are right about the biggest thing that happens to a sky, and silent about the next two:
 
-[Globe at Night](https://globeatnight.org/) has the data. Since 2006, about 170,000 people have stood outside and reported which of eight star charts matched what they could actually see. Least squares on 121,998 of them, held out chronologically on the most recent 21,530.
+- the **Moon**
+- **light pollution**
+
+**The data.** [Globe at Night](https://globeatnight.org/). Since 2006, people have stood outside and reported which of eight star charts matched what they could actually see.
+
+- **121,998** observations fitted, ordinary least squares
+- **21,530** held out *chronologically*, so the test set is the most recent nights and not a random slice
 
 | term | effect |
 |---|---|
@@ -209,13 +214,29 @@ The app decides what is visible from four hand-written thresholds keyed on the S
 | each step of local dark-sky median | **0.737** |
 | each kilometre of elevation | **0.141** |
 
-Held-out error **1.4977**, against **1.6327** for guessing the average every time. **8.3% better**, on the same scale, with nothing converted.
+| result | |
+|---|---|
+| held-out error | **1.4977** |
+| guessing the average every time | **1.6327** |
+| improvement | **8.3%**, same scale, nothing converted |
 
-**The decision that made it work.** It returns a *correction*, never an answer: magnitudes to add to a limit the caller already has. It was fitted only on observations with the Sun below -18 degrees and is applied only there. Above that it returns exactly zero, so daylight runs code identical to what ran before the model existed. Daylight cannot regress, because the model cannot reach it. Two earlier versions replaced the thresholds outright and both listed Sirius as visible at noon.
+**The decision that made it work.** It returns a *correction*, never an answer: magnitudes to add to a limit the caller already has.
 
-In the app it is worth up to about 0.7 magnitudes. Faint stars fade as the Moon rises, a city sky draws thinner than a field, and Settings has a switch to turn it off and watch them come back.
+- fitted only on observations with the Sun below **-18 degrees**, and applied only there
+- above that it returns exactly zero, so daylight runs code identical to what ran before the model existed
+- daylight cannot regress, because the model cannot reach it
+- two earlier versions replaced the thresholds outright, and both listed Sirius as visible at noon
 
-**How it is checked.** One check asserts that for every brightness from magnitude -5 to +7, at seven Sun altitudes above -18, asking with the model gives an identical answer to asking without it. Another drives the real app in headless Chrome and blocks the model file at the network layer for a control run: same night, same Moon, same stars overhead, **838 points of light with the model against 882 without**.
+**What it is worth in the app.** Up to about **0.7 magnitudes**.
+
+- faint stars fade as the Moon rises
+- a city sky draws thinner than a field
+- Settings has a switch to turn it off and watch them come back
+
+**How it is checked.**
+
+- for every brightness from magnitude -5 to +7, at seven Sun altitudes above -18, asking with the model gives an identical answer to asking without it
+- a second check drives the real app in headless Chrome and blocks the model file at the network layer for a control run. Same night, same Moon, same stars overhead: **838 points of light with the model against 882 without**
 
 ---
 
@@ -258,14 +279,6 @@ The app asks for one thing about you. The design question was how little of it c
 | Endpoints that spend | Check origin and rate limit *before* the IAM exchange, so a refused request costs nothing. |
 
 **This is not authentication and does not pretend to be.** The origin allowlist stops another site putting this app's AI behind its own page. It does nothing about a caller that is not a browser, and [`guard.check.ts`](scripts/verify/guard.check.ts) asserts that hole deliberately, so a green tick cannot be read as a stronger claim than the code makes. Full reasoning: **[docs/DESIGN-NOTES.md](docs/DESIGN-NOTES.md)**
-
-## What it does not do
-
-No AR camera overlay: locking labels to a live image needs sensor precision the browser cannot deliver, and a flaky AR mode would undermine the part that works. Pass predictions cover the ISS and Tiangong, since a full search over every bright satellite would be too slow on a cheap phone. And the browser compass is less precise than a native one, so where it drifts the app says so and offers a correction rather than claiming an accuracy it does not have.
-
-The rest, including what each trade-off cost and why: **[docs/DESIGN-NOTES.md](docs/DESIGN-NOTES.md)**
-
----
 
 ## Credits and licences
 
