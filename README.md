@@ -37,7 +37,7 @@ No install. No account. No telescope. No prior knowledge.
 |---|---|
 | [The problem](#the-problem) | who this is actually for |
 | [What it does](#what-it-does) | the six things it is |
-| [IBM technology in this project](#ibm-technology-in-this-project) | Granite, watsonx.ai, Bob, at a glance |
+| [IBM technology in this project](#ibm-technology-in-this-project) | the four IBM parts, and what each one is responsible for |
 | [Nothing is fabricated](#the-core-principle-nothing-is-fabricated) | the rule that shaped every decision |
 | [Built with IBM Bob](#built-with-ibm-bob) | the three briefs Bob owned, and what came out of them |
 | [The AI layer](#the-ai-layer-ibm-granite-on-watsonxai) | what Granite does and is forbidden from doing |
