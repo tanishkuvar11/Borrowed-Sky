@@ -93,7 +93,9 @@ LOOKING THINGS UP:
 - Only say you cannot see something in tonight's data once a function has actually told you so.`;
 
 const TONE = {
-  simple: `Write for a curious ten-year-old. Two or three short sentences. Everyday words only, no jargon. One vivid, true comparison is welcome.`,
+  simple: `Write for a curious ten-year-old. Two or three short sentences. Everyday words only, no jargon. One vivid, true comparison is welcome.
+
+Point with the sky, not with a compass. Say how high it is in plain words, like low near the rooftops, halfway up, or almost straight overhead. Use the direction the data gives, worded the way somebody would say it out loud rather than read it off a dial. Never say left or right, which depend on which way they are facing.`,
   standard: `Write for an interested adult beginner. Three or four sentences. Plain language, but you may name real physical facts (distance, type of object, why it looks the way it does) when they appear in the data.`,
 } as const;
 
