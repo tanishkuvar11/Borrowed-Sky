@@ -2831,6 +2831,20 @@ button {
  * is just an assertion, but it is provenance rather than a reading and should
  * not compete with one.
  */
+/*
+ * What the thing is, ahead of where it is.
+ *
+ * Set as a sentence rather than as a reading: it is the answer to the question
+ * somebody actually asked by tapping, and the brass numerals underneath are
+ * the follow-up.
+ */
+.sheet__identity {
+  margin: 0.55rem 0 0;
+  color: var(--starlight-soft);
+  font-size: var(--t-small);
+  line-height: 1.5;
+}
+
 .context-note__source {
   display: block;
   margin-top: 0.15rem;
