@@ -2,7 +2,7 @@
 
 <img src="docs/hero.png" alt="Borrowed Sky" width="100%">
 
-**A zero-install sky companion that tells anyone, anywhere, what is overhead right now, and explains it like a patient guide, not a data dump.**
+**A zero-install sky companion that tells anyone, anywhere, what is overhead right now, and explains it like a patient guide.**
 
 [![IBM watsonx.ai](https://img.shields.io/badge/IBM-watsonx.ai-0f62fe?style=for-the-badge&logo=ibm&logoColor=white)](https://www.ibm.com/products/watsonx-ai)
 [![IBM Granite](https://img.shields.io/badge/IBM-Granite-0043ce?style=for-the-badge&logo=ibm&logoColor=white)](https://www.ibm.com/granite)
