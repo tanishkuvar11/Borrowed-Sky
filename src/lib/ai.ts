@@ -111,7 +111,7 @@ function describeDistance(body: SkyBody): string | undefined {
   }
   if (unit === 'au') {
     const lightMinutes = value * 8.317;
-    return `${value.toFixed(2)} times the Earth-Sun distance; light takes ${Math.round(lightMinutes)} minutes to cross it`;
+    return `${value.toFixed(2)} times as far away as the Sun; its light takes ${Math.round(lightMinutes)} minutes to reach us`;
   }
   return `${value.toFixed(1)} light years away`;
 }
@@ -267,12 +267,34 @@ export function narrateLocally(context: SkyContext, tone: Tone, question?: strin
     const f = context.focus;
     const parts: string[] = [];
 
+    /*
+     * A number of degrees is the one part of this a ten-year-old cannot use.
+     * Nobody standing in a garden can convert twenty four degrees into where to
+     * point, so the simple voice keeps the words and drops the reading. The
+     * standard voice still gets it, because an adult beginner can work with it.
+     */
     parts.push(
-      `${f.name} is ${f.heightInSky} toward the ${f.direction}, about ${Math.round(f.altitudeDegrees)} degrees above the horizon.`,
+      simple
+        ? `${f.name} is ${f.heightInSky} toward the ${f.direction}.`
+        : `${f.name} is ${f.heightInSky} toward the ${f.direction}, about ${Math.round(f.altitudeDegrees)} degrees above the horizon.`,
     );
     if (f.fact) parts.push(f.fact);
     if (f.phase) parts.push(`It is a ${f.phase.toLowerCase()} tonight.`);
-    if (f.distance) parts.push(simple ? `It is ${f.distance}.` : `Distance right now: ${f.distance}.`);
+    /*
+     * A planet's distance is given as two clauses: a multiple of the Earth to
+     * Sun gap, and the time its light takes to arrive. The second is the half a
+     * child can picture, so the simple voice keeps only that one.
+     */
+    if (f.distance) {
+      const lightClause = f.distance.split('; ')[1];
+      parts.push(
+        simple
+          ? lightClause
+            ? `${lightClause.charAt(0).toUpperCase()}${lightClause.slice(1)}.`
+            : `It is ${f.distance}.`
+          : `Distance right now: ${f.distance}.`,
+      );
+    }
     if (f.note) parts.push(`It is ${f.note}.`);
 
     if (!simple) {
@@ -307,7 +329,12 @@ export function narrateLocally(context: SkyContext, tone: Tone, question?: strin
     ? ` Coming up: ${next.name} in about ${next.startsInMinutes} minutes.`
     : '';
 
-  const asked = question ? ' (Answered from the computed sky data, without the AI guide.)' : '';
+  /*
+   * The provenance line under every answer already says which voice spoke, so
+   * repeating it inside the sentence only adds a clause a child has to read
+   * past. The standard voice keeps it, where the aside costs nothing.
+   */
+  const asked = question && !simple ? ' (Answered from the computed sky data, without the AI guide.)' : '';
   return opening + tail + asked;
 }
 

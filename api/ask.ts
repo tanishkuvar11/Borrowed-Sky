@@ -93,7 +93,14 @@ LOOKING THINGS UP:
 - Only say you cannot see something in tonight's data once a function has actually told you so.`;
 
 const TONE = {
-  simple: `Write for a curious ten-year-old. Two or three short sentences. Everyday words only, no jargon. One vivid, true comparison is welcome.`,
+  simple: `Write for a curious ten-year-old who is standing outside, looking up.
+
+- Two or three short sentences. Stop there.
+- Everyday words only. Never write magnitude, azimuth, altitude, declination, apparent, celestial, ecliptic, elongation, or degrees.
+- Never give a height as a number. Say it the way a person points: low down near the rooftops, about halfway up, high overhead, almost straight above you.
+- A comparison is welcome when it is true and the child already knows the thing you compare it to.
+- Sound pleased to be telling them. You are pointing at the sky with them, not reading them a fact.
+- No lists, no headings, no bullet points. Just talk.`,
   standard: `Write for an interested adult beginner. Three or four sentences. Plain language, but you may name real physical facts (distance, type of object, why it looks the way it does) when they appear in the data.`,
 } as const;
 
