@@ -293,9 +293,9 @@ const DAY_PALETTE: SkyPalette = {
    * out and the fainter objects go with them. This is as far up as the type
    * survives, which reads as day without costing the instrument its legibility.
    */
-  skyTopDay: [24, 44, 96],
+  skyTopDay: [46, 78, 140],
   skyBottom: [16, 12, 32],
-  skyBottomDay: [86, 96, 150],
+  skyBottomDay: [120, 140, 185],
   grid: 'rgba(201, 162, 39, 0.13)',
   // Opaque on purpose: the ground has to stop the galactic band dead, or the
   // sky appears to continue through the earth.
@@ -346,9 +346,11 @@ const DAY_PALETTE: SkyPalette = {
 
 const NIGHT_PALETTE: SkyPalette = {
   skyTop: [8, 1, 1],
-  skyTopDay: [46, 6, 4],
+  // Lifted by the same proportion as the daylight palette above, so red mode
+  // tells the same story about the time of day as the ordinary one.
+  skyTopDay: [88, 12, 8],
   skyBottom: [16, 3, 2],
-  skyBottomDay: [78, 14, 10],
+  skyBottomDay: [112, 22, 15],
   grid: 'rgba(255, 106, 77, 0.13)',
   ground: 'rgb(5, 0, 0)',
   horizonHaze: 'rgba(8, 1, 1, 0.6)',
@@ -496,29 +498,7 @@ export function SkyCanvas({
      * glow, and neither has detail that a fraction of a pixel was carrying.
      */
     const MAX_RATIO = Math.min(window.devicePixelRatio || 1, 2);
-
-    /*
-     * The ratios it is allowed to use, and why it is a list rather than a slide.
-     *
-     * Stepping down trades sharpness for frame rate, and it used to do that by
-     * arithmetic: subtract a quarter, a half, three quarters. On a screen at a
-     * ratio of two that produces 1.75, 1.5, 1.25, none of which divide into two.
-     * The canvas is then drawn at one size and stretched to another by a
-     * fraction, and a fractional resample is the blurriest thing this renderer
-     * can do. A tablet sitting at 1.5 was drawing 1230 pixels across and
-     * showing them on 1640, and it was reported, correctly, as everything
-     * looking pixelated, text included, since the labels share that buffer.
-     *
-     * So the ladder has two rungs and both of them map cleanly: full, and half.
-     * Half of two is one, which is an honest two-to-one and reads as slightly
-     * soft rather than smeared.
-     *
-     * A display barely above one has no rung to fall to. Halving 1.25 would be
-     * 0.625, far worse than the stutter it was meant to cure, so those keep
-     * one rung and stay sharp at whatever rate they manage.
-     */
-    const RATIOS = MAX_RATIO > 1.5 ? [MAX_RATIO, MAX_RATIO / 2] : [MAX_RATIO];
-    const MIN_RATIO = RATIOS[RATIOS.length - 1];
+    const MIN_RATIO = 1;
     let ratio = MAX_RATIO;
 
     const resize = () => {
@@ -572,8 +552,8 @@ export function SkyCanvas({
          * machine that is badly behind lands near the bottom immediately
          * instead of walking there.
          */
-        // Down a rung. There is only ever one below full, so this lands there.
-        ratio = MIN_RATIO;
+        const over = median / 16.7;
+        ratio = Math.max(MIN_RATIO, ratio - (over > 2.5 ? 0.75 : over > 1.6 ? 0.5 : 0.25));
         fastRuns = 0;
         resize();
       } else if (median < 17 && ratio < MAX_RATIO) {
@@ -582,8 +562,7 @@ export function SkyCanvas({
         // fault than oscillating between sharp and soft every second.
         if (fastRuns >= 6) {
           fastRuns = 0;
-          // Back up a rung, which is straight to full: the only step there is.
-          ratio = MAX_RATIO;
+          ratio = Math.min(MAX_RATIO, ratio + 0.25);
           resize();
         }
       } else {
@@ -2325,6 +2304,16 @@ function drawStarHighlights(
   const pixelScale = Math.max(0.75, Math.min(1.6, radius / 320));
   const visibility = starVisibility(conditions);
 
+  /*
+   * How much the sky is working against the type.
+   *
+   * A star's name is a pale warm grey, which separates cleanly from a night
+   * sky and sinks into a daylit one. Rather than darken the sky back down, or
+   * keep a second colour for daytime, the label carries its own contrast: no
+   * halo at all at night, where there is nothing to separate from, and its
+   * strongest at noon.
+   */
+  const glare = 1 - darknessFactor(conditions);
 
   const bright: { x: number; y: number; r: number; index: number; airmass: number }[] = [];
   const vectors = catalog.vectors;
@@ -2419,7 +2408,12 @@ function drawStarHighlights(
     const w = ctx.measureText(name).width;
     if (claimLabel(lx, star.y - 6, w, 12)) {
       ctx.fillStyle = palette.starLabel;
+      if (glare > 0.02) {
+        ctx.shadowColor = `rgba(4, 8, 22, ${(0.85 * glare).toFixed(3)})`;
+        ctx.shadowBlur = 4;
+      }
       ctx.fillText(name, lx, star.y);
+      ctx.shadowBlur = 0;
     }
   }
   ctx.restore();
