@@ -162,6 +162,67 @@ interface ChatMessage {
   tool_call_id?: string;
 }
 
+/*
+ * Tool calls the model wrote out as prose instead of asking for properly.
+ *
+ * granite-4-h-small does this: rather than filling in the structured
+ * tool_calls field, it prints `<tool_call> {"name": "where_is", ...}` into the
+ * message body as if it were talking. The reply then looks like an ordinary
+ * answer with no tool calls attached, so it went through the grounding check
+ * and out to the client, which rendered the raw tag to somebody who had asked
+ * where the space station was.
+ *
+ * Recovered rather than rejected. The model asked a perfectly sensible
+ * question in the wrong envelope, and everything needed to answer it is
+ * there — so it is lifted out, checked against the functions actually on
+ * offer, and handed back as the tool call it was meant to be. The assistant
+ * turn written into the transcript is the structured form too, because the
+ * tool results that follow reference these ids and watsonx will not accept
+ * them against a turn whose tool_calls are prose.
+ */
+const TOOL_CALL_BLOCK = /<\|?tool_call\|?>([\s\S]*?)<\/\|?tool_call\|?>/gi;
+
+function leakedToolCalls(
+  content: string | undefined,
+  tools: unknown[] | undefined,
+): ChatMessage['tool_calls'] {
+  if (!content || !tools?.length) return undefined;
+
+  const offered = new Set(
+    tools
+      .map((tool) => (tool as { function?: { name?: string } })?.function?.name)
+      .filter((name): name is string => typeof name === 'string'),
+  );
+
+  const found: NonNullable<ChatMessage['tool_calls']> = [];
+  for (const match of content.matchAll(TOOL_CALL_BLOCK)) {
+    let parsed: { name?: string; arguments?: unknown };
+    try {
+      parsed = JSON.parse(match[1].trim());
+    } catch {
+      continue;
+    }
+    // Only functions this request actually offered. A name the model invented
+    // is not a call, it is a hallucination with angle brackets around it.
+    if (!parsed?.name || !offered.has(parsed.name)) continue;
+    found.push({
+      id: `leaked_${found.length}`,
+      type: 'function',
+      function: {
+        name: parsed.name,
+        // The wire format is a JSON string; the leaked form is usually an
+        // object, because it was written by something composing prose.
+        arguments:
+          typeof parsed.arguments === 'string'
+            ? parsed.arguments
+            : JSON.stringify(parsed.arguments ?? {}),
+      },
+    });
+  }
+
+  return found.length ? found : undefined;
+}
+
 /**
  * How far this will carry a conversation.
  *
@@ -618,21 +679,36 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
      * themselves refuse what they cannot answer, and they are the only ones in
      * a position to know.
      */
-    if (reply.tool_calls?.length) {
+    const asked = reply.tool_calls?.length
+      ? reply.tool_calls
+      : leakedToolCalls(reply.content, toolsDropped ? undefined : tools);
+
+    if (asked?.length) {
       sendJson(res, 200, {
         kind: 'tool_calls',
         model,
-        calls: reply.tool_calls.map((call) => ({
+        calls: asked.map((call) => ({
           id: call.id,
           name: call.function?.name,
           arguments: call.function?.arguments,
         })),
-        transcript: [...transcript, reply],
+        transcript: [
+          ...transcript,
+          reply.tool_calls?.length ? reply : { role: 'assistant', content: '', tool_calls: asked },
+        ],
       });
       return;
     }
 
-    const text = reply.content?.trim();
+    /*
+     * Anything left over that still looks like a call is not an answer.
+     *
+     * A leak this did not recognise - a function name it invented, or JSON it
+     * mangled - must not be printed at somebody as prose. Stripping it leaves
+     * whatever real sentences came with it, and if that is nothing then this
+     * completion was empty in every way that matters and is treated as such.
+     */
+    const text = reply.content?.replace(TOOL_CALL_BLOCK, '').trim();
     if (!text) throw new Error(`${model} returned an empty completion`);
 
     // --- grounding check ----------------------------------------------------
