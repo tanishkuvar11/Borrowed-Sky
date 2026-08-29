@@ -1,6 +1,23 @@
 {
   "name": "borrowed-sky",
   "private": true,
+  "license": "MIT",
+  "homepage": "https://borrowed-sky.vercel.app/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tanishkuvar11/Borrowed-Sky.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tanishkuvar11/Borrowed-Sky/issues"
+  },
+  "keywords": [
+    "astronomy",
+    "light-pollution",
+    "ibm-granite",
+    "watsonx",
+    "space-exploration",
+    "stargazing"
+  ],
   "version": "1.0.0",
   "type": "module",
   "description": "A zero-install, browser-based AI sky companion that tells anyone, anywhere, what is overhead right now.",

@@ -13,7 +13,7 @@
 ![Vite](https://img.shields.io/badge/Vite%206-646cff?style=flat-square&logo=vite&logoColor=white)
 ![No install](https://img.shields.io/badge/install-none-2e7d32?style=flat-square)
 ![No account](https://img.shields.io/badge/account-none-2e7d32?style=flat-square)
-![Checks](https://img.shields.io/badge/verification-17%20suites-2e7d32?style=flat-square)
+![Checks](https://img.shields.io/badge/verification-21%20suites-2e7d32?style=flat-square)
 
 ### [Open the live app](https://borrowed-sky.vercel.app/)
 
