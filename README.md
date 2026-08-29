@@ -1,6 +1,6 @@
 <div align="center">
 
-# Borrowed Sky
+<img src="docs/hero.png" alt="Borrowed Sky" width="100%">
 
 **A zero-install sky companion that tells anyone, anywhere, what is overhead right now, and explains it like a patient guide, not a data dump.**
 
